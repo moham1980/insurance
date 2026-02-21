@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "lib": ["ES2022"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true
+  },
+  "files": [],
+  "references": [
+    { "path": "./packages/shared" },
+    { "path": "./services/claims-service" },
+    { "path": "./services/outbox-relay" },
+    { "path": "./services/claims-readmodel-service" },
+    { "path": "./services/fraud-service" },
+    { "path": "./services/document-service" },
+    { "path": "./services/document-ai-service" },
+    { "path": "./services/copilot-service" },
+    { "path": "./services/orchestrator-service" },
+    { "path": "./services/api-gateway" },
+    { "path": "./services/auth-service" },
+    { "path": "./services/monitoring-service" },
+    { "path": "./services/regulatory-gateway-service" }
+  ]
+}

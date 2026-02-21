@@ -1,0 +1,22 @@
+{
+  "name": "outbox-relay",
+  "version": "1.0.0",
+  "description": "Outbox Relay - Polls outbox table and publishes to Kafka",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@insurance/shared": "1.0.0",
+    "kafkajs": "^2.2.4",
+    "pg": "^8.11.3",
+    "typeorm": "^0.3.17"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}
