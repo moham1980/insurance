@@ -21,6 +21,12 @@
       "@insurance/shared": ["../../packages/shared"]
     }
   },
-  "include": ["src/**/*"],
+  "include": [
+    "src/main.ts",
+    "src/app.module.ts",
+    "src/monitoring.controller.ts",
+    "src/monitoring.service.ts",
+    "src/entities/**/*"
+  ],
   "exclude": ["node_modules", "dist"]
 }

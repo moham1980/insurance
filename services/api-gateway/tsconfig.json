@@ -12,12 +12,18 @@
     "resolveJsonModule": true,
     "declaration": true,
     "sourceMap": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
     "moduleResolution": "node",
     "baseUrl": ".",
     "paths": {
       "@insurance/shared": ["../../packages/shared"]
     }
   },
-  "include": ["src/**/*"],
+  "include": [
+    "src/main.ts",
+    "src/app.module.ts",
+    "src/health.controller.ts"
+  ],
   "exclude": ["node_modules", "dist"]
 }

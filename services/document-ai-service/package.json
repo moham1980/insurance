@@ -2,21 +2,28 @@
   "name": "document-ai-service",
   "version": "1.0.0",
   "description": "Document AI Service - consume document events and extract fields (MVP mock)",
-  "main": "dist/index.js",
+  "main": "dist/main.js",
   "scripts": {
     "build": "tsc",
-    "dev": "ts-node src/index.ts",
-    "start": "node dist/index.js"
+    "dev": "bun run src/main.ts",
+    "start": "bun run dist/main.js"
   },
   "dependencies": {
     "@insurance/shared": "1.0.0",
+    "@google/generative-ai": "^0.21.0",
     "kafkajs": "^2.2.4",
+    "@nestjs/common": "^10.3.0",
+    "@nestjs/core": "^10.3.0",
+    "@nestjs/platform-fastify": "^10.3.0",
+    "@nestjs/typeorm": "^10.0.2",
+    "reflect-metadata": "^0.2.1",
+    "rxjs": "^7.8.1",
     "typeorm": "^0.3.17",
+    "undici": "^6.19.8",
     "pg": "^8.11.3"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
-    "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
   }
 }

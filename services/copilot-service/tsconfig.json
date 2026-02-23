@@ -21,6 +21,12 @@
       "@insurance/shared": ["../../packages/shared"]
     }
   },
-  "include": ["src/**/*"],
+  "include": [
+    "src/main.ts",
+    "src/app.module.ts",
+    "src/copilot.controller.ts",
+    "src/copilot.service.ts",
+    "src/entities/**/*"
+  ],
   "exclude": ["node_modules", "dist"]
 }

@@ -1,6 +1,6 @@
 import { DataSource } from 'typeorm';
 import { Kafka, Producer } from 'kafkajs';
-import { OutboxEvent, createLogger, Logger } from '@insurance/shared';
+import { OutboxEvent, createDataSource, createLogger, Logger } from '@insurance/shared';
 import { Repository } from 'typeorm';
 
 interface RelayConfig {
@@ -27,7 +27,7 @@ class OutboxRelay {
   private logger: Logger;
   private config: RelayConfig;
   private isRunning: boolean = false;
-  private timer: NodeJS.Timeout | null = null;
+  private timer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(config: RelayConfig) {
     this.config = config;
@@ -48,11 +48,10 @@ class OutboxRelay {
     this.producer = this.kafka.producer();
 
     // Initialize DataSource
-    const { createDataSource } = require('@insurance/shared');
     this.dataSource = createDataSource({
       ...config.dbConfig,
       entities: [OutboxEvent],
-      synchronize: false,
+      synchronize: process.env.DB_SYNC === 'true',
     });
   }
 

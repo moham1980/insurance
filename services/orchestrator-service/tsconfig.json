@@ -21,6 +21,13 @@
       "@insurance/shared": ["../../packages/shared"]
     }
   },
-  "include": ["src/**/*"],
+  "include": [
+    "src/main.ts",
+    "src/app.module.ts",
+    "src/orchestrator.service.ts",
+    "src/orchestrations.controller.ts",
+    "src/work-items.controller.ts",
+    "src/entities/**/*"
+  ],
   "exclude": ["node_modules", "dist"]
 }
