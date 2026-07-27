@@ -1,0 +1,9 @@
+{
+  "shadow": {
+    "1": { "value": "0 1px 2px rgb(0 0 0 / 0.06)" },
+    "2": { "value": "0 4px 12px rgb(0 0 0 / 0.08)" },
+    "3": { "value": "0 12px 32px rgb(0 0 0 / 0.12)" },
+    "inset": { "value": "inset 0 2px 4px rgb(0 0 0 / 0.06)" },
+    "focus": { "value": "0 0 0 3px rgb(30 91 255 / 0.2)" }
+  }
+}

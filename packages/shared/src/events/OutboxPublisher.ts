@@ -1,4 +1,4 @@
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { OutboxEvent } from './OutboxEvent';
 import { EventEnvelope } from './EventEnvelope';
 import { v4 as uuidv4 } from 'uuid';
@@ -16,8 +16,8 @@ export interface PublishOptions {
 export class OutboxPublisher {
   private outboxRepo: Repository<OutboxEvent>;
 
-  constructor(dataSource: DataSource) {
-    this.outboxRepo = dataSource.getRepository(OutboxEvent);
+  constructor(dataSourceOrManager: DataSource | EntityManager) {
+    this.outboxRepo = dataSourceOrManager.getRepository(OutboxEvent);
   }
 
   async publish(options: PublishOptions): Promise<string> {

@@ -21,12 +21,6 @@
       "@insurance/shared": ["../../packages/shared"]
     }
   },
-  "include": [
-    "src/main.ts",
-    "src/app.module.ts",
-    "src/claims.controller.ts",
-    "src/claims.service.ts",
-    "src/entities/**/*"
-  ],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }

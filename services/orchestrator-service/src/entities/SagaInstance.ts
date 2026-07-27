@@ -1,18 +1,22 @@
-import { Entity, PrimaryGeneratedColumn, Column, Index } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, Index, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 
 @Entity('saga_instances')
 @Index(['sagaType', 'status'])
 @Index(['correlationId'])
+@Index(['tenantId'])
 @Index(['createdAt'])
 export class SagaInstance {
   @PrimaryGeneratedColumn('uuid', { name: 'saga_id' })
   sagaId: string;
 
+  @Column({ name: 'tenant_id', type: 'uuid' })
+  tenantId: string;
+
   @Column({ name: 'saga_type', type: 'text' })
-  sagaType: 'ClaimPayment' | 'PolicyIssuance' | 'ComplaintResolution';
+  sagaType: 'ClaimPayment' | 'PolicyIssuance' | 'ComplaintResolution' | 'FraudInvestigation' | 'ReinsuranceRecovery';
 
   @Column({ name: 'status', type: 'text' })
-  status: 'started' | 'waiting' | 'completed' | 'failed' | 'compensating';
+  status: 'started' | 'waiting' | 'completed' | 'failed' | 'compensating' | 'compensated';
 
   @Column({ name: 'correlation_id', type: 'text' })
   correlationId: string;
@@ -35,10 +39,10 @@ export class SagaInstance {
   @Column({ name: 'error_message', type: 'text', nullable: true })
   errorMessage: string | null;
 
-  @Column({ name: 'created_at', type: 'timestamptz', default: () => 'NOW()' })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
-  @Column({ name: 'updated_at', type: 'timestamptz', default: () => 'NOW()' })
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
 
   @Column({ name: 'completed_at', type: 'timestamptz', nullable: true })

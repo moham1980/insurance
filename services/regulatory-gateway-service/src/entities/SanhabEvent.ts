@@ -3,12 +3,16 @@ import { Entity, PrimaryGeneratedColumn, Column, Index, CreateDateColumn } from 
 @Entity('sanhab_events')
 @Index(['externalEventId'], { unique: true })
 @Index(['eventType', 'receivedAt'])
+@Index(['tenantId', 'receivedAt'])
 export class SanhabEvent {
   @PrimaryGeneratedColumn('uuid', { name: 'sanhab_event_id' })
   sanhabEventId!: string;
 
   @Column({ name: 'external_event_id', type: 'text' })
   externalEventId!: string;
+
+  @Column({ name: 'tenant_id', type: 'text', nullable: true })
+  tenantId!: string | null;
 
   @Column({ name: 'event_type', type: 'text' })
   eventType!: string;

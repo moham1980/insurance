@@ -1,15 +1,22 @@
-import { Entity, PrimaryGeneratedColumn, Column, Index, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, Index, CreateDateColumn, UpdateDateColumn, VersionColumn } from 'typeorm';
 
 @Entity('claims')
 @Index(['claimNumber'], { unique: true })
 @Index(['policyId'])
 @Index(['status', 'updatedAt'])
+@Index(['tenantId'])
 export class Claim {
   @PrimaryGeneratedColumn('uuid', { name: 'claim_id' })
   claimId: string;
 
+  @Column({ name: 'tenant_id', type: 'uuid' })
+  tenantId: string;
+
   @Column({ name: 'claim_number', type: 'text', unique: true })
   claimNumber: string;
+
+  @VersionColumn({ name: 'version', type: 'int', default: 0 })
+  version: number;
 
   @Column({ name: 'policy_id', type: 'uuid' })
   policyId: string;
@@ -27,7 +34,7 @@ export class Claim {
   description: string | null;
 
   @Column({ name: 'status', type: 'text', default: 'registered' })
-  status: 'registered' | 'assessed' | 'approved' | 'paid' | 'closed' | 'rejected';
+  status: 'registered' | 'assessed' | 'approved' | 'paid' | 'closed' | 'rejected' | 'adjuster_review';
 
   @Column({ name: 'assessed_amount', type: 'numeric', nullable: true })
   assessedAmount: number | null;
@@ -38,8 +45,82 @@ export class Claim {
   @Column({ name: 'paid_amount', type: 'numeric', nullable: true })
   paidAmount: number | null;
 
+  // Deductible and franchise fields
+  @Column({ name: 'deductible_amount', type: 'numeric', nullable: true })
+  deductibleAmount: number | null;
+
+  @Column({ name: 'deductible_percentage', type: 'numeric', nullable: true })
+  deductiblePercentage: number | null;
+
+  @Column({ name: 'franchise_amount', type: 'numeric', nullable: true })
+  franchiseAmount: number | null;
+
+  @Column({ name: 'franchise_percentage', type: 'numeric', nullable: true })
+  franchisePercentage: number | null;
+
+  @Column({ name: 'gross_claim_amount', type: 'numeric', nullable: true })
+  grossClaimAmount: number | null;
+
   @Column({ name: 'requires_human_triage', type: 'boolean', default: true })
   requiresHumanTriage: boolean;
+
+  // FNOL-specific fields
+  @Column({ name: 'notification_channel', type: 'text', nullable: true })
+  notificationChannel: 'web' | 'mobile_app' | 'sms' | 'email' | 'call_center' | null;
+
+  @Column({ name: 'notification_source', type: 'text', nullable: true })
+  notificationSource: string | null;
+
+  @Column({ name: 'auto_assigned_adjuster_id', type: 'uuid', nullable: true })
+  autoAssignedAdjusterId: string | null;
+
+  @Column({ name: 'auto_triage_score', type: 'int', nullable: true })
+  autoTriageScore: number | null;
+
+  @Column({ name: 'auto_triage_category', type: 'text', nullable: true })
+  autoTriageCategory: 'low' | 'medium' | 'high' | null;
+
+  @Column({ name: 'policy_validated', type: 'boolean', default: false })
+  policyValidated: boolean;
+
+  @Column({ name: 'policy_validation_result', type: 'jsonb', nullable: true })
+  policyValidationResult: Record<string, any> | null;
+
+  @Column({ name: 'contact_phone', type: 'text', nullable: true })
+  contactPhone: string | null;
+
+  @Column({ name: 'contact_email', type: 'text', nullable: true })
+  contactEmail: string | null;
+
+  @Column({ name: 'location_address', type: 'text', nullable: true })
+  locationAddress: string | null;
+
+  @Column({ name: 'location_city', type: 'text', nullable: true })
+  locationCity: string | null;
+
+  @Column({ name: 'location_province', type: 'text', nullable: true })
+  locationProvince: string | null;
+
+  @Column({ name: 'witnesses', type: 'jsonb', nullable: true })
+  witnesses: Record<string, any>[] | null;
+
+  @Column({ name: 'attached_documents', type: 'jsonb', nullable: true })
+  attachedDocuments: Record<string, any>[] | null;
+
+  @Column({ name: 'metadata', type: 'jsonb', nullable: true })
+  metadata: Record<string, any> | null;
+
+  @Column({ name: 'idempotency_key', type: 'text', nullable: true })
+  idempotencyKey: string | null;
+
+  @Column({ name: 'idempotency_payload_hash', type: 'text', nullable: true })
+  idempotencyPayloadHash: string | null;
+
+  @Column({ name: 'currency', type: 'text', default: 'IRR' })
+  currency: string;
+
+  @Column({ name: 'payment_reference', type: 'text', nullable: true })
+  paymentReference: string | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

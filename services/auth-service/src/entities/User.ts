@@ -1,8 +1,10 @@
 import { Entity, PrimaryGeneratedColumn, Column, Index, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { piiFieldTransformer } from '../utils/field-encryption';
 
 @Entity('users')
 @Index(['email'], { unique: true })
 @Index(['username'], { unique: true })
+@Index(['orgUnitId'])
 export class User {
   @PrimaryGeneratedColumn('uuid', { name: 'user_id' })
   userId: string;
@@ -28,6 +30,27 @@ export class User {
   @Column({ name: 'department', type: 'text', nullable: true })
   department: string | null;
 
+  @Column({ name: 'org_unit_id', type: 'uuid', nullable: true })
+  orgUnitId: string | null;
+
+  @Column({ name: 'position_title', type: 'text', nullable: true })
+  positionTitle: string | null;
+
+  @Column({
+    name: 'national_id',
+    type: 'text',
+    nullable: true,
+    transformer: piiFieldTransformer,
+  })
+  nationalId: string | null;
+
+  @Column({ name: 'global_user_id', type: 'text', nullable: true })
+  globalUserId: string | null;
+
+  @Column({ name: 'tenant_id', type: 'uuid', nullable: true })
+  tenantId: string | null;
+
+  @Index()
   @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive: boolean;
 

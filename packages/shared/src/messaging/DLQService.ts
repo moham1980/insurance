@@ -80,15 +80,14 @@ export class DeadLetterQueueService {
   }
 
   async processRetries(): Promise<void> {
-    const pendingRetries = await this.dlqRepo.find({
-      where: {
-        status: 'pending',
-        nextRetryAt: { $lte: new Date() } as any,
-        retryCount: { $lt: () => 'max_retries' } as any,
-      },
-      take: 100,
-      order: { nextRetryAt: 'ASC' },
-    });
+    const pendingRetries = await this.dlqRepo
+      .createQueryBuilder('dlq')
+      .where('dlq.status = :status', { status: 'pending' })
+      .andWhere('dlq.next_retry_at <= :now', { now: new Date() })
+      .andWhere('dlq.retry_count < dlq.max_retries')
+      .orderBy('dlq.next_retry_at', 'ASC')
+      .take(100)
+      .getMany();
 
     for (const entry of pendingRetries) {
       try {

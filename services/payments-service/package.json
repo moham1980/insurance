@@ -1,0 +1,36 @@
+{
+  "name": "payments-service",
+  "version": "1.0.0",
+  "description": "Payments Service - stage 5 claim payment flow aligned with Iran insurance processes (1404)",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "bun run src/main.ts",
+    "start": "bun run dist/main.js",
+    "migrate": "bun run dist/migrate.js",
+    "migrate:build": "bun run build && bun run dist/migrate.js",
+    "test": "bun test",
+    "test:unit": "bun test",
+    "test:integration": "echo 'Integration tests require a running PostgreSQL/Kafka/Redis stack; run with docker compose and dedicated integration harness'"
+  },
+  "dependencies": {
+    "@insurance/shared": "1.0.0",
+    "@nestjs/common": "^10.3.0",
+    "@nestjs/core": "^10.3.0",
+    "@nestjs/platform-fastify": "^10.3.0",
+    "@nestjs/typeorm": "^10.0.2",
+    "reflect-metadata": "^0.2.1",
+    "rxjs": "^7.8.1",
+    "typeorm": "^0.3.17",
+    "pg": "^8.11.3",
+    "uuid": "^9.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "@types/node": "^20.10.0",
+    "@types/uuid": "^9.0.7",
+    "@types/jsonwebtoken": "^9.0.5"
+  }
+}

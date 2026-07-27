@@ -11,15 +11,38 @@
     "build": "bun run --filter '*' build",
     "dev": "docker compose up -d && bun run --filter '*' dev",
     "test": "bun run --filter '*' test",
+    "test:e2e": "jest --config jest.config.e2e.cjs",
+    "test:integration": "jest --config jest.config.integration.cjs",
+    "test:contract": "jest --config jest.config.contract.cjs",
+    "test:unit": "jest --config jest.config.unit.cjs",
+    "test:resilience": "jest --config jest.config.resilience.cjs",
     "lint": "eslint . --ext .ts",
     "typecheck": "tsc --noEmit",
-    "kafka:topics:create": "bun run scripts/create-topics.js"
+    "kafka:topics:create": "bun run scripts/create-topics.js",
+    "lighthouse": "lhci autorun",
+    "a11y:check": "bun run scripts/a11y-check.ts",
+    "health:check": "bun run scripts/health-check.ts",
+    "test:smoke": "bun run scripts/smoke-tests.ts",
+    "smoke:local": "bun run scripts/smoke-tests.ts",
+    "start:local": "bun run scripts/start-local.ts",
+    "build:sequential": "bun run scripts/build-all-sequential.ts",
+    "docker:build:all": "bun run scripts/docker-build-all.ts"
+  },
+  "dependencies": {
+    "nopt": "^7.2.1"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
+    "@types/jest": "^29.5.0",
     "@typescript-eslint/eslint-plugin": "^6.15.0",
     "@typescript-eslint/parser": "^6.15.0",
+    "axios": "^1.6.0",
     "eslint": "^8.56.0",
-    "typescript": "^5.3.3"
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.0",
+    "typescript": "5.3.3",
+    "@lhci/cli": "^0.14.0",
+    "axe-core": "^4.9.0",
+    "jsdom": "^24.0.0"
   }
 }

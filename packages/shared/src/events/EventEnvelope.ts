@@ -14,6 +14,10 @@ export interface EventEnvelope<T = unknown> {
   occurredAt: string;
   producer: string;
   correlationId: string;
+  tenantId?: string;
+  idempotencyKey?: string;
+  causationId?: string;
+  traceparent?: string;
   subject: EventSubject;
   payload: T;
 }
@@ -21,4 +25,43 @@ export interface EventEnvelope<T = unknown> {
 export interface DomainEvent<T = unknown> {
   topic: string;
   envelope: EventEnvelope<T>;
+}
+
+export type CreateEventEnvelopeParams<TPayload> = {
+  eventId: string;
+  eventType: string;
+  eventVersion: number;
+  producer: string;
+  correlationId: string;
+  subject: EventSubject;
+  payload: TPayload;
+  tenantId?: string;
+  idempotencyKey?: string;
+  causationId?: string;
+  traceparent?: string;
+  occurredAt?: Date | string;
+};
+
+export function createEventEnvelope<TPayload>(params: CreateEventEnvelopeParams<TPayload>): EventEnvelope<TPayload> {
+  const occurredAt =
+    params.occurredAt instanceof Date
+      ? params.occurredAt.toISOString()
+      : typeof params.occurredAt === 'string'
+        ? params.occurredAt
+        : new Date().toISOString();
+
+  return {
+    eventId: params.eventId,
+    eventType: params.eventType,
+    eventVersion: params.eventVersion,
+    occurredAt,
+    producer: params.producer,
+    correlationId: params.correlationId,
+    tenantId: params.tenantId,
+    idempotencyKey: params.idempotencyKey,
+    causationId: params.causationId,
+    traceparent: params.traceparent,
+    subject: params.subject,
+    payload: params.payload,
+  };
 }

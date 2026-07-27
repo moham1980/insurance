@@ -1,12 +1,32 @@
-import { Entity, PrimaryGeneratedColumn, Column, Index } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, Index, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+
+export enum WorkItemStatus {
+  pending = 'pending',
+  in_progress = 'in_progress',
+  approved = 'approved',
+  rejected = 'rejected',
+  escalated = 'escalated',
+  completed = 'completed',
+}
+
+export enum WorkItemPriority {
+  low = 'low',
+  medium = 'medium',
+  high = 'high',
+  critical = 'critical',
+}
 
 @Entity('work_items')
 @Index(['sagaId'])
+@Index(['tenantId'])
 @Index(['status', 'createdAt'])
 @Index(['assignedTo'])
 export class WorkItem {
   @PrimaryGeneratedColumn('uuid', { name: 'work_item_id' })
   workItemId: string;
+
+  @Column({ name: 'tenant_id', type: 'uuid' })
+  tenantId: string;
 
   @Column({ name: 'saga_id', type: 'uuid' })
   sagaId: string;
@@ -15,10 +35,24 @@ export class WorkItem {
   stepName: string;
 
   @Column({ name: 'work_item_type', type: 'text' })
-  workItemType: 'human_approval' | 'document_review' | 'fraud_check' | 'payment_approval';
+  workItemType:
+    | 'human_approval'
+    | 'document_review'
+    | 'fraud_check'
+    | 'suspicious_case'
+    | 'sanhab_followup'
+    | 'underwriting_review'
+    | 'override_review'
+    | 'payment_prepare'
+    | 'payment_finance_approval'
+    | 'payment_execute'
+    | 'payment_notify'
+    | 'complaint_triage'
+    | 'complaint_sla_breach'
+    | 'fraud_case_escalation';
 
-  @Column({ name: 'status', type: 'text', default: 'pending' })
-  status: 'pending' | 'in_progress' | 'approved' | 'rejected' | 'escalated';
+  @Column({ name: 'status', type: 'enum', enum: WorkItemStatus, enumName: 'work_item_status', default: WorkItemStatus.pending })
+  status: WorkItemStatus;
 
   @Column({ name: 'claim_id', type: 'uuid', nullable: true })
   claimId: string | null;
@@ -29,8 +63,8 @@ export class WorkItem {
   @Column({ name: 'assigned_to', type: 'text', nullable: true })
   assignedTo: string | null;
 
-  @Column({ name: 'priority', type: 'text', default: 'medium' })
-  priority: 'low' | 'medium' | 'high' | 'critical';
+  @Column({ name: 'priority', type: 'text', default: WorkItemPriority.medium })
+  priority: WorkItemPriority;
 
   @Column({ name: 'context', type: 'jsonb', nullable: true })
   context: Record<string, any> | null;
@@ -44,10 +78,10 @@ export class WorkItem {
   @Column({ name: 'due_date', type: 'timestamptz', nullable: true })
   dueDate: Date | null;
 
-  @Column({ name: 'created_at', type: 'timestamptz', default: () => 'NOW()' })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
-  @Column({ name: 'updated_at', type: 'timestamptz', default: () => 'NOW()' })
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
 
   @Column({ name: 'completed_at', type: 'timestamptz', nullable: true })

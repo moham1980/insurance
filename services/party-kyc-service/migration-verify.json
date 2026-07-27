@@ -1,0 +1,24 @@
+{
+  "migrations": [],
+  "partiesHasTenant": true,
+  "kycReviewsHasTenant": true,
+  "consentRecordColumns": [
+    "consent_record_id",
+    "tenant_id",
+    "party_id",
+    "consent_type",
+    "purpose",
+    "legal_basis",
+    "status",
+    "action",
+    "actor_id",
+    "actor_role",
+    "channel",
+    "evidence",
+    "revoke_reason",
+    "valid_to",
+    "version",
+    "previous_record_id",
+    "created_at"
+  ]
+}

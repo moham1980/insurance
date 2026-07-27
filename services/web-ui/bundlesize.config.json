@@ -1,0 +1,20 @@
+{
+  "$schema": "https://bundlesize.io/schema.json",
+  "files": [
+    {
+      "path": ".next/static/chunks/*.js",
+      "maxSize": "60 kB",
+      "compression": "gzip"
+    },
+    {
+      "path": ".next/static/css/*.css",
+      "maxSize": "15 kB",
+      "compression": "gzip"
+    },
+    {
+      "path": ".next/server/app/**/*.html",
+      "maxSize": "50 kB",
+      "compression": "gzip"
+    }
+  ]
+}

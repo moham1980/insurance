@@ -21,6 +21,6 @@
       "@insurance/shared": ["../../packages/shared"]
     }
   },
-  "include": ["src/index.ts"],
+  "include": ["src/index.ts", "src/migrate.ts"],
   "exclude": ["node_modules", "dist"]
 }

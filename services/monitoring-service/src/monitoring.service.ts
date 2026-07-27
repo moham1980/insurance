@@ -5,6 +5,7 @@ import client from 'prom-client';
 import cron from 'node-cron';
 import { createLogger, Logger } from '@insurance/shared';
 import { Metric, SLO, Alert } from './entities/MonitoringEntities';
+import { mapComplaintSlaBreachToSeverity } from './alerts.policy';
 
 export interface MetricPayload {
   serviceName: string;
@@ -47,6 +48,48 @@ export class MonitoringService implements OnModuleInit {
     });
 
     this.logger.info('Monitoring Service initialized');
+  }
+
+  async onComplaintSlaBreached(params: { correlationId: string; envelope: any }): Promise<void> {
+    const p = params?.envelope?.payload || {};
+    const complaintId = params?.envelope?.subject?.complaintId || p?.complaintId;
+    if (!complaintId) return;
+
+    const elapsedHours = typeof p?.elapsedHours === 'number' && Number.isFinite(p.elapsedHours) ? p.elapsedHours : null;
+    const severity = mapComplaintSlaBreachToSeverity({ elapsedHours });
+
+    const existingAlert = await this.alertRepo.findOne({
+      where: {
+        serviceName: 'complaints-service',
+        alertName: `complaints_sla_breached_${String(complaintId)}`,
+        status: 'firing',
+      } as any,
+    });
+    if (existingAlert) return;
+
+    const alert = this.alertRepo.create({
+      sloId: null,
+      serviceName: 'complaints-service',
+      alertName: `complaints_sla_breached_${String(complaintId)}`,
+      description: `Complaint SLA breached. complaintId=${String(complaintId)} elapsedHours=${elapsedHours ?? 'n/a'} correlationId=${params.correlationId}`,
+      severity,
+      status: 'firing',
+      value: elapsedHours ?? 0,
+      threshold: 0,
+      createdAt: new Date(),
+      acknowledgedAt: null,
+      acknowledgedBy: null,
+      resolvedAt: null,
+    });
+    await this.alertRepo.save(alert);
+
+    this.logger.warn('Operational alert created from ComplaintSlaBreached', {
+      correlationId: params.correlationId,
+      alertId: alert.alertId,
+      complaintId: String(complaintId),
+      severity,
+      elapsedHours,
+    });
   }
 
   getPrometheusContentType(): string {

@@ -5,7 +5,7 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter());
-  const port = parseInt(process.env.PORT || '3002', 10);
+  const port = parseInt(process.env.PORT || '3019', 10);
   await app.listen({ port, host: '0.0.0.0' });
 }
 

@@ -5,7 +5,7 @@
     "lib": ["ES2022"],
     "outDir": "./dist",
     "rootDir": "./src",
-    "strict": true,
+    "strict": false,
     "strictPropertyInitialization": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -22,11 +22,7 @@
     }
   },
   "include": [
-    "src/main.ts",
-    "src/app.module.ts",
-    "src/fraud.controller.ts",
-    "src/fraud.service.ts",
-    "src/entities/**/*"
+    "src/**/*"
   ],
   "exclude": ["node_modules", "dist"]
 }

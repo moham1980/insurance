@@ -1,0 +1,36 @@
+{
+  "name": "web-ui",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev -p 3026",
+    "build": "next build",
+    "start": "next start -p 3026",
+    "lint": "next lint",
+    "migrate": "node ./src/migrate.ts",
+    "migrate:build": "npm run build && node ./src/migrate.ts"
+  },
+  "dependencies": {
+    "next": "14.2.5",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "@insurance/design-system": "workspace:*",
+    "@insurance/ui-utils": "workspace:*",
+    "@insurance/api-client": "workspace:*",
+    "clsx": "2.1.1",
+    "tailwind-merge": "2.5.2",
+    "lucide-react": "0.454.0"
+  },
+  "devDependencies": {
+    "eslint": "8.57.0",
+    "eslint-config-next": "14.2.5",
+    "typescript": "5.3.3",
+    "@types/node": "20.10.0",
+    "@types/react": "18.2.45",
+    "@types/react-dom": "18.2.18",
+    "tailwindcss": "3.4.14",
+    "postcss": "8.4.47",
+    "autoprefixer": "10.4.20"
+  }
+}

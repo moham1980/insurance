@@ -1,0 +1,93 @@
+import { CanActivate, ExecutionContext, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import jwt from 'jsonwebtoken';
+import { JwksClient } from 'jwks-rsa';
+import { PUBLIC_KEY } from './public.decorator';
+
+export interface EcosystemJwtPayload {
+  sub: string;
+  iss: string;
+  aud: string;
+  exp: number;
+  iat: number;
+  jti: string;
+  scope: string;
+  roles?: string[];
+  tenantId?: string;
+  preferred_username?: string;
+}
+
+@Injectable()
+export class JwtAuthGuard implements CanActivate {
+  private readonly logger = new Logger(JwtAuthGuard.name);
+  private readonly jwtSecret: string;
+  private readonly jwksClient: JwksClient;
+  private readonly issuer: string;
+  private readonly audience: string;
+
+  constructor(private readonly reflector: Reflector) {
+    this.jwtSecret = process.env.JWT_SECRET || 'default-secret-change-in-production';
+    this.issuer = process.env.IAM_ISSUER || 'http://localhost:8080';
+    this.audience = process.env.JWT_AUDIENCES || 'insurance-platform';
+    const jwksUri = process.env.JWKS_URI || `${this.issuer}/.well-known/jwks.json`;
+    this.jwksClient = new JwksClient({
+      jwksUri,
+      cache: true,
+      cacheMaxEntries: 5,
+      cacheMaxAge: 600000,
+      rateLimit: true,
+      jwksRequestsPerMinute: 10,
+    });
+  }
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const isPublic = this.reflector.getAllAndOverride<boolean>(PUBLIC_KEY, [context.getHandler(), context.getClass()]);
+    if (isPublic) return true;
+
+    const request = context.switchToHttp().getRequest();
+    const authHeader = request?.headers?.authorization as string | undefined;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      throw new UnauthorizedException({
+        success: false,
+        error: { code: 'UNAUTHORIZED', message: 'Authorization token required' },
+      });
+    }
+
+    const token = authHeader.substring(7);
+
+    // Try ecosystem JWKS RS256 validation first
+    try {
+      const decoded = jwt.decode(token, { complete: true }) as any;
+      if (decoded?.header?.alg === 'RS256' && decoded?.header?.kid) {
+        const key = await this.jwksClient.getSigningKey(decoded.header.kid);
+        const signingKey = key.getPublicKey();
+        const payload = jwt.verify(token, signingKey, {
+          issuer: this.issuer,
+          audience: this.audience,
+          algorithms: ['RS256'],
+        }) as EcosystemJwtPayload;
+        request.user = payload;
+        request.tenantId = payload.tenantId;
+        request.scopes = payload.scope?.split(' ') || [];
+        return true;
+      }
+    } catch (jwksErr) {
+      this.logger.debug(`JWKS validation failed, falling back to local JWT: ${jwksErr instanceof Error ? jwksErr.message : String(jwksErr)}`);
+    }
+
+    // Fallback to local HS256 JWT
+    try {
+      const payload = jwt.verify(token, this.jwtSecret) as EcosystemJwtPayload;
+      request.user = payload;
+      request.tenantId = payload.tenantId;
+      request.scopes = payload.scope?.split(' ') || [];
+      return true;
+    } catch {
+      throw new UnauthorizedException({
+        success: false,
+        error: { code: 'UNAUTHORIZED', message: 'Invalid or expired token' },
+      });
+    }
+  }
+}

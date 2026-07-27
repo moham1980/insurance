@@ -26,7 +26,10 @@
     "src/app.module.ts",
     "src/readmodel.controller.ts",
     "src/readmodel.service.ts",
+    "src/data-source.ts",
+    "src/migrate.ts",
     "src/entities/**/*"
+    ,"src/migrations/**/*"
   ],
   "exclude": ["node_modules", "dist"]
 }

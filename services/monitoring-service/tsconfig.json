@@ -26,7 +26,10 @@
     "src/app.module.ts",
     "src/monitoring.controller.ts",
     "src/monitoring.service.ts",
+    "src/data-source.ts",
+    "src/migrate.ts",
     "src/entities/**/*"
+    ,"src/migrations/**/*"
   ],
   "exclude": ["node_modules", "dist"]
 }

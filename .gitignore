@@ -136,3 +136,10 @@ test-results.xml
 ehthumbs.db
 Icon?
 Thumbs.db
+
+# Transient build/test output logs
+*err.txt
+*out.txt
+*exit.txt
+tsc_output*.txt
+integration-test-results.txt

@@ -6,7 +6,9 @@
   "scripts": {
     "build": "tsc",
     "dev": "bun run src/main.ts",
-    "start": "bun run dist/main.js"
+    "start": "bun run dist/main.js",
+    "migrate": "bun run dist/migrate.js",
+    "migrate:build": "bun run build && bun run dist/migrate.js"
   },
   "dependencies": {
     "@insurance/shared": "1.0.0",
@@ -20,10 +22,12 @@
     "rxjs": "^7.8.1",
     "typeorm": "^0.3.17",
     "undici": "^6.19.8",
-    "pg": "^8.11.3"
+    "pg": "^8.11.3",
+    "jsonwebtoken": "^9.0.2"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "@types/jsonwebtoken": "^9.0.6"
   }
 }

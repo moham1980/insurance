@@ -1,62 +1,1566 @@
-version: '3.8'
+x-proxy-build-args: &proxy_build_args
+  HTTP_PROXY: http://host.docker.internal:10809
+  HTTPS_PROXY: http://host.docker.internal:10809
+  http_proxy: http://host.docker.internal:10809
+  https_proxy: http://host.docker.internal:10809
+  ALL_PROXY: http://host.docker.internal:10809
+  all_proxy: http://host.docker.internal:10809
+  NO_PROXY: localhost,127.0.0.1,host.docker.internal,insurance-postgres,insurance-kafka
+  no_proxy: localhost,127.0.0.1,host.docker.internal,insurance-postgres,insurance-kafka
 
 services:
-  # Kafka - Message Bus
-  zookeeper:
+
+  insurance-zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
-    container_name: insurance-zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
-
-  kafka:
-    image: confluentinc/cp-kafka:7.5.0
-    container_name: insurance-kafka
-    depends_on:
-      - zookeeper
     ports:
-      - "9092:9092"
+      - "2181:2181"
+    restart: unless-stopped
+
+  insurance-kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    depends_on:
+      - insurance-zookeeper
     environment:
       KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_ZOOKEEPER_CONNECT: insurance-zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,EXTERNAL://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://insurance-kafka:9092,EXTERNAL://localhost:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "9093:9093"
+    restart: unless-stopped
+
+  insurance-postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: insurance
+      POSTGRES_PASSWORD: insurance123
+      POSTGRES_DB: insurance_platform
+    ports:
+      - "5435:5432"
+    volumes:
+      - insurance-postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      test: ["CMD", "pg_isready", "-U", "insurance", "-d", "insurance_platform"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
+    restart: unless-stopped
 
-  # Schema Registry
-  schema-registry:
-    image: confluentinc/cp-schema-registry:7.5.0
-    container_name: insurance-schema-registry
-    depends_on:
-      - kafka
-    ports:
-      - "8081:8081"
-    environment:
-      SCHEMA_REGISTRY_HOST_NAME: schema-registry
-      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka:9092
-      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
-
-  # Redis - For caching and session management
-  redis:
+  insurance-redis:
     image: redis:7-alpine
-    container_name: insurance-redis
     ports:
-      - "6379:6379"
+      - "6380:6379"
+    volumes:
+      - insurance-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
 
-  # Jaeger - Distributed Tracing
-  jaeger:
-    image: jaegertracing/all-in-one:1.50
-    container_name: insurance-jaeger
-    ports:
-      - "16686:16686"
-      - "14268:14268"
+  # Migration Jobs (init containers pattern)
+  auth-migrate:
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
+      args: *proxy_build_args
+    command: ["bun", "run", "migrate"]
     environment:
-      COLLECTOR_OTLP_ENABLED: "true"
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: auth
+    depends_on:
+      insurance-postgres:
+        condition: service_healthy
+    profiles:
+      - migrate
+    restart: "no"
+
+  sales-network-migrate:
+    build:
+      context: .
+      dockerfile: services/sales-network-service/Dockerfile
+      args: *proxy_build_args
+    command: ["bun", "run", "migrate"]
+    environment:
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: sales
+    profiles:
+      - migrate
+    restart: "no"
+
+  claims-migrate:
+    build:
+      context: .
+      dockerfile: services/claims-service/Dockerfile
+      args: *proxy_build_args
+    command: ["bun", "run", "migrate"]
+    environment:
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: claims
+    profiles:
+      - migrate
+    restart: "no"
+
+  payments-migrate:
+    build:
+      context: .
+      dockerfile: services/payments-service/Dockerfile
+      args: *proxy_build_args
+    command: ["bun", "run", "migrate"]
+    environment:
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: payments
+    profiles:
+      - migrate
+    restart: "no"
+
+  orchestrator-migrate:
+    build:
+      context: .
+      dockerfile: services/orchestrator-service/Dockerfile
+      args: *proxy_build_args
+    command: ["bun", "run", "migrate"]
+    environment:
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: orchestrator
+    profiles:
+      - migrate
+    restart: "no"
+
+  party-migrate:
+    build:
+      context: .
+      dockerfile: services/party-kyc-service/Dockerfile
+      args: *proxy_build_args
+    command: ["bun", "run", "migrate"]
+    environment:
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: party
+    profiles:
+      - migrate
+    restart: "no"
+
+  policy-migrate:
+    build:
+      context: .
+      dockerfile: services/policy-service/Dockerfile
+      args: *proxy_build_args
+    command: ["bun", "run", "migrate"]
+    environment:
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: policy
+    profiles:
+      - migrate
+    restart: "no"
+
+  document-migrate:
+    build:
+      context: .
+      dockerfile: services/document-service/Dockerfile
+      args: *proxy_build_args
+    command: ["bun", "run", "migrate"]
+    environment:
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: documents
+    profiles:
+      - migrate
+    restart: "no"
+
+  fraud-migrate:
+    build:
+      context: .
+      dockerfile: services/fraud-service/Dockerfile
+      args: *proxy_build_args
+    command: ["bun", "run", "migrate"]
+    environment:
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: fraud
+    profiles:
+      - migrate
+    restart: "no"
+
+  flags-migrate:
+    build:
+      context: .
+      dockerfile: services/feature-flags-service/Dockerfile
+      args: *proxy_build_args
+    command: ["bun", "run", "migrate"]
+    environment:
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: flags
+    profiles:
+      - migrate
+    restart: "no"
+
+  complaints-migrate:
+    build:
+      context: .
+      dockerfile: services/complaints-service/Dockerfile
+      args: *proxy_build_args
+    command: ["bun", "run", "migrate"]
+    environment:
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: complaints
+    profiles:
+      - migrate
+    restart: "no"
+
+  claims-readmodel-migrate:
+    build:
+      context: .
+      dockerfile: services/claims-readmodel-service/Dockerfile
+      args: *proxy_build_args
+    command: ["bun", "run", "migrate"]
+    environment:
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: claims_rm
+    profiles:
+      - migrate
+    restart: "no"
+
+  reporting-migrate:
+    build:
+      context: .
+      dockerfile: services/reporting-service/Dockerfile
+      args: *proxy_build_args
+    command: ["bun", "run", "migrate"]
+    environment:
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: reporting
+    profiles:
+      - migrate
+    restart: "no"
+
+  regulatory-migrate:
+    build:
+      context: .
+      dockerfile: services/regulatory-gateway-service/Dockerfile
+      args: *proxy_build_args
+    command: ["bun", "run", "migrate"]
+    environment:
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: regulatory
+    profiles:
+      - migrate
+    restart: "no"
+
+  aml-migrate:
+    build:
+      context: .
+      dockerfile: services/aml-service/Dockerfile
+      args: *proxy_build_args
+    command: ["bun", "run", "migrate"]
+    environment:
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: aml
+    profiles:
+      - migrate
+    restart: "no"
+
+  reinsurance-migrate:
+    build:
+      context: .
+      dockerfile: services/reinsurance-service/Dockerfile
+      args: *proxy_build_args
+    command: ["bun", "run", "migrate"]
+    environment:
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: reinsurance
+    profiles:
+      - migrate
+    restart: "no"
+
+  product-migrate:
+    build:
+      context: .
+      dockerfile: services/product-service/Dockerfile
+      args: *proxy_build_args
+    command: ["bun", "run", "migrate"]
+    environment:
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: product
+    profiles:
+      - migrate
+    restart: "no"
+
+  monitoring-migrate:
+    build:
+      context: .
+      dockerfile: services/monitoring-service/Dockerfile
+      args: *proxy_build_args
+    command: ["bun", "run", "migrate"]
+    environment:
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: monitoring
+    profiles:
+      - migrate
+    restart: "no"
+
+  underwriting-migrate:
+    build:
+      context: .
+      dockerfile: services/underwriting-service/Dockerfile
+      args: *proxy_build_args
+    command: ["bun", "run", "migrate"]
+    environment:
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: underwriting
+    profiles:
+      - migrate
+    restart: "no"
+
+  notification-migrate:
+    build:
+      context: .
+      dockerfile: services/notification-service/Dockerfile
+      args: *proxy_build_args
+    command: ["bun", "run", "migrate"]
+    environment:
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: notification
+    profiles:
+      - migrate
+    restart: "no"
+
+  customer-portal-migrate:
+    build:
+      context: .
+      dockerfile: services/customer-portal-service/Dockerfile
+      args: *proxy_build_args
+    command: ["bun", "run", "migrate"]
+    environment:
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: customer_portal
+    profiles:
+      - migrate
+    restart: "no"
+
+  agent-portal-migrate:
+    build:
+      context: .
+      dockerfile: services/agent-portal-service/Dockerfile
+      args: *proxy_build_args
+    command: ["bun", "run", "migrate"]
+    environment:
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: agent_portal
+    profiles:
+      - migrate
+    restart: "no"
+
+  workflow-migrate:
+    build:
+      context: .
+      dockerfile: services/workflow-service/Dockerfile
+      args: *proxy_build_args
+    command: ["bun", "run", "migrate"]
+    environment:
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: workflow
+    profiles:
+      - migrate
+    restart: "no"
+
+  rule-engine-migrate:
+    build:
+      context: .
+      dockerfile: services/rule-engine-service/Dockerfile
+      args: *proxy_build_args
+    command: ["bun", "run", "migrate"]
+    environment:
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: rule_engine
+    profiles:
+      - migrate
+    restart: "no"
+
+  knowledge-migrate:
+    build:
+      context: .
+      dockerfile: services/knowledge-service/Dockerfile
+      args: *proxy_build_args
+    command: ["bun", "run", "migrate"]
+    environment:
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: knowledge
+    profiles:
+      - migrate
+    restart: "no"
+
+  model-switchboard-migrate:
+    build:
+      context: .
+      dockerfile: services/model-switchboard-service/Dockerfile
+      args: *proxy_build_args
+    command: ["bun", "run", "migrate"]
+    environment:
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: model_switchboard
+    profiles:
+      - migrate
+    restart: "no"
+
+  billing-migrate:
+    build:
+      context: .
+      dockerfile: services/billing-service/Dockerfile
+      args: *proxy_build_args
+    command: ["bun", "run", "migrate"]
+    environment:
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: billing
+    profiles:
+      - migrate
+    restart: "no"
+
+  document-ai-migrate:
+    build:
+      context: .
+      dockerfile: services/document-ai-service/Dockerfile
+      args: *proxy_build_args
+    command: ["bun", "run", "migrate"]
+    environment:
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: document_ai
+    profiles:
+      - migrate
+    restart: "no"
+
+  collections-migrate:
+    build:
+      context: .
+      dockerfile: services/collections-service/Dockerfile
+      args: *proxy_build_args
+    command: ["bun", "run", "migrate"]
+    environment:
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: collections
+    profiles:
+      - migrate
+    restart: "no"
+
+  copilot-migrate:
+    build:
+      context: .
+      dockerfile: services/copilot-service/Dockerfile
+      args: *proxy_build_args
+    command: ["bun", "run", "migrate"]
+    environment:
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: copilot
+    profiles:
+      - migrate
+    restart: "no"
+
+  customer-360-migrate:
+    build:
+      context: .
+      dockerfile: services/customer-360-service/Dockerfile
+      args: *proxy_build_args
+    command: ["bun", "run", "migrate"]
+    environment:
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: customer_360
+    profiles:
+      - migrate
+    restart: "no"
+
+  outbox-migrate:
+    build:
+      context: .
+      dockerfile: services/outbox-relay/Dockerfile
+      args: *proxy_build_args
+    command: ["bun", "run", "migrate"]
+    environment:
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: outbox
+    profiles:
+      - migrate
+    restart: "no"
+
+  # Application Services
+  auth-service:
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18001:18001"
+    environment:
+      NODE_ENV: production
+      PORT: 18001
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: auth
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      SERVICE_TOKEN_ISSUER_KEY: ${SERVICE_TOKEN_ISSUER_KEY:-change-me-in-dev}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
+      KAFKA_BROKERS: insurance-kafka:9092
+      # Ecosystem IAM integration (Phase 1)
+      ECOSYSTEM_IAM_ENABLED: ${ECOSYSTEM_IAM_ENABLED:-false}
+      ECOSYSTEM_IAM_ISSUER: ${ECOSYSTEM_IAM_ISSUER:-http://localhost:8080}
+      ECOSYSTEM_IAM_JWKS_URI: ${ECOSYSTEM_IAM_JWKS_URI:-http://localhost:8080/.well-known/jwks.json}
+      ECOSYSTEM_IAM_CLIENT_ID: ${ECOSYSTEM_IAM_CLIENT_ID:-insurance-portal}
+      ECOSYSTEM_IAM_CLIENT_SECRET: ${ECOSYSTEM_IAM_CLIENT_SECRET}
+      ECOSYSTEM_IAM_AUTH_URL: ${ECOSYSTEM_IAM_AUTH_URL:-http://localhost:8080/oauth2/authorize}
+      ECOSYSTEM_IAM_TOKEN_URL: ${ECOSYSTEM_IAM_TOKEN_URL:-http://localhost:8080/oauth2/token}
+      ECOSYSTEM_IAM_USERINFO_URL: ${ECOSYSTEM_IAM_USERINFO_URL:-http://localhost:8080/oauth2/userinfo}
+      ECOSYSTEM_IAM_SCOPE: ${ECOSYSTEM_IAM_SCOPE:-openid profile email}
+      IAM_ISSUER: ${IAM_ISSUER:-http://localhost:8080}
+      JWKS_URI: ${JWKS_URI:-http://localhost:8080/.well-known/jwks.json}
+      JWT_AUDIENCES: ${JWT_AUDIENCES:-insurance-platform}
+    depends_on:
+      insurance-postgres:
+        condition: service_healthy
+      insurance-kafka:
+        condition: service_started
+    restart: unless-stopped
+
+  sales-network-service:
+    build:
+      context: .
+      dockerfile: services/sales-network-service/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18022:18022"
+    environment:
+      PORT: 18022
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: sales
+      DB_SYNC: "false"
+      KAFKA_BROKERS: insurance-kafka:9092
+      KAFKA_CLIENT_ID: sales-network-service
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+    depends_on:
+      - auth-service
+    restart: unless-stopped
+
+  reporting-service:
+    build:
+      context: .
+      dockerfile: services/reporting-service/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18014:18014"
+    environment:
+      NODE_ENV: production
+      PORT: 18014
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: reporting
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      KAFKA_BROKERS: insurance-kafka:9092
+      KAFKA_CONSUMER_GROUP: reporting-kpi-v1
+    depends_on:
+      - auth-service
+    restart: unless-stopped
+
+  document-ai-service:
+    build:
+      context: .
+      dockerfile: services/document-ai-service/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18021:18021"
+    environment:
+      NODE_ENV: production
+      PORT: 18021
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: document_ai
+      DB_SYNC: "false"
+      KAFKA_BROKERS: insurance-kafka:9092
+      KAFKA_CONSUMER_GROUP: document-ai-v1
+      DOCUMENT_AI_WORKER_ENABLED: "true"
+      DOCUMENT_AI_POLL_INTERVAL_MS: 1000
+      DOCUMENT_AI_BATCH_SIZE: 5
+      DOCUMENT_AI_MAX_ATTEMPTS: 5
+      DOCUMENT_AI_RETRY_BASE_MS: 1000
+      DOCUMENT_AI_RETRY_MAX_MS: 60000
+      DOCUMENT_AI_LOCK_TTL_MS: 600000
+      DOCUMENT_AI_CONFIDENCE_THRESHOLD: 0.8
+      DOCUMENT_AI_TENANT_DAILY_JOB_LIMIT: 200
+      DOCUMENT_AI_TENANT_DAILY_REQUEST_LIMIT: 500
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-1.5-pro}
+    depends_on:
+      - auth-service
+    restart: unless-stopped
+
+  regulatory-gateway-service:
+    build:
+      context: .
+      dockerfile: services/regulatory-gateway-service/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18024:18024"
+    environment:
+      NODE_ENV: production
+      PORT: 18024
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: regulatory
+      KAFKA_BROKERS: insurance-kafka:9092
+      ORCHESTRATOR_URL: http://orchestrator-service:18010
+      SANHAB_USE_REAL: ${SANHAB_USE_REAL:-false}
+      SANHAB_WSDL_URL: ${SANHAB_WSDL_URL}
+      SANHAB_API_KEY: ${SANHAB_API_KEY}
+      SANHAB_CERT_PATH: ${SANHAB_CERT_PATH}
+      SANHAB_CERT_KEY_PATH: ${SANHAB_CERT_KEY_PATH}
+    depends_on:
+      - orchestrator-service
+    restart: unless-stopped
+
+  claims-service:
+    build:
+      context: .
+      dockerfile: services/claims-service/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18002:18002"
+    environment:
+      NODE_ENV: production
+      PORT: 18002
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: claims
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      KAFKA_BROKERS: insurance-kafka:9092
+      AUTH_SERVICE_URL: http://auth-service:18001
+      SERVICE_ID: svc-claims
+      SERVICE_TOKEN_ISSUER_KEY: ${SERVICE_TOKEN_ISSUER_KEY:-change-me-in-dev}
+      SERVICE_TOKEN_TTL_SECONDS: 900
+    depends_on:
+      - auth-service
+    restart: unless-stopped
+
+  payments-service:
+    build:
+      context: .
+      dockerfile: services/payments-service/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18004:18004"
+    environment:
+      NODE_ENV: production
+      PORT: 18004
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: payments
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      KAFKA_BROKERS: insurance-kafka:9092
+      KAFKA_CLIENT_ID: payments-service
+      OUTBOX_POLL_INTERVAL_MS: 1000
+      OUTBOX_BATCH_SIZE: 100
+      OUTBOX_MAX_ATTEMPTS: 10
+      # Bank payment provider (Phase 2.1)
+      PSP_PROVIDER: ${PSP_PROVIDER:-iran-psp}
+      BANK_PAYMENT_SERVICE_URL: ${BANK_PAYMENT_SERVICE_URL}
+      BANK_PAYMENT_API_KEY: ${BANK_PAYMENT_API_KEY}
+      BANK_PAYMENT_TIMEOUT_MS: ${BANK_PAYMENT_TIMEOUT_MS:-30000}
+    depends_on:
+      - auth-service
+    restart: unless-stopped
+
+  orchestrator-service:
+    build:
+      context: .
+      dockerfile: services/orchestrator-service/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18010:18010"
+    environment:
+      NODE_ENV: production
+      PORT: 18010
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: orchestrator
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      KAFKA_BROKERS: insurance-kafka:9092
+      KAFKA_GROUP_ID: orchestrator-group
+      # Ecosystem AI integration (Phase 3.2)
+      ECOSYSTEM_AI_GATEWAY_URL: ${ECOSYSTEM_AI_GATEWAY_URL:-http://localhost:8540}
+      ECOSYSTEM_AI_TIMEOUT_MS: ${ECOSYSTEM_AI_TIMEOUT_MS:-60000}
+    depends_on:
+      - auth-service
+    restart: unless-stopped
+
+  underwriting-service:
+    build:
+      context: .
+      dockerfile: services/underwriting-service/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18032:18020"
+    environment:
+      NODE_ENV: production
+      PORT: 18020
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: underwriting
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      KAFKA_BROKERS: insurance-kafka:9092
+      ORCHESTRATOR_URL: http://orchestrator-service:18010
+      POLICY_SERVICE_URL: http://policy-service:18007
+    depends_on:
+      - auth-service
+      - orchestrator-service
+      - policy-service
+    restart: unless-stopped
+
+  party-kyc-service:
+    build:
+      context: .
+      dockerfile: services/party-kyc-service/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18006:18006"
+    environment:
+      NODE_ENV: production
+      PORT: 18006
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: party
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+    depends_on:
+      - auth-service
+    restart: unless-stopped
+
+  complaints-service:
+    build:
+      context: .
+      dockerfile: services/complaints-service/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18013:18013"
+    environment:
+      NODE_ENV: production
+      PORT: 18013
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: complaints
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      KAFKA_BROKERS: insurance-kafka:9092
+      OUTBOX_POLL_INTERVAL_MS: 1000
+      OUTBOX_BATCH_SIZE: 50
+      OUTBOX_MAX_ATTEMPTS: 10
+    depends_on:
+      - auth-service
+    restart: unless-stopped
+
+  policy-service:
+    build:
+      context: .
+      dockerfile: services/policy-service/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18007:18007"
+    environment:
+      NODE_ENV: production
+      PORT: 18007
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: policy
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      KAFKA_BROKERS: insurance-kafka:9092
+      PAYMENTS_SERVICE_URL: http://payments-service:18004
+      REGULATORY_GATEWAY_URL: http://regulatory-gateway-service:18024
+      ORCHESTRATOR_URL: http://orchestrator-service:18010
+    depends_on:
+      - auth-service
+      - payments-service
+      - regulatory-gateway-service
+      - orchestrator-service
+      - insurance-kafka
+    restart: unless-stopped
+
+  document-service:
+    build:
+      context: .
+      dockerfile: services/document-service/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18008:18008"
+    environment:
+      NODE_ENV: production
+      PORT: 18008
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: documents
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      DOCUMENT_UPLOAD_DIR: /app/data/uploads
+    depends_on:
+      - auth-service
+    restart: unless-stopped
+
+  fraud-service:
+    build:
+      context: .
+      dockerfile: services/fraud-service/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18009:18009"
+    environment:
+      NODE_ENV: production
+      PORT: 18009
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: fraud
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      KAFKA_BROKERS: insurance-kafka:9092
+    depends_on:
+      - auth-service
+    restart: unless-stopped
+
+  claims-readmodel-service:
+    build:
+      context: .
+      dockerfile: services/claims-readmodel-service/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18012:18012"
+    environment:
+      NODE_ENV: production
+      PORT: 18012
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: claims_rm
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      KAFKA_BROKERS: insurance-kafka:9092
+      KAFKA_CONSUMER_GROUP: claims-readmodel-v1
+    depends_on:
+      - auth-service
+    restart: unless-stopped
+
+  feature-flags-service:
+    build:
+      context: .
+      dockerfile: services/feature-flags-service/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18011:18011"
+    environment:
+      NODE_ENV: production
+      PORT: 18011
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: flags
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+    depends_on:
+      - auth-service
+    restart: unless-stopped
+
+  aml-service:
+    build:
+      context: .
+      dockerfile: services/aml-service/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18016:18016"
+    environment:
+      NODE_ENV: production
+      PORT: 18016
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: aml
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+    depends_on:
+      - auth-service
+    restart: unless-stopped
+
+  reinsurance-service:
+    build:
+      context: .
+      dockerfile: services/reinsurance-service/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18017:18017"
+    environment:
+      NODE_ENV: production
+      PORT: 18017
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: reinsurance
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+    depends_on:
+      - auth-service
+    restart: unless-stopped
+
+  product-service:
+    build:
+      context: .
+      dockerfile: services/product-service/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18018:18018"
+    environment:
+      NODE_ENV: production
+      PORT: 18018
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: product
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+    depends_on:
+      - auth-service
+    restart: unless-stopped
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18000:18000"
+    environment:
+      NODE_ENV: production
+      PORT: 18000
+      AUTH_SERVICE_URL: http://auth-service:18001
+      CLAIMS_SERVICE_URL: http://claims-service:18002
+      CLAIMS_READMODEL_URL: http://claims-readmodel-service:18012/rm
+      PAYMENTS_URL: http://payments-service:18004
+      ORCHESTRATOR_URL: http://orchestrator-service:18010
+      PARTY_KYC_URL: http://party-kyc-service:18006
+      POLICY_SERVICE_URL: http://policy-service:18007
+      DOCUMENT_SERVICE_URL: http://document-service:18008
+      FRAUD_SERVICE_URL: http://fraud-service:18009
+      FEATURE_FLAGS_URL: http://feature-flags-service:18011
+      COMPLAINTS_SERVICE_URL: http://complaints-service:18013
+      REGULATORY_GATEWAY_URL: http://regulatory-gateway-service:18024
+      AML_SERVICE_URL: http://aml-service:18016
+      REINSURANCE_SERVICE_URL: http://reinsurance-service:18017
+      PRODUCT_SERVICE_URL: http://product-service:18018
+      MONITORING_SERVICE_URL: http://monitoring-service:18020
+      DOCUMENT_AI_URL: http://document-ai-service:18021
+      REPORTING_URL: http://reporting-service:18014/reporting
+      SALES_NETWORK_URL: http://sales-network-service:18022/sales-network
+      UNDERWRITING_SERVICE_URL: http://underwriting-service:18020
+      NOTIFICATION_SERVICE_URL: http://notification-service:18037
+      CUSTOMER_PORTAL_URL: http://customer-portal-service:18027
+      AGENT_PORTAL_URL: http://agent-portal-service:18031
+      WORKFLOW_SERVICE_URL: http://workflow-service:18028
+      RULE_ENGINE_URL: http://rule-engine-service:18038
+      KNOWLEDGE_SERVICE_URL: http://knowledge-service:18033
+      MODEL_SWITCHBOARD_URL: http://model-switchboard-service:18035
+      BILLING_SERVICE_URL: http://billing-service:18039
+      COLLECTIONS_SERVICE_URL: http://collections-service:18025
+      COPILOT_SERVICE_URL: http://copilot-service:18030
+      CUSTOMER_360_URL: http://customer-360-service:18026
+      OUTBOX_RELAY_URL: http://outbox-relay:18041
+      AI_GOVERNANCE_URL: http://ai-governance-service:18036
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+    depends_on:
+      - auth-service
+      - claims-service
+      - claims-readmodel-service
+      - payments-service
+      - orchestrator-service
+      - party-kyc-service
+      - policy-service
+      - document-service
+      - fraud-service
+      - feature-flags-service
+      - complaints-service
+      - regulatory-gateway-service
+      - aml-service
+      - reinsurance-service
+      - product-service
+      - reporting-service
+      - sales-network-service
+      - underwriting-service
+      - notification-service
+      - customer-portal-service
+      - agent-portal-service
+      - workflow-service
+      - rule-engine-service
+      - knowledge-service
+      - model-switchboard-service
+      - billing-service
+      - collections-service
+      - copilot-service
+      - customer-360-service
+      - outbox-relay
+      - ai-governance-service
+    restart: unless-stopped
+
+  web-ui:
+    build:
+      context: .
+      dockerfile: services/web-ui/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18042:3026"
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:18000
+    depends_on:
+      - api-gateway
+    restart: unless-stopped
+
+  monitoring-service:
+    build:
+      context: .
+      dockerfile: services/monitoring-service/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18020:18020"
+    environment:
+      NODE_ENV: production
+      PORT: 18020
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: monitoring
+      DB_SYNC: "false"
+      KAFKA_BROKERS: insurance-kafka:9092
+      KAFKA_CLIENT_ID: monitoring-service
+      LOG_LEVEL: info
+    depends_on:
+      - auth-service
+    restart: unless-stopped
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: services/notification-service/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18037:18037"
+    environment:
+      NODE_ENV: production
+      PORT: 18037
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: notification
+      DB_SYNC: "false"
+      SMS_PROVIDER: ${SMS_PROVIDER:-kavenegar}
+      KAVENEGAR_API_KEY: ${KAVENEGAR_API_KEY}
+      KAVENEGAR_SENDER: ${KAVENEGAR_SENDER:-10008666}
+      KAVENEGAR_OTP_TEMPLATE: ${KAVENEGAR_OTP_TEMPLATE:-verify}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
+      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER}
+      # MelliPayamak fallback SMS provider (Phase 5.2)
+      SMS_FALLBACK_PROVIDER: ${SMS_FALLBACK_PROVIDER:-mellipayamak}
+      MELLIPAYAMAK_USERNAME: ${MELLIPAYAMAK_USERNAME}
+      MELLIPAYAMAK_PASSWORD: ${MELLIPAYAMAK_PASSWORD}
+      MELLIPAYAMAK_SENDER_NUMBER: ${MELLIPAYAMAK_SENDER_NUMBER}
+      MELLIPAYAMAK_OTP_TEMPLATE: ${MELLIPAYAMAK_OTP_TEMPLATE}
+    depends_on:
+      - auth-service
+    restart: unless-stopped
+
+  customer-portal-service:
+    build:
+      context: .
+      dockerfile: services/customer-portal-service/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18027:18027"
+    environment:
+      NODE_ENV: production
+      PORT: 18027
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: customer_portal
+      DB_SYNC: "false"
+      NOTIFICATION_SERVICE_URL: http://notification-service:18037
+      PARTY_KYC_URL: http://party-kyc-service:18006
+    depends_on:
+      - auth-service
+      - notification-service
+      - party-kyc-service
+    restart: unless-stopped
+
+  customer-portal-ui:
+    build:
+      context: .
+      dockerfile: services/customer-portal-ui/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18043:18043"
+    environment:
+      NODE_ENV: production
+      PORT: 18043
+      NEXT_PUBLIC_API_URL: http://api-gateway:18000
+    depends_on:
+      - api-gateway
+      - customer-portal-service
+    restart: unless-stopped
+
+  agent-portal-service:
+    build:
+      context: .
+      dockerfile: services/agent-portal-service/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18031:18031"
+    environment:
+      NODE_ENV: production
+      PORT: 18031
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: agent_portal
+      DB_SYNC: "false"
+      AUTH_SERVICE_URL: http://auth-service:18001
+    depends_on:
+      - auth-service
+    restart: unless-stopped
+
+  agent-portal-ui:
+    build:
+      context: .
+      dockerfile: services/agent-portal-ui/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18044:18044"
+    environment:
+      NODE_ENV: production
+      PORT: 18044
+      NEXT_PUBLIC_API_URL: http://api-gateway:18000
+    depends_on:
+      - api-gateway
+      - agent-portal-service
+    restart: unless-stopped
+
+  workflow-service:
+    build:
+      context: .
+      dockerfile: services/workflow-engine-service/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18028:18028"
+    environment:
+      NODE_ENV: production
+      PORT: 18028
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: workflow
+      DB_SYNC: "false"
+      KAFKA_BROKERS: insurance-kafka:9092
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+    depends_on:
+      - auth-service
+    restart: unless-stopped
+
+  rule-engine-service:
+    build:
+      context: .
+      dockerfile: services/rule-engine-service/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18038:18038"
+    environment:
+      NODE_ENV: production
+      PORT: 18038
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: rule_engine
+      DB_SYNC: "false"
+    depends_on:
+      - auth-service
+    restart: unless-stopped
+
+  knowledge-service:
+    build:
+      context: .
+      dockerfile: services/knowledge-layer-service/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18033:18033"
+    environment:
+      NODE_ENV: production
+      PORT: 18033
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: knowledge
+      DB_SYNC: "false"
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+    depends_on:
+      - auth-service
+    restart: unless-stopped
+
+  model-switchboard-service:
+    build:
+      context: .
+      dockerfile: services/model-switchboard-service/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18035:18035"
+    environment:
+      NODE_ENV: production
+      PORT: 18035
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: model_switchboard
+      DB_SYNC: "false"
+    depends_on:
+      - auth-service
+    restart: unless-stopped
+
+  billing-service:
+    build:
+      context: .
+      dockerfile: services/billing-service/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18039:18039"
+    environment:
+      NODE_ENV: production
+      PORT: 18039
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: billing
+      DB_SYNC: "false"
+      KAFKA_BROKERS: insurance-kafka:9092
+      # Ecosystem bank payment integration (Phase 2.3)
+      PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-ZARINPAL}
+      INSURANCE_BANK_ACCOUNT: ${INSURANCE_BANK_ACCOUNT}
+      INSURANCE_ESCROW_ACCOUNT: ${INSURANCE_ESCROW_ACCOUNT:-1000000003}
+      AUTO_DEPOSIT_ENABLED: ${AUTO_DEPOSIT_ENABLED:-false}
+    depends_on:
+      - auth-service
+    restart: unless-stopped
+
+  collections-service:
+    build:
+      context: .
+      dockerfile: services/collections-service/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18025:18025"
+    environment:
+      NODE_ENV: production
+      PORT: 18025
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: collections
+      DB_SYNC: "false"
+      KAFKA_BROKERS: insurance-kafka:9092
+      KAFKA_CLIENT_ID: collections-service
+    depends_on:
+      - auth-service
+    restart: unless-stopped
+
+  copilot-service:
+    build:
+      context: .
+      dockerfile: services/copilot-service/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18030:18030"
+    environment:
+      NODE_ENV: production
+      PORT: 18030
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: copilot
+      DB_SYNC: "false"
+      # Ecosystem AI gateway integration (Phase 3.1)
+      ECOSYSTEM_AI_ENABLED: ${ECOSYSTEM_AI_ENABLED:-false}
+      ECOSYSTEM_AI_GATEWAY_URL: ${ECOSYSTEM_AI_GATEWAY_URL:-http://localhost:8540}
+      ECOSYSTEM_AI_TIMEOUT_MS: ${ECOSYSTEM_AI_TIMEOUT_MS:-60000}
+    depends_on:
+      - auth-service
+    restart: unless-stopped
+
+  customer-360-service:
+    build:
+      context: .
+      dockerfile: services/customer-360-service/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18026:18026"
+    environment:
+      NODE_ENV: production
+      PORT: 18026
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: customer_360
+      DB_SYNC: "false"
+    depends_on:
+      - auth-service
+    restart: unless-stopped
+
+  outbox-relay:
+    build:
+      context: .
+      dockerfile: services/outbox-relay/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18041:18041"
+    environment:
+      NODE_ENV: production
+      PORT: 18041
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: outbox
+      DB_SYNC: "false"
+      KAFKA_BROKERS: insurance-kafka:9092
+      KAFKA_CLIENT_ID: outbox-relay
+    depends_on:
+      - auth-service
+    restart: unless-stopped
+
+  ai-governance-service:
+    build:
+      context: .
+      dockerfile: services/ai-governance-service/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18036:18036"
+    environment:
+      NODE_ENV: production
+      PORT: 18036
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: ai_governance
+      DB_SYNC: "false"
+      REDIS_URL: redis://insurance-redis:6379
+      KAFKA_BROKERS: insurance-kafka:9092
+      # Ecosystem AI governance sync (Phase 3.5)
+      ECOSYSTEM_AI_GOVERNANCE_SYNC: ${ECOSYSTEM_AI_GOVERNANCE_SYNC:-false}
+    depends_on:
+      - auth-service
+      - insurance-redis
+    restart: unless-stopped
 
 volumes:
-  postgres_data:
+  insurance-postgres-data:
+  insurance-redis-data:

@@ -1,0 +1,11 @@
+{
+  "radius": {
+    "none": { "value": "0" },
+    "sm": { "value": "6px" },
+    "md": { "value": "10px" },
+    "lg": { "value": "16px" },
+    "xl": { "value": "24px" },
+    "pill": { "value": "999px" },
+    "full": { "value": "50%" }
+  }
+}

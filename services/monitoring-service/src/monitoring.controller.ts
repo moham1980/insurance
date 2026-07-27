@@ -1,6 +1,11 @@
-import { Body, Controller, Get, Headers, Param, Post, Query, Res } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Patch, Post, Query, Res, UseGuards } from '@nestjs/common';
 import { MonitoringService } from './monitoring.service';
 import type { MetricPayload, SLOPayload } from './monitoring.service';
+import { JwtAuthGuard } from './jwt-auth.guard';
+import { PermissionsGuard } from './permissions.guard';
+import { RequirePermissions } from './permissions.decorator';
+import { AbacGuard } from './abac.guard';
+import { TenantGuard } from './tenant.guard';
 
 @Controller()
 export class MonitoringController {
@@ -17,13 +22,17 @@ export class MonitoringController {
     return { status: 'ok', service: 'monitoring-service' };
   }
 
-  @Get('/metrics/prometheus')
-  async prometheus(@Res() res: any) {
+  @Get('/metrics')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('monitoring:metrics:view')
+  async metrics(@Res() res: any) {
     res.setHeader('Content-Type', this.monitoringService.getPrometheusContentType());
     res.end(await this.monitoringService.getPrometheusMetrics());
   }
 
   @Post('/metrics')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('monitoring:metrics:view')
   async recordMetric(@Headers() headers: Record<string, any>, @Body() body: MetricPayload) {
     const correlationId = this.getCorrelationId(headers);
 
@@ -36,6 +45,8 @@ export class MonitoringController {
   }
 
   @Get('/slos')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('monitoring:slos:list')
   async listSLOs(@Headers() headers: Record<string, any>, @Query('serviceName') serviceName?: string, @Query('status') status?: string) {
     const correlationId = this.getCorrelationId(headers);
     const slos = await this.monitoringService.listSLOs({ serviceName, status });
@@ -43,6 +54,8 @@ export class MonitoringController {
   }
 
   @Post('/slos')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('monitoring:slos:create')
   async createSLO(@Headers() headers: Record<string, any>, @Body() body: SLOPayload) {
     const correlationId = this.getCorrelationId(headers);
 
@@ -55,6 +68,8 @@ export class MonitoringController {
   }
 
   @Get('/alerts')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('monitoring:alerts:list')
   async listAlerts(
     @Headers() headers: Record<string, any>,
     @Query('status') status?: string,
@@ -66,8 +81,10 @@ export class MonitoringController {
     return { success: true, data: alerts, correlationId };
   }
 
-  @Post('/alerts/:alertId/acknowledge')
-  async acknowledge(@Headers() headers: Record<string, any>, @Param('alertId') alertId: string, @Body() body: any) {
+  @Patch('/alerts/:alertId/ack')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('monitoring:alerts:ack')
+  async ack(@Headers() headers: Record<string, any>, @Param('alertId') alertId: string, @Body() body: any) {
     const correlationId = this.getCorrelationId(headers);
 
     try {
@@ -82,6 +99,8 @@ export class MonitoringController {
   }
 
   @Get('/dashboard')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('monitoring:dashboard:view')
   async dashboard(@Headers() headers: Record<string, any>) {
     const correlationId = this.getCorrelationId(headers);
     const dashboard = await this.monitoringService.getDashboard();

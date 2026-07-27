@@ -1,0 +1,40 @@
+/**
+ * Insurance Design System — Dark Theme
+ * Never pure black (#000). Elevation via border, not drop-shadow.
+ */
+
+.dark {
+  /* Background */
+  --color-bg-base: #0B1020;
+  --color-bg-subtle: #141A2E;
+  --color-bg-raised: #1B2238;
+  --color-bg-overlay: rgba(0, 0, 0, 0.6);
+
+  /* Text */
+  --color-text-primary: #E6EAF2;
+  --color-text-secondary: #CBD5E1;
+  --color-text-muted: #9BA3B4;
+  --color-text-on-brand: #0B1020;
+  --color-text-disabled: #475569;
+
+  /* Brand */
+  --color-brand-primary: #5C85FF;
+  --color-brand-secondary: #2DD4BF;
+  --color-brand-accent: #FBBF24;
+
+  /* Status */
+  --color-status-success: #34D399;
+  --color-status-warning: #FBBF24;
+  --color-status-danger: #F87171;
+  --color-status-info: #38BDF8;
+
+  /* Border */
+  --color-border-default: #2A3350;
+  --color-border-subtle: #1E293B;
+  --color-border-focus: #60A5FA;
+
+  /* Surface */
+  --color-surface-1: #0F172A;
+  --color-surface-2: #1E293B;
+  --color-surface-3: #334155;
+}

@@ -6,7 +6,9 @@
   "scripts": {
     "build": "tsc",
     "dev": "bun run src/main.ts",
-    "start": "bun run dist/main.js"
+    "start": "bun run dist/main.js",
+    "migrate": "bun run dist/migrate.js",
+    "migrate:build": "bun run build && bun run dist/migrate.js"
   },
   "dependencies": {
     "@insurance/shared": "1.0.0",
@@ -18,11 +20,16 @@
     "rxjs": "^7.8.1",
     "typeorm": "^0.3.17",
     "pg": "^8.11.3",
-    "uuid": "^9.0.0"
+    "uuid": "^9.0.0",
+    "soap": "^0.44.0",
+    "jwks-rsa": "^3.1.0",
+    "ioredis": "^5.3.2",
+    "jsonwebtoken": "^9.0.2"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
     "@types/uuid": "^9.0.7",
+    "@types/soap": "^0.21.0",
     "typescript": "^5.3.3"
   }
 }

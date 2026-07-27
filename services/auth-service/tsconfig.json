@@ -22,11 +22,7 @@
     }
   },
   "include": [
-    "src/main.ts",
-    "src/app.module.ts",
-    "src/auth.controller.ts",
-    "src/auth.service.ts",
-    "src/entities/**/*"
+    "src/**/*"
   ],
   "exclude": ["node_modules", "dist"]
 }

@@ -21,9 +21,7 @@
     }
   },
   "include": [
-    "src/main.ts",
-    "src/app.module.ts",
-    "src/health.controller.ts"
+    "src/**/*.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }

@@ -14,4 +14,13 @@ export class ConsumedEvent {
 
   @Column({ name: 'topic', type: 'text' })
   topic: string;
+
+  @Column({ name: 'processed', type: 'boolean', default: false })
+  processed: boolean;
+
+  @Column({ name: 'error', type: 'text', nullable: true })
+  error: string | null;
+
+  @Column({ name: 'processed_at', type: 'timestamptz', nullable: true })
+  processedAt: Date | null;
 }

@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-config
+  namespace: insurance
+data:
+  KAFKA_BROKER_ID: "1"
+  KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+  KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+  KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zookeeper
+  namespace: insurance
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zookeeper
+  template:
+    metadata:
+      labels:
+        app: zookeeper
+    spec:
+      containers:
+      - name: zookeeper
+        image: confluentinc/cp-zookeeper:7.5.0
+        ports:
+        - containerPort: 2181
+        env:
+        - name: ZOOKEEPER_CLIENT_PORT
+          value: "2181"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zookeeper
+  namespace: insurance
+spec:
+  selector:
+    app: zookeeper
+  ports:
+  - port: 2181
+    targetPort: 2181
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka
+  namespace: insurance
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka
+  template:
+    metadata:
+      labels:
+        app: kafka
+    spec:
+      containers:
+      - name: kafka
+        image: confluentinc/cp-kafka:7.5.0
+        ports:
+        - containerPort: 9092
+        envFrom:
+        - configMapRef:
+            name: kafka-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka
+  namespace: insurance
+spec:
+  selector:
+    app: kafka
+  ports:
+  - port: 9092
+    targetPort: 9092

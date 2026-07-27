@@ -1,0 +1,375 @@
+version: "3.9"
+
+services:
+  insurance-zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2182:2181"
+
+  insurance-kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    depends_on:
+      - insurance-zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: insurance-zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://insurance-kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "9093:9092"
+
+  insurance-postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: insurance
+      POSTGRES_PASSWORD: insurance123
+      POSTGRES_DB: insurance_platform
+    ports:
+      - "5435:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "insurance", "-d", "insurance_platform"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  insurance-redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  api-gateway:
+    image: insurance-api-gateway:latest
+    ports:
+      - "18000:18000"
+    environment:
+      NODE_ENV: production
+      PORT: 18000
+      AUTH_SERVICE_URL: http://auth-service:18001
+      CLAIMS_SERVICE_URL: http://claims-service:18002
+      CLAIMS_READMODEL_URL: http://claims-readmodel-service:18012
+      POLICY_SERVICE_URL: http://policy-service:18007
+      PAYMENTS_URL: http://payments-service:18004
+      PARTY_KYC_URL: http://party-kyc-service:18006
+      FRAUD_SERVICE_URL: http://fraud-service:18009
+      DOCUMENT_SERVICE_URL: http://document-service:18008
+      ORCHESTRATOR_URL: http://orchestrator-service:18010
+      FEATURE_FLAGS_URL: http://feature-flags-service:18011
+      PRODUCT_SERVICE_URL: http://product-service:18018
+      REGULATORY_GATEWAY_URL: http://regulatory-gateway-service:18024
+      AML_SERVICE_URL: http://aml-service:18016
+      REINSURANCE_SERVICE_URL: http://reinsurance-service:18017
+      REPORTING_URL: http://reporting-service:18014
+      MONITORING_SERVICE_URL: http://monitoring-service:18020
+      DOCUMENT_AI_URL: http://document-ai-service:18021
+      SALES_NETWORK_URL: http://sales-network-service:18022
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+      RATE_LIMIT_MAX: 100000
+      RATE_LIMIT_MAX_PER_TENANT: 100000
+    depends_on:
+      - auth-service
+      - claims-service
+      - policy-service
+      - payments-service
+      - party-kyc-service
+
+  auth-service:
+    image: insurance-auth-service:latest
+    ports:
+      - "18001:18001"
+    environment:
+      NODE_ENV: production
+      PORT: 18001
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: public
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+    depends_on:
+      insurance-postgres:
+        condition: service_healthy
+
+  claims-service:
+    image: insurance-claims-service:latest
+    ports:
+      - "18002:18002"
+    environment:
+      NODE_ENV: production
+      PORT: 18002
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: public
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+
+  payments-service:
+    image: insurance-payments-service:latest
+    ports:
+      - "18004:18004"
+    environment:
+      NODE_ENV: production
+      PORT: 18004
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: public
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+
+  policy-service:
+    image: insurance-policy-service:latest
+    ports:
+      - "18007:18007"
+    environment:
+      NODE_ENV: production
+      PORT: 18007
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: public
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+    volumes:
+      - d:/CascadeProjects/old/insurance/services/policy-service/dist:/app/services/policy-service/dist
+
+  party-kyc-service:
+    image: insurance-party-kyc-service:latest
+    ports:
+      - "18006:18006"
+    environment:
+      NODE_ENV: production
+      PORT: 18006
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: public
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+
+  fraud-service:
+    image: insurance-fraud-service:latest
+    ports:
+      - "18009:18009"
+    environment:
+      NODE_ENV: production
+      PORT: 18009
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: public
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+
+  document-service:
+    image: insurance-document-service:latest
+    ports:
+      - "18008:18008"
+    environment:
+      NODE_ENV: production
+      PORT: 18008
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: public
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+
+  complaints-service:
+    image: insurance-complaints-service:latest
+    ports:
+      - "18013:18013"
+    environment:
+      NODE_ENV: production
+      PORT: 18013
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: public
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+
+  aml-service:
+    image: insurance-aml-service:latest
+    ports:
+      - "18016:18016"
+    environment:
+      NODE_ENV: production
+      PORT: 18016
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: public
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+
+  reinsurance-service:
+    image: insurance-reinsurance-service:latest
+    ports:
+      - "18017:18017"
+    environment:
+      NODE_ENV: production
+      PORT: 18017
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: public
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+
+  reporting-service:
+    image: insurance-reporting-service:latest
+    ports:
+      - "18014:18014"
+    environment:
+      NODE_ENV: production
+      PORT: 18014
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: public
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+
+  sales-network-service:
+    image: insurance-sales-network-service:latest
+    ports:
+      - "18022:18022"
+    environment:
+      NODE_ENV: production
+      PORT: 18022
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: public
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+
+  orchestrator-service:
+    image: insurance-orchestrator-service:latest
+    ports:
+      - "18010:18010"
+    environment:
+      NODE_ENV: production
+      PORT: 18010
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: public
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+
+  feature-flags-service:
+    image: insurance-feature-flags-service:latest
+    ports:
+      - "18011:18011"
+    environment:
+      NODE_ENV: production
+      PORT: 18011
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: public
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+
+  monitoring-service:
+    image: insurance-monitoring-service:latest
+    ports:
+      - "18020:18020"
+    environment:
+      NODE_ENV: production
+      PORT: 18020
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: public
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+
+  regulatory-gateway-service:
+    image: insurance-regulatory-gateway-service:latest
+    ports:
+      - "18024:18024"
+    environment:
+      NODE_ENV: production
+      PORT: 18024
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: public
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+
+  claims-readmodel-service:
+    image: insurance-claims-readmodel-service:latest
+    ports:
+      - "18012:18012"
+    environment:
+      NODE_ENV: production
+      PORT: 18012
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: public
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+
+  product-service:
+    image: insurance-product-service:latest
+    ports:
+      - "18018:18018"
+    environment:
+      NODE_ENV: production
+      PORT: 18018
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: public
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+
+  document-ai-service:
+    image: insurance-document-ai-service:latest
+    ports:
+      - "18021:18021"
+    environment:
+      NODE_ENV: production
+      PORT: 18021
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: public
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production

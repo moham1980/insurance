@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CircleAlert, RefreshCcw, ShieldCheck } from 'lucide-react';
+import { AlertCircle, RefreshCcw, ShieldCheck } from 'lucide-react';
 import { apiFetch, getAuthUser } from '@/lib/api';
 import { enterprisePermissionsForRoles, hasEnterprisePermission } from '@/lib/enterprise-rbac';
 
@@ -314,7 +314,7 @@ export default function AmlPage() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
-                    <CircleAlert className="h-4 w-4 text-neutral-700" />
+                    <AlertCircle className="h-4 w-4 text-neutral-700" />
                     <div className="text-sm font-semibold">{String(a?.title ?? '')}</div>
                   </div>
                   <div className="mt-2 text-xs text-neutral-600">

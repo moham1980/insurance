@@ -1,0 +1,41 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "lib": ["ES2022"],
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "strictPropertyInitialization": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "sourceMap": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "moduleResolution": "node",
+    "baseUrl": ".",
+    "paths": {
+      "@insurance/shared": ["../../packages/shared"]
+    }
+  },
+  "include": [
+    "src/main.ts",
+    "src/app.module.ts",
+    "src/data-source.ts",
+    "src/migrate.ts",
+    "src/reporting.controller.ts",
+    "src/reporting.service.ts",
+    "src/kpi.consumer.ts",
+    "src/jwt-auth.guard.ts",
+    "src/permissions.ts",
+    "src/permissions.decorator.ts",
+    "src/permissions.guard.ts",
+    "src/audit.logger.ts",
+    "src/entities/**/*",
+    "src/migrations/**/*"
+  ],
+  "exclude": ["node_modules", "dist"]
+}

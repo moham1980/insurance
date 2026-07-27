@@ -1,0 +1,26 @@
+{
+  "name": "@insurance/rule-engine-service",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "tsc",
+    "start": "bun run dist/main.js",
+    "dev": "bun run src/main.ts",
+    "migrate": "bun run src/migrate.ts"
+  },
+  "dependencies": {
+    "@nestjs/common": "^10.0.0",
+    "@nestjs/core": "^10.0.0",
+    "@nestjs/platform-fastify": "^10.0.0",
+    "@nestjs/typeorm": "^10.0.0",
+    "typeorm": "^0.3.17",
+    "pg": "^8.11.0",
+    "kafkajs": "^2.2.4",
+    "jsonwebtoken": "^9.0.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/uuid": "^9.0.0",
+    "typescript": "^5.0.0"
+  }
+}

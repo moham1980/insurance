@@ -1,5 +1,6 @@
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { JaegerExporter } from '@opentelemetry/exporter-jaeger';
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { Resource } from '@opentelemetry/resources';
 import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
 import { trace, context, SpanStatusCode } from '@opentelemetry/api';
@@ -7,6 +8,7 @@ import { trace, context, SpanStatusCode } from '@opentelemetry/api';
 export interface TracerConfig {
   serviceName: string;
   jaegerEndpoint?: string;
+  otlpEndpoint?: string;
 }
 
 export class Tracer {
@@ -16,7 +18,16 @@ export class Tracer {
   constructor(config: TracerConfig) {
     this.serviceName = config.serviceName;
     
-    if (config.jaegerEndpoint) {
+    if (config.otlpEndpoint) {
+      this.sdk = new NodeSDK({
+        resource: new Resource({
+          [SemanticResourceAttributes.SERVICE_NAME]: config.serviceName,
+        }),
+        traceExporter: new OTLPTraceExporter({
+          url: config.otlpEndpoint,
+        }),
+      });
+    } else if (config.jaegerEndpoint) {
       this.sdk = new NodeSDK({
         resource: new Resource({
           [SemanticResourceAttributes.SERVICE_NAME]: config.serviceName,

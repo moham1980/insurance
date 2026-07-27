@@ -6,7 +6,9 @@
   "scripts": {
     "build": "tsc",
     "dev": "bun run src/index.ts",
-    "start": "bun run dist/index.js"
+    "start": "bun run dist/index.js",
+    "migrate": "bun run dist/migrate.js",
+    "migrate:build": "bun run build && bun run dist/migrate.js"
   },
   "dependencies": {
     "@insurance/shared": "1.0.0",

@@ -1,0 +1,40 @@
+/**
+ * Insurance Design System — Light Theme
+ * Token-driven CSS custom properties.
+ */
+
+:root {
+  /* Background */
+  --color-bg-base: #FFFFFF;
+  --color-bg-subtle: #F7F8FA;
+  --color-bg-raised: #FFFFFF;
+  --color-bg-overlay: rgba(15, 23, 42, 0.4);
+
+  /* Text */
+  --color-text-primary: #0F172A;
+  --color-text-secondary: #334155;
+  --color-text-muted: #475569;
+  --color-text-on-brand: #FFFFFF;
+  --color-text-disabled: #94A3B8;
+
+  /* Brand */
+  --color-brand-primary: #1E5BFF;
+  --color-brand-secondary: #0EA5A4;
+  --color-brand-accent: #F59E0B;
+
+  /* Status */
+  --color-status-success: #0E9F6E;
+  --color-status-warning: #D97706;
+  --color-status-danger: #DC2626;
+  --color-status-info: #0284C7;
+
+  /* Border */
+  --color-border-default: #E5E7EB;
+  --color-border-subtle: #F1F5F9;
+  --color-border-focus: #1E5BFF;
+
+  /* Surface */
+  --color-surface-1: #F8FAFC;
+  --color-surface-2: #F1F5F9;
+  --color-surface-3: #E2E8F0;
+}

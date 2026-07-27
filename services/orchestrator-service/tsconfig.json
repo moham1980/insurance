@@ -27,7 +27,10 @@
     "src/orchestrator.service.ts",
     "src/orchestrations.controller.ts",
     "src/work-items.controller.ts",
+    "src/data-source.ts",
+    "src/migrate.ts",
     "src/entities/**/*"
+    ,"src/migrations/**/*"
   ],
   "exclude": ["node_modules", "dist"]
 }

@@ -13,6 +13,9 @@
   },
   "files": [],
   "references": [
+    { "path": "./packages/design-system" },
+    { "path": "./packages/ui-utils" },
+    { "path": "./packages/api-client" },
     { "path": "./packages/shared" },
     { "path": "./services/claims-service" },
     { "path": "./services/outbox-relay" },

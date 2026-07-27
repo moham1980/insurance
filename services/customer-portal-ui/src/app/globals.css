@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+  }
+
+  [data-theme='dark'] {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  
+  html[dir="rtl"] {
+    direction: rtl;
+  }
+}
+
+@layer utilities {
+  .rtl-flip {
+    transform: scaleX(-1);
+  }
+}
+
+/* Mobile-first responsive utilities */
+@layer utilities {
+  .container-mobile {
+    @apply px-4 sm:px-6 lg:px-8;
+  }
+}
