@@ -11,7 +11,7 @@ export interface EventPolicyConfig {
   requiresTenantId?: boolean;
 }
 
-export interface RetentionPolicy {
+export interface EventRetentionPolicy {
   [eventType: string]: number; // retention in days
 }
 
@@ -24,7 +24,7 @@ export interface DlqPolicy {
 }
 
 // Default retention policies (in days)
-const DEFAULT_RETENTION_POLICIES: RetentionPolicy = {
+const DEFAULT_RETENTION_POLICIES: EventRetentionPolicy = {
   // Policy domain events - 7 years
   'insurance.policy.issued': 2555,
   'insurance.policy.unique_code_set': 2555,
@@ -147,7 +147,7 @@ export function validateEventNaming(eventType: string): { valid: boolean; error?
 /**
  * Get retention policy for an event type
  */
-export function getRetentionPolicy(eventType: string): number {
+export function getEventRetentionPolicy(eventType: string): number {
   return DEFAULT_RETENTION_POLICIES[eventType] || DEFAULT_RETENTION_POLICIES['default'] || 1825;
 }
 
@@ -227,7 +227,7 @@ export function enforceEventPolicy(eventType: string, metadata?: any): void {
  * Calculate retention deadline for an event
  */
 export function calculateRetentionDeadline(eventType: string, occurredAt: Date): Date {
-  const retentionDays = getRetentionPolicy(eventType);
+  const retentionDays = getEventRetentionPolicy(eventType);
   const deadline = new Date(occurredAt);
   deadline.setDate(deadline.getDate() + retentionDays);
   return deadline;
@@ -237,7 +237,7 @@ export function calculateRetentionDeadline(eventType: string, occurredAt: Date):
  * Check if an event should be archived based on retention policy
  */
 export function shouldArchiveEvent(eventType: string, occurredAt: Date): boolean {
-  const retentionDays = getRetentionPolicy(eventType);
+  const retentionDays = getEventRetentionPolicy(eventType);
   const archiveAfterDays = Math.floor(retentionDays * 0.5); // Archive after 50% of retention period
   const archiveDeadline = new Date(occurredAt);
   archiveDeadline.setDate(archiveDeadline.getDate() + archiveAfterDays);
@@ -249,7 +249,7 @@ export function shouldArchiveEvent(eventType: string, occurredAt: Date): boolean
  * Check if an event should be purged based on retention policy
  */
 export function shouldPurgeEvent(eventType: string, occurredAt: Date): boolean {
-  const retentionDays = getRetentionPolicy(eventType);
+  const retentionDays = getEventRetentionPolicy(eventType);
   const purgeDeadline = new Date(occurredAt);
   purgeDeadline.setDate(purgeDeadline.getDate() + retentionDays);
   
@@ -266,7 +266,7 @@ export function getRegisteredEventTypes(): string[] {
 /**
  * Add custom retention policy for an event type
  */
-export function addRetentionPolicy(eventType: string, retentionDays: number): void {
+export function addEventRetentionPolicy(eventType: string, retentionDays: number): void {
   if (retentionDays < 0) {
     throw new Error('Retention days must be non-negative');
   }

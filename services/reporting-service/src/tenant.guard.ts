@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+﻿import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
 
 @Injectable()
 export class TenantGuard implements CanActivate {
@@ -9,12 +9,20 @@ export class TenantGuard implements CanActivate {
 
     // Use tenantId from verified JWT payload
     const userTenantId = user.tenantId;
-    if (!userTenantId) return true; // If user has no tenantId, allow (system-level user)
+    if (!userTenantId) {
+      throw new ForbiddenException({
+        success: false,
+        error: { code: 'TENANT_REQUIRED', message: 'Tenant identifier is required' },
+      });
+    }
 
     // If request has a tenantId header, verify it matches JWT
     const headerTenantId = req.headers['x-tenant-id'] || req.headers['X-Tenant-Id'];
     if (headerTenantId && headerTenantId !== userTenantId) {
-      return false; // Tenant mismatch - reject
+      throw new ForbiddenException({
+        success: false,
+        error: { code: 'TENANT_MISMATCH', message: 'Tenant header does not match authenticated tenant' },
+      });
     }
 
     // Set tenantId on request for downstream use

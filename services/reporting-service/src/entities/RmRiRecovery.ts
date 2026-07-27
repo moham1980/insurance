@@ -4,6 +4,9 @@ import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 @Index(['contractId', 'updatedAt'])
 @Index(['claimId', 'updatedAt'])
 export class RmRiRecovery {
+  @Column({ type: 'uuid', name: 'tenant_id', nullable: true })
+  tenantId?: string | null;
+
   @PrimaryColumn({ name: 'recovery_id', type: 'uuid' })
   recoveryId: string;
 

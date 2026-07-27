@@ -9,6 +9,7 @@ export class CreateRecoveriesAndTickets1760000000511 implements MigrationInterfa
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS re_claim_recoveries (
         recovery_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        tenant_id TEXT NOT NULL,
         treaty_id UUID NOT NULL,
         claim_id TEXT NOT NULL,
         policy_id TEXT,
@@ -28,6 +29,7 @@ export class CreateRecoveriesAndTickets1760000000511 implements MigrationInterfa
       );
     `);
 
+    await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_re_claim_recoveries_tenant_id ON re_claim_recoveries(tenant_id);`);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_re_claim_recoveries_treaty_created_at ON re_claim_recoveries(treaty_id, created_at);`);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_re_claim_recoveries_status_created_at ON re_claim_recoveries(status, created_at);`);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_re_claim_recoveries_claim_id ON re_claim_recoveries(claim_id);`);
@@ -35,6 +37,7 @@ export class CreateRecoveriesAndTickets1760000000511 implements MigrationInterfa
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS re_tickets (
         ticket_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        tenant_id TEXT NOT NULL,
         reconciliation_id UUID NOT NULL,
         reason_code TEXT NOT NULL,
         status TEXT NOT NULL DEFAULT 'open',
@@ -50,6 +53,7 @@ export class CreateRecoveriesAndTickets1760000000511 implements MigrationInterfa
       );
     `);
 
+    await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_re_tickets_tenant_id ON re_tickets(tenant_id);`);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_re_tickets_reconciliation_created_at ON re_tickets(reconciliation_id, created_at);`);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_re_tickets_status_created_at ON re_tickets(status, created_at);`);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_re_tickets_assigned_to ON re_tickets(assigned_to);`);
@@ -57,6 +61,7 @@ export class CreateRecoveriesAndTickets1760000000511 implements MigrationInterfa
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS re_ticket_messages (
         ticket_message_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        tenant_id TEXT NOT NULL,
         ticket_id UUID NOT NULL,
         message_type TEXT NOT NULL DEFAULT 'internal',
         body TEXT NOT NULL,
@@ -67,11 +72,13 @@ export class CreateRecoveriesAndTickets1760000000511 implements MigrationInterfa
       );
     `);
 
+    await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_re_ticket_messages_tenant_id ON re_ticket_messages(tenant_id);`);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_re_ticket_messages_ticket_created_at ON re_ticket_messages(ticket_id, created_at);`);
 
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS re_ticket_attachments (
         ticket_attachment_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        tenant_id TEXT NOT NULL,
         ticket_id UUID NOT NULL,
         document_id TEXT NOT NULL,
         notes TEXT,
@@ -81,6 +88,7 @@ export class CreateRecoveriesAndTickets1760000000511 implements MigrationInterfa
       );
     `);
 
+    await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_re_ticket_attachments_tenant_id ON re_ticket_attachments(tenant_id);`);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_re_ticket_attachments_ticket_created_at ON re_ticket_attachments(ticket_id, created_at);`);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_re_ticket_attachments_document_id ON re_ticket_attachments(document_id);`);
   }

@@ -1,5 +1,5 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import { InjectRepository, Inject } from '@nestjs/typeorm';
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy, Inject } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, LessThanOrEqual } from 'typeorm';
 import { OutboxPublisher } from '@insurance/shared';
 import { v4 as uuidv4 } from 'uuid';
@@ -171,7 +171,6 @@ export class WorkflowEngineService implements OnModuleInit, OnModuleDestroy {
 
     const instance = await this.instanceRepository.findOne({
       where: { id: signalParams.instanceId, tenantId: signalParams.tenantId },
-      relations: ['tokens'],
     });
 
     if (!instance) {
@@ -194,7 +193,10 @@ export class WorkflowEngineService implements OnModuleInit, OnModuleDestroy {
       nodeId: signalParams.nodeId,
     }, null, null, signalParams.userId, 0, instance.tenantId);
 
-    const waitingTokens = instance.tokens.filter(t => t.status === TokenStatus.ACTIVE);
+    const tokens = await this.tokenRepository.find({
+      where: { instanceId: instance.id, tenantId: instance.tenantId },
+    });
+    const waitingTokens = tokens.filter(t => t.status === TokenStatus.ACTIVE);
     const matched: { token: ProcessToken; node: ProcessNode }[] = [];
 
     for (const token of waitingTokens) {
@@ -229,7 +231,6 @@ export class WorkflowEngineService implements OnModuleInit, OnModuleDestroy {
 
     const instance = await this.instanceRepository.findOne({
       where: { id: instanceId, tenantId },
-      relations: ['tokens'],
     });
 
     if (!instance) {
@@ -240,8 +241,12 @@ export class WorkflowEngineService implements OnModuleInit, OnModuleDestroy {
       throw new Error(`Cannot cancel instance with status: ${instance.status}`);
     }
 
+    const activeTokens = await this.tokenRepository.find({
+      where: { instanceId: instance.id, status: TokenStatus.ACTIVE, tenantId: instance.tenantId },
+    });
+
     return await this.dataSource.transaction(async (manager) => {
-      for (const token of instance.tokens) {
+      for (const token of activeTokens) {
         if (token.status === TokenStatus.ACTIVE) {
           token.status = TokenStatus.TERMINATED;
           token.consumedAt = new Date();
@@ -723,7 +728,6 @@ export class WorkflowEngineService implements OnModuleInit, OnModuleDestroy {
     const now = new Date();
     const pendingTimers = await this.timerRepository.find({
       where: { status: TimerStatus.PENDING, fireAt: LessThanOrEqual(now) },
-      relations: ['instance'],
       take: 100,
     });
 
@@ -733,7 +737,9 @@ export class WorkflowEngineService implements OnModuleInit, OnModuleDestroy {
         timer.firedAt = new Date();
         await this.timerRepository.save(timer);
 
-        const instance = timer.instance;
+        const instance = await this.instanceRepository.findOne({
+          where: { id: timer.instanceId, tenantId: timer.tenantId },
+        });
         if (!instance) {
           this.logger.warn(`Timer ${timer.id} has no associated instance`);
           continue;
@@ -832,7 +838,7 @@ export class WorkflowEngineService implements OnModuleInit, OnModuleDestroy {
   async getInstance(instanceId: string, tenantId: string): Promise<ProcessInstance> {
     const instance = await this.instanceRepository.findOne({
       where: { id: instanceId, tenantId },
-      relations: ['definition', 'tokens', 'variables', 'history'],
+      relations: ['definition'],
     });
     if (!instance) throw new Error(`Process instance not found: ${instanceId}`);
     return instance;

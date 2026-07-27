@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Inject, Logger, Scope } from '@nestjs/common';
+import { REQUEST } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { RmPolicyLifecycle } from './entities/RmPolicyLifecycle';
 import { RmClaimPayment } from './entities/RmClaimPayment';
@@ -21,7 +22,7 @@ import { RmAml } from './entities/RmAml';
 import { RmUnderwriting } from './entities/RmUnderwriting';
 import { ExternalSystemConnection } from './entities/ExternalSystemConnection';
 
-@Injectable()
+@Injectable({ scope: Scope.REQUEST })
 export class ReportingService {
   private readonly logger = new Logger(ReportingService.name);
 
@@ -43,8 +44,20 @@ export class ReportingService {
     @InjectRepository(RmSalesNetwork) private readonly salesNetworkRepo: Repository<RmSalesNetwork>,
     @InjectRepository(RmAml) private readonly amlRepo: Repository<RmAml>,
     @InjectRepository(RmUnderwriting) private readonly underwritingRepo: Repository<RmUnderwriting>,
-    @InjectRepository(ExternalSystemConnection) private readonly externalSystemRepo: Repository<ExternalSystemConnection>
-  ) {}
+    @InjectRepository(ExternalSystemConnection) private readonly externalSystemRepo: Repository<ExternalSystemConnection>,
+    @Inject(REQUEST) private readonly request: any
+  ) {
+    this.tenantId = this.request?.user?.tenantId;
+  }
+
+  private readonly tenantId: string | undefined;
+
+  private applyTenantFilter<T extends Record<string, any>>(qb: SelectQueryBuilder<T>, alias: string): SelectQueryBuilder<T> {
+    if (this.tenantId) {
+      qb.andWhere(`${alias}.tenant_id = :tenantId`, { tenantId: this.tenantId });
+    }
+    return qb;
+  }
 
   async listClaimDocumentsAttached(params: {
     claimId?: string;
@@ -52,6 +65,7 @@ export class ReportingService {
     offset: number;
   }): Promise<{ rows: RmClaimDocumentsAttached[]; total: number }> {
     const qb = this.rmClaimDocsRepo.createQueryBuilder('d');
+    this.applyTenantFilter(qb, 'd');
     if (params.claimId) qb.andWhere('d.claim_id = :claimId', { claimId: params.claimId });
     qb.orderBy('d.updated_at', 'DESC').limit(params.limit).offset(params.offset);
     const [rows, total] = await qb.getManyAndCount();
@@ -65,6 +79,7 @@ export class ReportingService {
     offset: number;
   }): Promise<{ rows: RmClaimPayment[]; total: number }> {
     const qb = this.rmClaimPaymentRepo.createQueryBuilder('c');
+    this.applyTenantFilter(qb, 'c');
     if (params.claimId) qb.andWhere('c.claim_id = :claimId', { claimId: params.claimId });
     if (params.policyId) qb.andWhere('c.policy_id = :policyId', { policyId: params.policyId });
     qb.orderBy('c.updated_at', 'DESC').limit(params.limit).offset(params.offset);
@@ -80,6 +95,7 @@ export class ReportingService {
     offset: number;
   }): Promise<{ rows: RmFraudCaseEscalation[]; total: number }> {
     const qb = this.rmFraudEscRepo.createQueryBuilder('e');
+    this.applyTenantFilter(qb, 'e');
     if (params.claimId) qb.andWhere('e.claim_id = :claimId', { claimId: params.claimId });
     if (params.fraudCaseId) qb.andWhere('e.fraud_case_id = :fraudCaseId', { fraudCaseId: params.fraudCaseId });
     if (params.toUnit) qb.andWhere('e.to_unit = :toUnit', { toUnit: params.toUnit });
@@ -98,6 +114,7 @@ export class ReportingService {
     offset: number;
   }): Promise<{ rows: RmComplaintSlaBreach[]; total: number }> {
     const qb = this.rmComplaintSlaRepo.createQueryBuilder('b');
+    this.applyTenantFilter(qb, 'b');
     if (params.complaintId) qb.andWhere('b.complaint_id = :complaintId', { complaintId: params.complaintId });
     if (params.claimId) qb.andWhere('b.claim_id = :claimId', { claimId: params.claimId });
     if (params.policyId) qb.andWhere('b.policy_id = :policyId', { policyId: params.policyId });
@@ -116,6 +133,7 @@ export class ReportingService {
     offset: number;
   }): Promise<{ rows: RmRiCeded[]; total: number }> {
     const qb = this.rmRiCededRepo.createQueryBuilder('r');
+    this.applyTenantFilter(qb, 'r');
     if (params.contractId) qb.andWhere('r.contract_id = :contractId', { contractId: params.contractId });
     if (params.policyId) qb.andWhere('r.policy_id = :policyId', { policyId: params.policyId });
     if (params.claimId) qb.andWhere('r.claim_id = :claimId', { claimId: params.claimId });
@@ -130,6 +148,7 @@ export class ReportingService {
     offset: number;
   }): Promise<{ rows: RmRiBorderaux[]; total: number }> {
     const qb = this.rmRiBorderauxRepo.createQueryBuilder('b');
+    this.applyTenantFilter(qb, 'b');
     if (params.contractId) qb.andWhere('b.contract_id = :contractId', { contractId: params.contractId });
     qb.orderBy('b.updated_at', 'DESC').limit(params.limit).offset(params.offset);
     const [rows, total] = await qb.getManyAndCount();
@@ -143,6 +162,7 @@ export class ReportingService {
     offset: number;
   }): Promise<{ rows: RmRiRecovery[]; total: number }> {
     const qb = this.rmRiRecoveryRepo.createQueryBuilder('x');
+    this.applyTenantFilter(qb, 'x');
     if (params.contractId) qb.andWhere('x.contract_id = :contractId', { contractId: params.contractId });
     if (params.claimId) qb.andWhere('x.claim_id = :claimId', { claimId: params.claimId });
     qb.orderBy('x.updated_at', 'DESC').limit(params.limit).offset(params.offset);
@@ -151,13 +171,13 @@ export class ReportingService {
   }
 
   async listGovernancePolicies(): Promise<KpiGovernancePolicy[]> {
-    return await this.governanceRepo.find({ order: { kpiKey: 'ASC' } as any });
+    return await this.governanceRepo.find({ where: { tenantId: this.tenantId }, order: { kpiKey: 'ASC' } as any });
   }
 
   async getGovernancePolicy(kpiKey: string): Promise<KpiGovernancePolicy | null> {
     const key = String(kpiKey || '').trim();
     if (!key) return null;
-    return await this.governanceRepo.findOne({ where: { kpiKey: key } as any });
+    return await this.governanceRepo.findOne({ where: { tenantId: this.tenantId, kpiKey: key } as any });
   }
 
   async upsertGovernancePolicy(params: {
@@ -169,7 +189,7 @@ export class ReportingService {
     maxValue: number | null;
     enforced: boolean;
   }): Promise<KpiGovernancePolicy> {
-    const existing = await this.governanceRepo.findOne({ where: { kpiKey: params.kpiKey } as any });
+    const existing = await this.governanceRepo.findOne({ where: { tenantId: this.tenantId, kpiKey: params.kpiKey } as any });
     if (existing) {
       existing.allowedPeriodGranularities = params.allowedPeriodGranularities;
       existing.allowedSourceSystems = params.allowedSourceSystems;
@@ -181,6 +201,7 @@ export class ReportingService {
     }
 
     const rec = this.governanceRepo.create({
+      tenantId: this.tenantId,
       kpiKey: params.kpiKey,
       allowedPeriodGranularities: params.allowedPeriodGranularities,
       allowedSourceSystems: params.allowedSourceSystems,
@@ -231,8 +252,7 @@ export class ReportingService {
       ? durationsClaimMin.reduce((a, b) => a + b, 0) / durationsClaimMin.length
       : null;
 
-    const scores = await this.rmFraudRepo
-      .createQueryBuilder('f')
+    const scores = await this.applyTenantFilter(this.rmFraudRepo.createQueryBuilder('f'), 'f')
       .where('f.score_computed_at IS NOT NULL')
       .getMany();
 
@@ -272,10 +292,12 @@ export class ReportingService {
     officialSourceSystem?: string | null;
     metadata?: Record<string, any> | null;
   }): Promise<KpiSnapshot> {
-    const existingAudit = await this.ingestionAuditRepo.findOne({ where: { idempotencyKey: params.idempotencyKey } });
+    const auditTenantId = params.tenantId || this.tenantId;
+    const existingAudit = await this.ingestionAuditRepo.findOne({ where: { tenantId: auditTenantId, idempotencyKey: params.idempotencyKey } });
     if (existingAudit) {
       const existingSnapshot = await this.snapshotRepo.findOne({
         where: {
+          tenantId: existingAudit.tenantId,
           kpiKey: existingAudit.kpiKey,
           periodStart: existingAudit.periodStart,
           periodEnd: existingAudit.periodEnd,
@@ -313,7 +335,7 @@ export class ReportingService {
     );
 
     const existing = await this.snapshotRepo.findOne({
-      where: { kpiKey: params.kpiKey, periodStart: params.periodStart, periodEnd: params.periodEnd } as any,
+      where: { tenantId: auditTenantId, kpiKey: params.kpiKey, periodStart: params.periodStart, periodEnd: params.periodEnd } as any,
     });
 
     if (existing) {
@@ -327,6 +349,7 @@ export class ReportingService {
     }
 
     const rec = this.snapshotRepo.create({
+      tenantId: auditTenantId,
       kpiKey: params.kpiKey,
       periodStart: params.periodStart,
       periodEnd: params.periodEnd,
@@ -349,6 +372,7 @@ export class ReportingService {
     offset: number;
   }): Promise<{ rows: KpiSnapshot[]; total: number }> {
     const qb = this.snapshotRepo.createQueryBuilder('s');
+    this.applyTenantFilter(qb, 's');
     if (params.kpiKey) qb.andWhere('s.kpi_key = :kpiKey', { kpiKey: params.kpiKey });
     if (params.periodStart) qb.andWhere('s.period_start >= :ps', { ps: params.periodStart.toISOString() });
     if (params.periodEnd) qb.andWhere('s.period_end <= :pe', { pe: params.periodEnd.toISOString() });
@@ -367,7 +391,7 @@ export class ReportingService {
     complaintMetrics: { totalComplaints: number; slaBreachRate: number; avgResolutionHours: number | null };
     kpiSummary: Array<{ kpiKey: string; latestValue: number; unit: string | null; trend: 'up' | 'down' | 'stable' }>;
   }> {
-    const policies = await this.policyRepo.createQueryBuilder('p').getMany();
+    const policies = await this.applyTenantFilter(this.policyRepo.createQueryBuilder('p'), 'p').getMany();
     const issuedPolicies = policies.filter(p => p.issuedAt !== null);
     const renewedPolicies = policies.filter(p => p.renewedAt !== null);
     const cancelledPolicies = policies.filter(p => p.cancelledAt !== null);
@@ -379,7 +403,7 @@ export class ReportingService {
       ? Math.round(quoteToIssueDurations.reduce((a, b) => a + b, 0) / quoteToIssueDurations.length * 100) / 100
       : null;
 
-    const claims = await this.rmClaimPaymentRepo.createQueryBuilder('c').getMany();
+    const claims = await this.applyTenantFilter(this.rmClaimPaymentRepo.createQueryBuilder('c'), 'c').getMany();
     const totalRegistered = claims.length;
     const paidClaims = claims.filter(c => c.claimPaidAt !== null);
     const totalPayoutAmount = paidClaims.reduce((sum, c) => sum + (c.approvedAmount ? Number(c.approvedAmount) : 0), 0);
@@ -391,18 +415,18 @@ export class ReportingService {
       ? Math.round(payoutDurations.reduce((a, b) => a + b, 0) / payoutDurations.length * 100) / 100
       : null;
 
-    const fraudSignals = await this.rmFraudRepo.createQueryBuilder('f').getMany();
+    const fraudSignals = await this.applyTenantFilter(this.rmFraudRepo.createQueryBuilder('f'), 'f').getMany();
     const totalScored = fraudSignals.length;
     const holdCount = fraudSignals.filter(f => f.holdClaim === true).length;
     const holdRate = totalScored > 0 ? Math.round((holdCount / totalScored) * 1000) / 1000 : 0;
 
-    const escalations = await this.rmFraudEscRepo.createQueryBuilder('e').getCount();
+    const escalations = await this.applyTenantFilter(this.rmFraudEscRepo.createQueryBuilder('e'), 'e').getCount();
 
-    const cededCount = await this.rmRiCededRepo.createQueryBuilder('r').getCount();
-    const recoveryCount = await this.rmRiRecoveryRepo.createQueryBuilder('x').getCount();
-    const borderauxCount = await this.rmRiBorderauxRepo.createQueryBuilder('b').getCount();
+    const cededCount = await this.applyTenantFilter(this.rmRiCededRepo.createQueryBuilder('r'), 'r').getCount();
+    const recoveryCount = await this.applyTenantFilter(this.rmRiRecoveryRepo.createQueryBuilder('x'), 'x').getCount();
+    const borderauxCount = await this.applyTenantFilter(this.rmRiBorderauxRepo.createQueryBuilder('b'), 'b').getCount();
 
-    const complaints = await this.rmComplaintSlaRepo.createQueryBuilder('c').getMany();
+    const complaints = await this.applyTenantFilter(this.rmComplaintSlaRepo.createQueryBuilder('c'), 'c').getMany();
     const totalComplaints = complaints.length;
     const slaBreaches = complaints.filter(c => c.breachedAt !== null).length;
     const slaBreachRate = totalComplaints > 0 ? Math.round((slaBreaches / totalComplaints) * 1000) / 1000 : 0;
@@ -410,7 +434,7 @@ export class ReportingService {
     const avgResolutionHours = null;
 
     // KPI trends (latest snapshot per kpiKey)
-    const allSnapshots = await this.snapshotRepo.createQueryBuilder('s').orderBy('s.created_at', 'DESC').getMany();
+    const allSnapshots = await this.applyTenantFilter(this.snapshotRepo.createQueryBuilder('s'), 's').orderBy('s.created_at', 'DESC').getMany();
     const latestByKpi: Record<string, { value: number; unit: string | null; createdAt: Date }> = {};
     for (const snap of allSnapshots) {
       if (!latestByKpi[snap.kpiKey]) {
@@ -468,6 +492,7 @@ export class ReportingService {
     offset: number;
   }): Promise<{ rows: RmPolicy[]; total: number }> {
     const qb = this.policyRepo.createQueryBuilder('p');
+    this.applyTenantFilter(qb, 'p');
     if (params.policyId) qb.andWhere('p.policy_id = :policyId', { policyId: params.policyId });
     if (params.policyNumber) qb.andWhere('p.policy_number = :policyNumber', { policyNumber: params.policyNumber });
     if (params.status) qb.andWhere('p.status = :status', { status: params.status });
@@ -480,7 +505,7 @@ export class ReportingService {
   }
 
   async getPolicy(policyId: string): Promise<RmPolicy | null> {
-    return await this.policyRepo.findOne({ where: { policyId } as any });
+    return await this.policyRepo.findOne({ where: { tenantId: this.tenantId, policyId } as any });
   }
 
   async listPayments(params: {
@@ -495,6 +520,7 @@ export class ReportingService {
     offset: number;
   }): Promise<{ rows: RmPayment[]; total: number }> {
     const qb = this.paymentRepo.createQueryBuilder('p');
+    this.applyTenantFilter(qb, 'p');
     if (params.paymentId) qb.andWhere('p.payment_id = :paymentId', { paymentId: params.paymentId });
     if (params.paymentNumber) qb.andWhere('p.payment_number = :paymentNumber', { paymentNumber: params.paymentNumber });
     if (params.policyId) qb.andWhere('p.policy_id = :policyId', { policyId: params.policyId });
@@ -508,7 +534,7 @@ export class ReportingService {
   }
 
   async getPayment(paymentId: string): Promise<RmPayment | null> {
-    return await this.paymentRepo.findOne({ where: { paymentId } as any });
+    return await this.paymentRepo.findOne({ where: { tenantId: this.tenantId, paymentId } as any });
   }
 
   async listSalesPartners(params: {
@@ -520,6 +546,7 @@ export class ReportingService {
     offset: number;
   }): Promise<{ rows: RmSalesNetwork[]; total: number }> {
     const qb = this.salesNetworkRepo.createQueryBuilder('s');
+    this.applyTenantFilter(qb, 's');
     if (params.partnerId) qb.andWhere('s.partner_id = :partnerId', { partnerId: params.partnerId });
     if (params.orgUnitId) qb.andWhere('s.org_unit_id = :orgUnitId', { orgUnitId: params.orgUnitId });
     if (params.status) qb.andWhere('s.status = :status', { status: params.status });
@@ -530,7 +557,7 @@ export class ReportingService {
   }
 
   async getSalesPartner(partnerId: string): Promise<RmSalesNetwork | null> {
-    return await this.salesNetworkRepo.findOne({ where: { partnerId } as any });
+    return await this.salesNetworkRepo.findOne({ where: { tenantId: this.tenantId, partnerId } as any });
   }
 
   async listAmlTransactions(params: {
@@ -543,6 +570,7 @@ export class ReportingService {
     offset: number;
   }): Promise<{ rows: RmAml[]; total: number }> {
     const qb = this.amlRepo.createQueryBuilder('a');
+    this.applyTenantFilter(qb, 'a');
     if (params.transactionId) qb.andWhere('a.transaction_id = :transactionId', { transactionId: params.transactionId });
     if (params.partyId) qb.andWhere('a.party_id = :partyId', { partyId: params.partyId });
     if (params.status) qb.andWhere('a.status = :status', { status: params.status });
@@ -554,7 +582,7 @@ export class ReportingService {
   }
 
   async getAmlTransaction(transactionId: string): Promise<RmAml | null> {
-    return await this.amlRepo.findOne({ where: { transactionId } as any });
+    return await this.amlRepo.findOne({ where: { tenantId: this.tenantId, transactionId } as any });
   }
 
   async listUnderwritingRequests(params: {
@@ -567,6 +595,7 @@ export class ReportingService {
     offset: number;
   }): Promise<{ rows: RmUnderwriting[]; total: number }> {
     const qb = this.underwritingRepo.createQueryBuilder('u');
+    this.applyTenantFilter(qb, 'u');
     if (params.requestId) qb.andWhere('u.request_id = :requestId', { requestId: params.requestId });
     if (params.policyId) qb.andWhere('u.policy_id = :policyId', { policyId: params.policyId });
     if (params.status) qb.andWhere('u.status = :status', { status: params.status });
@@ -578,7 +607,7 @@ export class ReportingService {
   }
 
   async getUnderwritingRequest(requestId: string): Promise<RmUnderwriting | null> {
-    return await this.underwritingRepo.findOne({ where: { requestId } as any });
+    return await this.underwritingRepo.findOne({ where: { tenantId: this.tenantId, requestId } as any });
   }
 
   // External system connection management methods
@@ -592,6 +621,7 @@ export class ReportingService {
   }): Promise<ExternalSystemConnection> {
     const connection = this.externalSystemRepo.create({
       connectionId: uuidv4(),
+      tenantId: this.tenantId,
       systemName: params.systemName,
       systemType: params.systemType,
       connectionConfig: params.connectionConfig,
@@ -623,7 +653,7 @@ export class ReportingService {
       status?: ExternalSystemConnection['status'];
     }
   ): Promise<ExternalSystemConnection | null> {
-    const connection = await this.externalSystemRepo.findOne({ where: { connectionId } });
+    const connection = await this.externalSystemRepo.findOne({ where: { tenantId: this.tenantId, connectionId } });
     if (!connection) return null;
 
     if (params.systemName !== undefined) connection.systemName = params.systemName;
@@ -640,7 +670,7 @@ export class ReportingService {
   }
 
   async getExternalSystemConnection(connectionId: string): Promise<ExternalSystemConnection | null> {
-    return this.externalSystemRepo.findOne({ where: { connectionId } });
+    return this.externalSystemRepo.findOne({ where: { tenantId: this.tenantId, connectionId } });
   }
 
   async listExternalSystemConnections(params: {
@@ -650,6 +680,7 @@ export class ReportingService {
     offset: number;
   }): Promise<{ rows: ExternalSystemConnection[]; total: number }> {
     const qb = this.externalSystemRepo.createQueryBuilder('c');
+    this.applyTenantFilter(qb, 'c');
     if (params.systemType) qb.andWhere('c.system_type = :systemType', { systemType: params.systemType });
     if (params.status) qb.andWhere('c.status = :status', { status: params.status });
     qb.orderBy('c.created_at', 'DESC').limit(params.limit).offset(params.offset);
@@ -658,7 +689,7 @@ export class ReportingService {
   }
 
   async deleteExternalSystemConnection(connectionId: string): Promise<boolean> {
-    const result = await this.externalSystemRepo.delete({ connectionId });
+    const result = await this.externalSystemRepo.delete({ tenantId: this.tenantId, connectionId });
     if (result.affected && result.affected > 0) {
       this.logger.log(`External system connection deleted: ${connectionId}`);
       return true;
@@ -675,7 +706,7 @@ export class ReportingService {
     syncedRecords?: number;
     error?: string;
   }> {
-    const connection = await this.externalSystemRepo.findOne({ where: { connectionId } });
+    const connection = await this.externalSystemRepo.findOne({ where: { tenantId: this.tenantId, connectionId } });
     if (!connection) {
       return { success: false, error: 'Connection not found' };
     }
@@ -691,8 +722,7 @@ export class ReportingService {
       // Based on system type, implement sync logic
       if (connection.systemType === 'financial' || connection.systemType === 'bi') {
         // Sync KPI snapshots
-        const snapshots = await this.snapshotRepo
-          .createQueryBuilder('s')
+        const snapshots = await this.applyTenantFilter(this.snapshotRepo.createQueryBuilder('s'), 's')
           .where('s.created_at >= :startDate', { startDate: params.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) })
           .andWhere('s.created_at <= :endDate', { endDate: params.endDate || new Date() })
           .limit(1000)
@@ -733,7 +763,7 @@ export class ReportingService {
     lastSyncError: string | null;
     syncFrequencyMinutes: number | null;
   } | null> {
-    const connection = await this.externalSystemRepo.findOne({ where: { connectionId } });
+    const connection = await this.externalSystemRepo.findOne({ where: { tenantId: this.tenantId, connectionId } });
     if (!connection) return null;
 
     return {
@@ -760,35 +790,49 @@ export class ReportingService {
     gwp: number;
     nwp: number;
     technicalResult: number;
-    period: {
-      startDate: string;
-      endDate: string;
-    };
+    period: { startDate: string; endDate: string };
   }> {
-    // Simulate financial KPI calculations
-    // In a real implementation, this would query financial tables or aggregations
-    const totalPremium = Math.random() * 1000000000 + 500000000;
-    const totalClaimsPaid = totalPremium * (Math.random() * 0.4 + 0.5);
-    const lossRatio = totalClaimsPaid / totalPremium;
-    const combinedRatio = lossRatio + (Math.random() * 0.2 + 0.1);
-    const profitMargin = 1 - combinedRatio;
-    const gwp = totalPremium * 1.1;
-    const nwp = gwp * 0.9;
-    const technicalResult = gwp - totalClaimsPaid - (gwp * 0.15);
+    const policies = await this.applyTenantFilter(this.policyRepo.createQueryBuilder('p'), 'p')
+      .where('p.issued_at >= :startDate', { startDate: params.startDate })
+      .andWhere('p.issued_at <= :endDate', { endDate: params.endDate })
+      .getMany();
+    const totalPremium = policies.reduce((sum, p) => sum + Number(p.premiumAmount || 0), 0);
+
+    const paidClaims = await this.applyTenantFilter(this.rmClaimPaymentRepo.createQueryBuilder('c'), 'c')
+      .where('c.claim_paid_at >= :startDate', { startDate: params.startDate })
+      .andWhere('c.claim_paid_at <= :endDate', { endDate: params.endDate })
+      .getMany();
+    const totalClaimsPaid = paidClaims.reduce((sum, c) => sum + Number(c.approvedAmount || 0), 0);
+
+    const ceded = await this.applyTenantFilter(this.rmRiCededRepo.createQueryBuilder('r'), 'r')
+      .where('r.occurred_at >= :startDate', { startDate: params.startDate })
+      .andWhere('r.occurred_at <= :endDate', { endDate: params.endDate })
+      .getMany();
+    const cededTotal = ceded.reduce((sum, r) => sum + Number(r.cededAmount || 0), 0);
+
+    const expenses = await this.applyTenantFilter(this.paymentRepo.createQueryBuilder('p'), 'p')
+      .where('p.paid_at >= :startDate', { startDate: params.startDate })
+      .andWhere('p.paid_at <= :endDate', { endDate: params.endDate })
+      .andWhere('p.payment_type IN (:...types)', { types: ['commission', 'expense', 'fee'] })
+      .getMany();
+    const expenseTotal = expenses.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
+    const gwp = totalPremium;
+    const nwp = gwp - cededTotal;
+    const lossRatio = gwp > 0 ? totalClaimsPaid / gwp : 0;
+    const expenseRatio = gwp > 0 ? expenseTotal / gwp : 0.15;
+    const combinedRatio = lossRatio + expenseRatio;
 
     return {
       totalPremium,
       totalClaimsPaid,
       lossRatio,
       combinedRatio,
-      profitMargin,
+      profitMargin: 1 - combinedRatio,
       gwp,
       nwp,
-      technicalResult,
-      period: {
-        startDate: params.startDate.toISOString(),
-        endDate: params.endDate.toISOString(),
-      },
+      technicalResult: gwp - totalClaimsPaid - expenseTotal,
+      period: { startDate: params.startDate.toISOString(), endDate: params.endDate.toISOString() },
     };
   }
 
@@ -801,40 +845,44 @@ export class ReportingService {
     totalPoliciesSold: number;
     newCustomers: number;
     customerRetentionRate: number;
-    competitorComparison: Array<{
-      competitor: string;
-      marketShare: number;
-    }>;
-    period: {
-      startDate: string;
-      endDate: string;
-    };
+    competitorComparison: Array<{ competitor: string; marketShare: number }>;
+    period: { startDate: string; endDate: string };
   }> {
-    // Simulate market share KPI calculations
-    const marketShare = Math.random() * 15 + 5; // 5-20%
-    const totalPoliciesSold = Math.floor(Math.random() * 50000 + 10000);
-    const newCustomers = Math.floor(totalPoliciesSold * 0.3);
-    const customerRetentionRate = Math.random() * 0.1 + 0.85; // 85-95%
-    const marketRank = Math.floor(marketShare / 5) + 1;
+    const policies = await this.applyTenantFilter(this.policyRepo.createQueryBuilder('p'), 'p')
+      .where('p.issued_at >= :startDate', { startDate: params.startDate })
+      .andWhere('p.issued_at <= :endDate', { endDate: params.endDate })
+      .getMany();
+    const totalPoliciesSold = policies.length;
 
-    const competitorComparison = [
-      { competitor: 'Competitor A', marketShare: Math.random() * 20 + 10 },
-      { competitor: 'Competitor B', marketShare: Math.random() * 15 + 5 },
-      { competitor: 'Competitor C', marketShare: Math.random() * 10 + 3 },
-      { competitor: 'Competitor D', marketShare: Math.random() * 8 + 2 },
-    ].sort((a, b) => b.marketShare - a.marketShare);
+    const holderSet = new Set<string>();
+    const newHolderSet = new Set<string>();
+    for (const policy of policies) {
+      if (policy.holderPartyId) holderSet.add(policy.holderPartyId);
+      if (policy.holderPartyId && !policy.renewalParentId && policy.renewalCount === 0) {
+        newHolderSet.add(policy.holderPartyId);
+      }
+    }
+    const newCustomers = newHolderSet.size;
+
+    const renewed = await this.applyTenantFilter(this.policyRepo.createQueryBuilder('p'), 'p')
+      .where('p.renewed_at >= :startDate', { startDate: params.startDate })
+      .andWhere('p.renewed_at <= :endDate', { endDate: params.endDate })
+      .getCount();
+    const cancelled = await this.applyTenantFilter(this.policyRepo.createQueryBuilder('p'), 'p')
+      .where('p.cancelled_at >= :startDate', { startDate: params.startDate })
+      .andWhere('p.cancelled_at <= :endDate', { endDate: params.endDate })
+      .getCount();
+    const denominator = renewed + cancelled + totalPoliciesSold || 1;
+    const customerRetentionRate = (renewed + totalPoliciesSold) / denominator;
 
     return {
-      marketShare,
-      marketRank,
+      marketShare: 0,
+      marketRank: 0,
       totalPoliciesSold,
       newCustomers,
       customerRetentionRate,
-      competitorComparison,
-      period: {
-        startDate: params.startDate.toISOString(),
-        endDate: params.endDate.toISOString(),
-      },
+      competitorComparison: [],
+      period: { startDate: params.startDate.toISOString(), endDate: params.endDate.toISOString() },
     };
   }
 
@@ -849,62 +897,27 @@ export class ReportingService {
     firstContactResolution: number;
     complaintResolutionRate: number;
     customerChurnRate: number;
-    trends: {
-      monthly: Array<{
-        month: string;
-        satisfactionScore: number;
-      }>;
-    };
-    period: {
-      startDate: string;
-      endDate: string;
-    };
+    trends: { monthly: Array<{ month: string; satisfactionScore: number }> };
+    period: { startDate: string; endDate: string };
   }> {
-    // Simulate satisfaction KPI calculations
-    const overallSatisfactionScore = Math.random() * 2 + 3; // 3-5 out of 5
-    const npsScore = Math.floor(Math.random() * 40 - 20); // -20 to +20
-    const csatScore = Math.random() * 20 + 80; // 80-100%
-    const responseTimeAvg = Math.random() * 24 + 2; // 2-26 hours
-    const firstContactResolution = Math.random() * 0.2 + 0.75; // 75-95%
-    const complaintResolutionRate = Math.random() * 0.15 + 0.8; // 80-95%
-    const customerChurnRate = Math.random() * 0.05 + 0.02; // 2-7%
-
-    // Generate monthly trends
-    const trends = [];
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const startMonth = params.startDate.getMonth();
-    const endMonth = params.endDate.getMonth();
-    
-    for (let i = 0; i < 6; i++) {
-      const monthIndex = (startMonth + i) % 12;
-      trends.push({
-        month: months[monthIndex],
-        satisfactionScore: Math.random() * 2 + 3,
-      });
-    }
-
+    // No survey read model exists; return zeros and empty trends.
     return {
-      overallSatisfactionScore,
-      npsScore,
-      csatScore,
-      responseTimeAvg,
-      firstContactResolution,
-      complaintResolutionRate,
-      customerChurnRate,
-      trends: {
-        monthly: trends,
-      },
-      period: {
-        startDate: params.startDate.toISOString(),
-        endDate: params.endDate.toISOString(),
-      },
+      overallSatisfactionScore: 0,
+      npsScore: 0,
+      csatScore: 0,
+      responseTimeAvg: 0,
+      firstContactResolution: 0,
+      complaintResolutionRate: 0,
+      customerChurnRate: 0,
+      trends: { monthly: [] },
+      period: { startDate: params.startDate.toISOString(), endDate: params.endDate.toISOString() },
     };
   }
 
-  /**
-   * Executive Cockpit: Combined Ratio KPIs
-   * Combined Ratio = (Incurred Loss + Expenses) / Earned Premium
-   */
+  private monthKey(d: Date): string {
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+  }
+
   async getCombinedRatioKPIs(params: {
     startDate: Date;
     endDate: Date;
@@ -916,45 +929,55 @@ export class ReportingService {
     earnedPremium: number;
     underwritingProfit: number;
     underwritingProfitMargin: number;
-    trends: {
-      monthly: Array<{
-        month: string;
-        combinedRatio: number;
-        lossRatio: number;
-        expenseRatio: number;
-      }>;
-    };
-    period: {
-      startDate: string;
-      endDate: string;
-    };
+    trends: { monthly: Array<{ month: string; combinedRatio: number; lossRatio: number; expenseRatio: number }> };
+    period: { startDate: string; endDate: string };
   }> {
-    // Simulate combined ratio KPI calculations
-    const earnedPremium = Math.random() * 1000000000 + 500000000; // 500M - 1.5B IRR
-    const incurredLosses = earnedPremium * (Math.random() * 0.2 + 0.5); // 50-70% of premium
-    const expenses = earnedPremium * (Math.random() * 0.15 + 0.2); // 20-35% of premium
-    
-    const lossRatio = incurredLosses / earnedPremium;
-    const expenseRatio = expenses / earnedPremium;
-    const combinedRatio = lossRatio + expenseRatio;
-    
-    const underwritingProfit = earnedPremium - incurredLosses - expenses;
-    const underwritingProfitMargin = underwritingProfit / earnedPremium;
+    const policies = await this.applyTenantFilter(this.policyRepo.createQueryBuilder('p'), 'p')
+      .where('p.issued_at >= :startDate', { startDate: params.startDate })
+      .andWhere('p.issued_at <= :endDate', { endDate: params.endDate })
+      .getMany();
+    const claims = await this.applyTenantFilter(this.rmClaimPaymentRepo.createQueryBuilder('c'), 'c')
+      .where('c.claim_paid_at >= :startDate', { startDate: params.startDate })
+      .andWhere('c.claim_paid_at <= :endDate', { endDate: params.endDate })
+      .getMany();
+    const expenses = await this.applyTenantFilter(this.paymentRepo.createQueryBuilder('p'), 'p')
+      .where('p.paid_at >= :startDate', { startDate: params.startDate })
+      .andWhere('p.paid_at <= :endDate', { endDate: params.endDate })
+      .andWhere('p.payment_type IN (:...types)', { types: ['commission', 'expense', 'fee'] })
+      .getMany();
 
-    // Generate monthly trends
-    const trends = [];
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const startMonth = params.startDate.getMonth();
-    
-    for (let i = 0; i < 6; i++) {
-      const monthIndex = (startMonth + i) % 12;
-      trends.push({
-        month: months[monthIndex],
-        combinedRatio: Math.random() * 0.3 + 0.7, // 70-100%
-        lossRatio: Math.random() * 0.2 + 0.5, // 50-70%
-        expenseRatio: Math.random() * 0.15 + 0.2, // 20-35%
-      });
+    const earnedPremium = policies.reduce((sum, p) => sum + Number(p.premiumAmount || 0), 0);
+    const incurredLosses = claims.reduce((sum, c) => sum + Number(c.approvedAmount || 0), 0);
+    const exp = expenses.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const lossRatio = earnedPremium > 0 ? incurredLosses / earnedPremium : 0;
+    const expenseRatio = earnedPremium > 0 ? exp / earnedPremium : 0;
+    const combinedRatio = lossRatio + expenseRatio;
+    const underwritingProfit = earnedPremium - incurredLosses - exp;
+
+    // monthly trends
+    const groups: Record<string, { premium: number; claims: number; expenses: number }> = {};
+    for (const p of policies) {
+      const k = this.monthKey(p.issuedAt || p.createdAt);
+      groups[k] = groups[k] || { premium: 0, claims: 0, expenses: 0 };
+      groups[k].premium += Number(p.premiumAmount || 0);
     }
+    for (const c of claims) {
+      const k = this.monthKey(c.claimPaidAt || c.updatedAt);
+      groups[k] = groups[k] || { premium: 0, claims: 0, expenses: 0 };
+      groups[k].claims += Number(c.approvedAmount || 0);
+    }
+    for (const e of expenses) {
+      const k = this.monthKey(e.paidAt || e.createdAt);
+      groups[k] = groups[k] || { premium: 0, claims: 0, expenses: 0 };
+      groups[k].expenses += Number(e.amount || 0);
+    }
+    const trends = Object.entries(groups)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([month, g]) => {
+        const lr = g.premium > 0 ? g.claims / g.premium : 0;
+        const er = g.premium > 0 ? g.expenses / g.premium : 0;
+        return { month, combinedRatio: lr + er, lossRatio: lr, expenseRatio: er };
+      });
 
     return {
       combinedRatio,
@@ -963,20 +986,12 @@ export class ReportingService {
       incurredLosses,
       earnedPremium,
       underwritingProfit,
-      underwritingProfitMargin,
-      trends: {
-        monthly: trends,
-      },
-      period: {
-        startDate: params.startDate.toISOString(),
-        endDate: params.endDate.toISOString(),
-      },
+      underwritingProfitMargin: earnedPremium > 0 ? underwritingProfit / earnedPremium : 0,
+      trends: { monthly: trends },
+      period: { startDate: params.startDate.toISOString(), endDate: params.endDate.toISOString() },
     };
   }
 
-  /**
-   * Executive Cockpit: Retention KPIs
-   */
   async getRetentionKPIs(params: {
     startDate: Date;
     endDate: Date;
@@ -987,71 +1002,49 @@ export class ReportingService {
     lapseRate: number;
     surrenderRate: number;
     averagePolicyTenure: number;
-    churnReasons: Array<{
-      reason: string;
-      percentage: number;
-    }>;
-    trends: {
-      monthly: Array<{
-        month: string;
-        retentionRate: number;
-      }>;
-    };
-    period: {
-      startDate: string;
-      endDate: string;
-    };
+    churnReasons: Array<{ reason: string; percentage: number }>;
+    trends: { monthly: Array<{ month: string; retentionRate: number }> };
+    period: { startDate: string; endDate: string };
   }> {
-    // Simulate retention KPI calculations
-    const policyRetentionRate = Math.random() * 0.1 + 0.85; // 85-95%
-    const customerRetentionRate = Math.random() * 0.1 + 0.85; // 85-95%
-    const renewalRate = Math.random() * 0.15 + 0.75; // 75-90%
-    const lapseRate = Math.random() * 0.1 + 0.05; // 5-15%
-    const surrenderRate = Math.random() * 0.05 + 0.02; // 2-7%
-    const averagePolicyTenure = Math.random() * 3 + 2; // 2-5 years
+    const policies = await this.applyTenantFilter(this.policyRepo.createQueryBuilder('p'), 'p')
+      .where('p.issued_at >= :startDate', { startDate: params.startDate })
+      .andWhere('p.issued_at <= :endDate', { endDate: params.endDate })
+      .getMany();
+    const renewed = policies.filter(p => p.renewedAt !== null).length;
+    const cancelled = policies.filter(p => p.cancelledAt !== null).length;
+    const total = policies.length || 1;
 
-    const churnReasons = [
-      { reason: 'Price', percentage: Math.random() * 30 + 20 },
-      { reason: 'Service Quality', percentage: Math.random() * 20 + 10 },
-      { reason: 'Competitor Offer', percentage: Math.random() * 15 + 10 },
-      { reason: 'Coverage Needs', percentage: Math.random() * 15 + 10 },
-      { reason: 'Other', percentage: Math.random() * 10 + 5 },
-    ];
+    const tenures = policies.map(p => {
+      const end = p.cancelledAt ? new Date(p.cancelledAt).getTime() : Date.now();
+      const start = p.issuedAt ? new Date(p.issuedAt).getTime() : end;
+      return (end - start) / (365 * 24 * 60 * 60 * 1000);
+    }).filter((x: number) => Number.isFinite(x) && x >= 0);
+    const averagePolicyTenure = tenures.length ? tenures.reduce((a: number, b: number) => a + b, 0) / tenures.length : 0;
 
-    // Generate monthly trends
-    const trends = [];
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const startMonth = params.startDate.getMonth();
-    
-    for (let i = 0; i < 6; i++) {
-      const monthIndex = (startMonth + i) % 12;
-      trends.push({
-        month: months[monthIndex],
-        retentionRate: Math.random() * 0.1 + 0.85,
-      });
+    const groups: Record<string, { renewed: number; total: number }> = {};
+    for (const p of policies) {
+      const k = this.monthKey(p.issuedAt || p.createdAt);
+      groups[k] = groups[k] || { renewed: 0, total: 0 };
+      groups[k].total += 1;
+      if (p.renewedAt) groups[k].renewed += 1;
     }
+    const trends = Object.entries(groups)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([month, g]) => ({ month, retentionRate: g.total > 0 ? g.renewed / g.total : 0 }));
 
     return {
-      policyRetentionRate,
-      customerRetentionRate,
-      renewalRate,
-      lapseRate,
-      surrenderRate,
+      policyRetentionRate: (total - cancelled) / total,
+      customerRetentionRate: (total - cancelled) / total,
+      renewalRate: renewed / total,
+      lapseRate: cancelled / total,
+      surrenderRate: 1 - (renewed + (total - cancelled)) / total,
       averagePolicyTenure,
-      churnReasons,
-      trends: {
-        monthly: trends,
-      },
-      period: {
-        startDate: params.startDate.toISOString(),
-        endDate: params.endDate.toISOString(),
-      },
+      churnReasons: [],
+      trends: { monthly: trends },
+      period: { startDate: params.startDate.toISOString(), endDate: params.endDate.toISOString() },
     };
   }
 
-  /**
-   * Executive Cockpit: Leakage KPIs
-   */
   async getLeakageKPIs(params: {
     startDate: Date;
     endDate: Date;
@@ -1060,48 +1053,37 @@ export class ReportingService {
     claimsLeakage: number;
     operationalLeakage: number;
     totalLeakage: number;
-    leakageByCategory: Array<{
-      category: string;
-      amount: number;
-      percentage: number;
-    }>;
-    trends: {
-      monthly: Array<{
-        month: string;
-        leakageAmount: number;
-      }>;
-    };
-    period: {
-      startDate: string;
-      endDate: string;
-    };
+    leakageByCategory: Array<{ category: string; amount: number; percentage: number }>;
+    trends: { monthly: Array<{ month: string; leakageAmount: number }> };
+    period: { startDate: string; endDate: string };
   }> {
-    // Simulate leakage KPI calculations
-    const totalPremium = Math.random() * 1000000000 + 500000000;
-    const premiumLeakage = totalPremium * (Math.random() * 0.05 + 0.02); // 2-7%
-    const claimsLeakage = totalPremium * (Math.random() * 0.03 + 0.01); // 1-4%
-    const operationalLeakage = totalPremium * (Math.random() * 0.02 + 0.01); // 1-3%
-    
+    const cancelled = await this.applyTenantFilter(this.policyRepo.createQueryBuilder('p'), 'p')
+      .where('p.cancelled_at >= :startDate', { startDate: params.startDate })
+      .andWhere('p.cancelled_at <= :endDate', { endDate: params.endDate })
+      .getMany();
+    const premiumLeakage = cancelled.reduce((sum, p) => sum + Number(p.premiumAmount || 0), 0);
+
+    // Claims leakage: open claims that have been approved but not yet paid
+    const openClaims = await this.applyTenantFilter(this.rmClaimPaymentRepo.createQueryBuilder('c'), 'c')
+      .where('c.registered_at >= :startDate', { startDate: params.startDate })
+      .andWhere('c.registered_at <= :endDate', { endDate: params.endDate })
+      .andWhere('c.claim_paid_at IS NULL')
+      .getMany();
+    const claimsLeakage = openClaims.reduce((sum, c) => sum + Number(c.approvedAmount || 0), 0);
+
+    const operationalLeakage = await this.applyTenantFilter(this.paymentRepo.createQueryBuilder('p'), 'p')
+      .where('p.paid_at >= :startDate', { startDate: params.startDate })
+      .andWhere('p.paid_at <= :endDate', { endDate: params.endDate })
+      .andWhere('p.payment_type = :type', { type: 'expense' })
+      .getRawOne()
+      .then((r: any) => Number(r?.sum || 0));
+
     const totalLeakage = premiumLeakage + claimsLeakage + operationalLeakage;
-
     const leakageByCategory = [
-      { category: 'Premium Leakage', amount: premiumLeakage, percentage: (premiumLeakage / totalLeakage) * 100 },
-      { category: 'Claims Leakage', amount: claimsLeakage, percentage: (claimsLeakage / totalLeakage) * 100 },
-      { category: 'Operational Leakage', amount: operationalLeakage, percentage: (operationalLeakage / totalLeakage) * 100 },
+      { category: 'Premium Leakage', amount: premiumLeakage, percentage: totalLeakage > 0 ? (premiumLeakage / totalLeakage) * 100 : 0 },
+      { category: 'Claims Leakage', amount: claimsLeakage, percentage: totalLeakage > 0 ? (claimsLeakage / totalLeakage) * 100 : 0 },
+      { category: 'Operational Leakage', amount: operationalLeakage, percentage: totalLeakage > 0 ? (operationalLeakage / totalLeakage) * 100 : 0 },
     ];
-
-    // Generate monthly trends
-    const trends = [];
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const startMonth = params.startDate.getMonth();
-    
-    for (let i = 0; i < 6; i++) {
-      const monthIndex = (startMonth + i) % 12;
-      trends.push({
-        month: months[monthIndex],
-        leakageAmount: totalLeakage / 6 * (Math.random() * 0.5 + 0.75),
-      });
-    }
 
     return {
       premiumLeakage,
@@ -1109,19 +1091,11 @@ export class ReportingService {
       operationalLeakage,
       totalLeakage,
       leakageByCategory,
-      trends: {
-        monthly: trends,
-      },
-      period: {
-        startDate: params.startDate.toISOString(),
-        endDate: params.endDate.toISOString(),
-      },
+      trends: { monthly: [] },
+      period: { startDate: params.startDate.toISOString(), endDate: params.endDate.toISOString() },
     };
   }
 
-  /**
-   * Executive Cockpit: Fraud Yield KPIs
-   */
   async getFraudYieldKPIs(params: {
     startDate: Date;
     endDate: Date;
@@ -1132,72 +1106,50 @@ export class ReportingService {
     fraudConfirmedCases: number;
     fraudYieldRate: number;
     averageInvestigationTime: number;
-    fraudByType: Array<{
-      type: string;
-      count: number;
-      amount: number;
-    }>;
-    trends: {
-      monthly: Array<{
-        month: string;
-        fraudYield: number;
-      }>;
-    };
-    period: {
-      startDate: string;
-      endDate: string;
-    };
+    fraudByType: Array<{ type: string; count: number; amount: number }>;
+    trends: { monthly: Array<{ month: string; fraudYield: number }> };
+    period: { startDate: string; endDate: string };
   }> {
-    // Simulate fraud yield KPI calculations
-    const totalClaims = Math.floor(Math.random() * 10000 + 5000);
-    const fraudInvestigatedCases = Math.floor(totalClaims * (Math.random() * 0.05 + 0.02)); // 2-7%
-    const fraudConfirmedCases = Math.floor(fraudInvestigatedCases * (Math.random() * 0.4 + 0.3)); // 30-70% of investigated
-    const fraudDetectionRate = fraudConfirmedCases / totalClaims;
-    const fraudPreventedAmount = fraudConfirmedCases * (Math.random() * 50000000 + 10000000); // 10M-60M IRR per case
-    const fraudYieldRate = fraudPreventedAmount / (totalClaims * 1000000); // Yield per million claims
-    const averageInvestigationTime = Math.random() * 10 + 5; // 5-15 days
+    const totalClaims = await this.applyTenantFilter(this.rmClaimPaymentRepo.createQueryBuilder('c'), 'c')
+      .where('c.registered_at >= :startDate', { startDate: params.startDate })
+      .andWhere('c.registered_at <= :endDate', { endDate: params.endDate })
+      .getCount();
+    const signals = await this.applyTenantFilter(this.rmFraudRepo.createQueryBuilder('f'), 'f')
+      .where('f.score_computed_at >= :startDate', { startDate: params.startDate })
+      .andWhere('f.score_computed_at <= :endDate', { endDate: params.endDate })
+      .getMany();
+    const fraudInvestigatedCases = signals.filter(f => f.caseOpenedAt !== null).length;
+    const fraudConfirmedCases = signals.filter(f => f.caseClosedAt !== null && f.holdClaim === true).length;
+    const fraudDetectionRate = totalClaims > 0 ? fraudConfirmedCases / totalClaims : 0;
 
-    const fraudByType = [
-      { type: 'Exaggerated Claims', count: Math.floor(fraudConfirmedCases * 0.4), amount: fraudPreventedAmount * 0.4 },
-      { type: 'Staged Accidents', count: Math.floor(fraudConfirmedCases * 0.2), amount: fraudPreventedAmount * 0.2 },
-      { type: 'False Documentation', count: Math.floor(fraudConfirmedCases * 0.25), amount: fraudPreventedAmount * 0.25 },
-      { type: 'Other', count: Math.floor(fraudConfirmedCases * 0.15), amount: fraudPreventedAmount * 0.15 },
-    ];
+    const holdClaims = await this.applyTenantFilter(this.rmClaimPaymentRepo.createQueryBuilder('c'), 'c')
+      .innerJoin('rm_fraud_signal', 'fs', 'fs.claim_id = c.claim_id')
+      .where('c.registered_at >= :startDate', { startDate: params.startDate })
+      .andWhere('c.registered_at <= :endDate', { endDate: params.endDate })
+      .andWhere('fs.hold_claim = true')
+      .getMany();
+    const fraudPreventedAmount = holdClaims.reduce((sum, c) => sum + Number(c.approvedAmount || 0), 0);
 
-    // Generate monthly trends
-    const trends = [];
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const startMonth = params.startDate.getMonth();
-    
-    for (let i = 0; i < 6; i++) {
-      const monthIndex = (startMonth + i) % 12;
-      trends.push({
-        month: months[monthIndex],
-        fraudYield: fraudYieldRate * (Math.random() * 0.5 + 0.75),
-      });
-    }
+    const investigationTimes = signals
+      .filter(f => f.caseOpenedAt && f.caseClosedAt)
+      .map(f => (new Date(f.caseClosedAt!).getTime() - new Date(f.caseOpenedAt!).getTime()) / (24 * 60 * 60 * 1000));
+    const averageInvestigationTime = investigationTimes.length
+      ? investigationTimes.reduce((a, b) => a + b, 0) / investigationTimes.length
+      : 0;
 
     return {
       fraudDetectionRate,
       fraudPreventedAmount,
       fraudInvestigatedCases,
       fraudConfirmedCases,
-      fraudYieldRate,
+      fraudYieldRate: totalClaims > 0 ? fraudPreventedAmount / (totalClaims * 1000000) : 0,
       averageInvestigationTime,
-      fraudByType,
-      trends: {
-        monthly: trends,
-      },
-      period: {
-        startDate: params.startDate.toISOString(),
-        endDate: params.endDate.toISOString(),
-      },
+      fraudByType: [],
+      trends: { monthly: [] },
+      period: { startDate: params.startDate.toISOString(), endDate: params.endDate.toISOString() },
     };
   }
 
-  /**
-   * Executive Cockpit: STP (Straight-Through Processing) KPIs
-   */
   async getSTPKPIs(params: {
     startDate: Date;
     endDate: Date;
@@ -1209,73 +1161,69 @@ export class ReportingService {
     underwritingSTPRate: number;
     manualInterventionRate: number;
     averageProcessingTime: number;
-    stpByProcess: Array<{
-      process: string;
-      stpRate: number;
-      volume: number;
-    }>;
-    trends: {
-      monthly: Array<{
-        month: string;
-        stpRate: number;
-      }>;
-    };
-    period: {
-      startDate: string;
-      endDate: string;
-    };
+    stpByProcess: Array<{ process: string; stpRate: number; volume: number }>;
+    trends: { monthly: Array<{ month: string; stpRate: number }> };
+    period: { startDate: string; endDate: string };
   }> {
-    // Simulate STP KPI calculations
-    const overallSTPRate = Math.random() * 0.25 + 0.65; // 65-90%
-    const policyIssuanceSTPRate = Math.random() * 0.2 + 0.75; // 75-95%
-    const claimsProcessingSTPRate = Math.random() * 0.3 + 0.5; // 50-80%
-    const paymentProcessingSTPRate = Math.random() * 0.15 + 0.8; // 80-95%
-    const underwritingSTPRate = Math.random() * 0.25 + 0.6; // 60-85%
-    const manualInterventionRate = 1 - overallSTPRate;
-    const averageProcessingTime = Math.random() * 30 + 10; // 10-40 minutes
+    const policies = await this.applyTenantFilter(this.policyRepo.createQueryBuilder('p'), 'p')
+      .where('p.issued_at >= :startDate', { startDate: params.startDate })
+      .andWhere('p.issued_at <= :endDate', { endDate: params.endDate })
+      .getMany();
+    const policyVolume = policies.length || 1;
+    const stpPolicies = policies.filter(p => p.quotedAt && p.issuedAt && (new Date(p.issuedAt).getTime() - new Date(p.quotedAt).getTime()) <= 30 * 60 * 1000).length;
+
+    const claims = await this.applyTenantFilter(this.rmClaimPaymentRepo.createQueryBuilder('c'), 'c')
+      .where('c.claim_paid_at >= :startDate', { startDate: params.startDate })
+      .andWhere('c.claim_paid_at <= :endDate', { endDate: params.endDate })
+      .getMany();
+    const claimVolume = claims.length || 1;
+    const stpClaims = claims.filter(c => c.registeredAt && c.claimPaidAt && (new Date(c.claimPaidAt).getTime() - new Date(c.registeredAt).getTime()) <= 24 * 60 * 60 * 1000).length;
+
+    const payments = await this.applyTenantFilter(this.paymentRepo.createQueryBuilder('p'), 'p')
+      .where('p.paid_at >= :startDate', { startDate: params.startDate })
+      .andWhere('p.paid_at <= :endDate', { endDate: params.endDate })
+      .getMany();
+    const paymentVolume = payments.length || 1;
+    const stpPayments = payments.filter(p => p.createdAt && p.paidAt && (new Date(p.paidAt).getTime() - new Date(p.createdAt).getTime()) <= 60 * 60 * 1000).length;
+
+    const underwriting = await this.applyTenantFilter(this.underwritingRepo.createQueryBuilder('u'), 'u')
+      .where('u.decided_at >= :startDate', { startDate: params.startDate })
+      .andWhere('u.decided_at <= :endDate', { endDate: params.endDate })
+      .getMany();
+    const uwVolume = underwriting.length || 1;
+    const stpUw = underwriting.filter(u => u.decision === 'approved' && !u.underwriterId && u.submittedAt && u.decidedAt && (new Date(u.decidedAt).getTime() - new Date(u.submittedAt).getTime()) <= 24 * 60 * 60 * 1000).length;
+
+    const overallSTPRate = (stpPolicies + stpClaims + stpPayments + stpUw) / (policyVolume + claimVolume + paymentVolume + uwVolume);
+
+    const avgTimes = [
+      ...policies.filter(p => p.quotedAt && p.issuedAt).map(p => (new Date(p.issuedAt!).getTime() - new Date(p.quotedAt!).getTime()) / 60000),
+      ...claims.filter(c => c.registeredAt && c.claimPaidAt).map(c => (new Date(c.claimPaidAt!).getTime() - new Date(c.registeredAt!).getTime()) / 60000),
+      ...payments.filter(p => p.createdAt && p.paidAt).map(p => (new Date(p.paidAt!).getTime() - new Date(p.createdAt!).getTime()) / 60000),
+      ...underwriting.filter(u => u.submittedAt && u.decidedAt).map(u => (new Date(u.decidedAt!).getTime() - new Date(u.submittedAt!).getTime()) / 60000),
+    ].filter((x: number) => Number.isFinite(x) && x >= 0);
+    const averageProcessingTime = avgTimes.length ? avgTimes.reduce((a: number, b: number) => a + b, 0) / avgTimes.length : 0;
 
     const stpByProcess = [
-      { process: 'Policy Issuance', stpRate: policyIssuanceSTPRate, volume: Math.floor(Math.random() * 50000 + 10000) },
-      { process: 'Claims Processing', stpRate: claimsProcessingSTPRate, volume: Math.floor(Math.random() * 10000 + 5000) },
-      { process: 'Payment Processing', stpRate: paymentProcessingSTPRate, volume: Math.floor(Math.random() * 50000 + 20000) },
-      { process: 'Underwriting', stpRate: underwritingSTPRate, volume: Math.floor(Math.random() * 30000 + 10000) },
+      { process: 'Policy Issuance', stpRate: stpPolicies / policyVolume, volume: policies.length },
+      { process: 'Claims Processing', stpRate: stpClaims / claimVolume, volume: claims.length },
+      { process: 'Payment Processing', stpRate: stpPayments / paymentVolume, volume: payments.length },
+      { process: 'Underwriting', stpRate: stpUw / uwVolume, volume: underwriting.length },
     ];
-
-    // Generate monthly trends
-    const trends = [];
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const startMonth = params.startDate.getMonth();
-    
-    for (let i = 0; i < 6; i++) {
-      const monthIndex = (startMonth + i) % 12;
-      trends.push({
-        month: months[monthIndex],
-        stpRate: overallSTPRate * (Math.random() * 0.1 + 0.95),
-      });
-    }
 
     return {
       overallSTPRate,
-      policyIssuanceSTPRate,
-      claimsProcessingSTPRate,
-      paymentProcessingSTPRate,
-      underwritingSTPRate,
-      manualInterventionRate,
+      policyIssuanceSTPRate: stpPolicies / policyVolume,
+      claimsProcessingSTPRate: stpClaims / claimVolume,
+      paymentProcessingSTPRate: stpPayments / paymentVolume,
+      underwritingSTPRate: stpUw / uwVolume,
+      manualInterventionRate: 1 - overallSTPRate,
       averageProcessingTime,
       stpByProcess,
-      trends: {
-        monthly: trends,
-      },
-      period: {
-        startDate: params.startDate.toISOString(),
-        endDate: params.endDate.toISOString(),
-      },
+      trends: { monthly: [] },
+      period: { startDate: params.startDate.toISOString(), endDate: params.endDate.toISOString() },
     };
   }
 
-  /**
-   * Executive Cockpit: Get all KPIs in one call
-   */
   async getExecutiveCockpit(params: {
     startDate: Date;
     endDate: Date;
@@ -1287,10 +1235,7 @@ export class ReportingService {
     leakage: any;
     fraudYield: any;
     stp: any;
-    period: {
-      startDate: string;
-      endDate: string;
-    };
+    period: { startDate: string; endDate: string };
   }> {
     const [marketShare, satisfaction, combinedRatio, retention, leakage, fraudYield, stp] = await Promise.all([
       this.getMarketShareKPIs(params),
@@ -1310,10 +1255,7 @@ export class ReportingService {
       leakage,
       fraudYield,
       stp,
-      period: {
-        startDate: params.startDate.toISOString(),
-        endDate: params.endDate.toISOString(),
-      },
+      period: { startDate: params.startDate.toISOString(), endDate: params.endDate.toISOString() },
     };
   }
 }

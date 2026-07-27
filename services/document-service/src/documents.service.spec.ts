@@ -2,6 +2,13 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+
+jest.mock('@insurance/shared', () => ({
+  OutboxPublisher: jest.fn().mockImplementation(() => ({
+    publish: jest.fn().mockResolvedValue(uuidv4()),
+  })),
+}));
+
 import { DocumentsService, ALLOWED_MIMETYPES, DOCUMENT_TYPES } from './documents.service';
 import { Document } from './entities/Document';
 
@@ -167,7 +174,9 @@ describe('DocumentsService', () => {
       const signed = service.generateSignedUrl({ documentId, tenantId, userId, ttlSeconds: 60 });
       const url = new URL('http://localhost' + signed.url);
       const token = url.searchParams.get('token')!;
-      const tampered = token.replace(/./g, 'a');
+      const payload = JSON.parse(Buffer.from(token, 'base64url').toString('utf8'));
+      payload.signature = 'invalid-signature';
+      const tampered = Buffer.from(JSON.stringify(payload)).toString('base64url');
       expect(() => service.verifySignedUrl(tampered)).toThrow('signature');
     });
   });

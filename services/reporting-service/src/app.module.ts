@@ -26,7 +26,6 @@ import { RmUnderwriting } from './entities/RmUnderwriting';
 import { ExternalSystemConnection } from './entities/ExternalSystemConnection';
 import { HealthController } from './health.controller';
 
-import { AbacGuard } from './abac.guard';
 import { TenantGuard } from './tenant.guard';
 import { OutboxEvent } from '@insurance/shared';
 @Module({
@@ -87,6 +86,6 @@ import { OutboxEvent } from '@insurance/shared';
     ]),
   ],
   controllers: [ReportingController, HealthController],
-  providers: [TenantGuard, AbacGuard, ReportingService, KpiConsumer, JwtAuthGuard, PermissionsGuard],
+  providers: [TenantGuard, ReportingService, KpiConsumer, JwtAuthGuard, PermissionsGuard],
 })
 export class AppModule {}

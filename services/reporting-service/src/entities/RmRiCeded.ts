@@ -5,6 +5,9 @@ import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 @Index(['policyId', 'updatedAt'])
 @Index(['claimId', 'updatedAt'])
 export class RmRiCeded {
+  @Column({ type: 'uuid', name: 'tenant_id', nullable: true })
+  tenantId?: string | null;
+
   @PrimaryColumn({ name: 'ri_key', type: 'text' })
   riKey: string;
 

@@ -7,6 +7,9 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, Update
 @Index(['partnerType'])
 @Index(['createdAt'])
 export class RmSalesNetwork {
+  @Column({ type: 'uuid', name: 'tenant_id', nullable: true })
+  tenantId?: string | null;
+
   @PrimaryGeneratedColumn('uuid', { name: 'partner_id' })
   partnerId!: string;
 

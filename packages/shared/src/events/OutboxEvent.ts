@@ -22,6 +22,9 @@ export class OutboxEvent {
   @Column({ name: 'correlation_id', type: 'text' })
   correlationId: string;
 
+  @Column({ name: 'tenant_id', type: 'text' })
+  tenantId: string;
+
   @Column({ name: 'subject_json', type: 'jsonb' })
   subjectJson: object;
 

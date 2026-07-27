@@ -4,6 +4,9 @@ import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 @Index(['contractId', 'updatedAt'])
 @Index(['periodStart', 'periodEnd'])
 export class RmRiBorderaux {
+  @Column({ type: 'uuid', name: 'tenant_id', nullable: true })
+  tenantId?: string | null;
+
   @PrimaryColumn({ name: 'borderaux_id', type: 'uuid' })
   borderauxId: string;
 

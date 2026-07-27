@@ -86,6 +86,12 @@ async function bootstrap() {
       if (!claimId && !complaintId) return;
 
       const correlationId = parsed?.correlationId || (message.headers?.['x-correlation-id'] as any)?.toString?.() || 'n/a';
+      const tenantId =
+        (message.headers?.['x-tenant-id'] as any)?.toString?.() ||
+        parsed?.subject?.tenantId ||
+        parsed?.tenantId ||
+        parsed?.payload?.tenantId ||
+        '00000000-0000-0000-0000-000000000000';
 
       try {
         const res = await consumeOnce({
@@ -93,12 +99,14 @@ async function bootstrap() {
           consumerName,
           topic: String(topic),
           eventId: String(eventId),
+          tenantId: String(tenantId),
           handler: async () => {
             if (String(topic) === 'insurance.document.extraction.needs_review') {
               if (!documentId) return;
               await svc.onDocumentNeedsReview({
                 topic,
                 correlationId: String(correlationId),
+                tenantId: String(tenantId),
                 claimId: String(claimId),
                 documentId: String(documentId),
                 payload: parsed,
@@ -110,6 +118,7 @@ async function bootstrap() {
               await svc.onFraudScoreComputed({
                 topic,
                 correlationId: String(correlationId),
+                tenantId: String(tenantId),
                 claimId: String(claimId),
                 payload: parsed,
               });
@@ -121,6 +130,7 @@ async function bootstrap() {
               await svc.onComplaintCreated({
                 topic,
                 correlationId: String(correlationId),
+                tenantId: String(tenantId),
                 complaintId: String(complaintId),
                 payload: parsed,
               });
@@ -132,6 +142,7 @@ async function bootstrap() {
               await svc.onComplaintSlaBreached({
                 topic,
                 correlationId: String(correlationId),
+                tenantId: String(tenantId),
                 complaintId: String(complaintId),
                 payload: parsed,
               });
@@ -143,6 +154,7 @@ async function bootstrap() {
               await svc.onFraudCaseEscalated({
                 topic,
                 correlationId: String(correlationId),
+                tenantId: String(tenantId),
                 fraudCaseId: String(fraudCaseId),
                 claimId: String(claimId),
                 payload: parsed,
@@ -153,6 +165,7 @@ async function bootstrap() {
             await svc.onPaymentEvent({
               topic,
               correlationId: String(correlationId),
+              tenantId: String(tenantId),
               claimId: String(claimId),
               paymentIntentId: paymentIntentId ? String(paymentIntentId) : undefined,
               payload: parsed,

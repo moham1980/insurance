@@ -3,12 +3,15 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, Update
 export type ReTicketStatus = 'open' | 'in_review' | 'resolved' | 'rejected';
 
 @Entity('re_tickets')
-@Index(['reconciliationId', 'createdAt'])
-@Index(['status', 'createdAt'])
-@Index(['assignedTo'])
+@Index(['tenantId', 'reconciliationId', 'createdAt'])
+@Index(['tenantId', 'status', 'createdAt'])
+@Index(['tenantId', 'assignedTo'])
 export class ReTicket {
   @PrimaryGeneratedColumn('uuid', { name: 'ticket_id' })
   ticketId!: string;
+
+  @Column({ name: 'tenant_id', type: 'text' })
+  tenantId!: string;
 
   @Column({ name: 'reconciliation_id', type: 'uuid' })
   reconciliationId!: string;

@@ -3,6 +3,10 @@
  * Manages user consent for data processing according to GDPR-like requirements
  */
 
+import { DataSource, Repository } from 'typeorm';
+import { ConsentRecordEntity } from './entities/ConsentRecordEntity';
+import { v4 as uuidv4 } from 'uuid';
+
 export type ConsentStatus = 'pending' | 'granted' | 'denied' | 'expired' | 'revoked';
 
 export type ConsentPurpose = 
@@ -18,16 +22,17 @@ export type ConsentPurpose =
 export interface ConsentRecord {
   id: string;
   customerId: string;
+  tenantId?: string | null;
   purpose: ConsentPurpose;
   status: ConsentStatus;
-  grantedAt?: Date;
-  expiresAt?: Date;
-  revokedAt?: Date;
+  grantedAt?: Date | null;
+  expiresAt?: Date | null;
+  revokedAt?: Date | null;
   consentText: string;
   version: string;
-  ipAddress?: string;
-  userAgent?: string;
-  metadata?: Record<string, any>;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  metadata?: Record<string, any> | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -127,7 +132,18 @@ export const CONSENT_TEMPLATES: ConsentTemplate[] = [
  * Consent Management Service
  */
 export class ConsentManagementService {
+  private repo?: Repository<ConsentRecordEntity>;
   private consentRecords: ConsentRecord[] = [];
+
+  constructor(dataSource?: DataSource) {
+    if (dataSource) {
+      this.repo = dataSource.getRepository(ConsentRecordEntity);
+    }
+  }
+
+  setDataSource(dataSource: DataSource): void {
+    this.repo = dataSource.getRepository(ConsentRecordEntity);
+  }
 
   /**
    * Get consent template by purpose
@@ -139,23 +155,26 @@ export class ConsentManagementService {
   /**
    * Create a new consent record
    */
-  createConsent(params: {
+  async createConsent(params: {
     customerId: string;
+    tenantId?: string;
     purpose: ConsentPurpose;
     status: ConsentStatus;
     ipAddress?: string;
     userAgent?: string;
     metadata?: Record<string, any>;
-  }): ConsentRecord {
+  }): Promise<ConsentRecord> {
     const template = this.getTemplate(params.purpose);
     if (!template) {
       throw new Error(`No consent template found for purpose: ${params.purpose}`);
     }
 
     const now = new Date();
+    const id = uuidv4();
     const consentRecord: ConsentRecord = {
-      id: `CONSENT-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id,
       customerId: params.customerId,
+      tenantId: params.tenantId,
       purpose: params.purpose,
       status: params.status,
       consentText: template.consentText,
@@ -169,7 +188,6 @@ export class ConsentManagementService {
 
     if (params.status === 'granted') {
       consentRecord.grantedAt = now;
-      // Set expiration based on retention period
       const retentionDays = this.getRetentionDays(template.retentionPeriod);
       if (retentionDays > 0) {
         consentRecord.expiresAt = new Date(now);
@@ -177,14 +195,28 @@ export class ConsentManagementService {
       }
     }
 
-    this.consentRecords.push(consentRecord);
+    if (this.repo) {
+      const entity = this.repo.create(consentRecord);
+      await this.repo.save(entity);
+    } else {
+      this.consentRecords.push(consentRecord);
+    }
+
     return consentRecord;
   }
 
   /**
    * Get consent record for customer and purpose
    */
-  getConsent(customerId: string, purpose: ConsentPurpose): ConsentRecord | undefined {
+  async getConsent(customerId: string, purpose: ConsentPurpose): Promise<ConsentRecord | undefined> {
+    if (this.repo) {
+      const entity = await this.repo.findOne({
+        where: { customerId, purpose },
+        order: { createdAt: 'DESC' },
+      });
+      return entity ? this.toRecord(entity) : undefined;
+    }
+
     return this.consentRecords
       .filter(record => record.customerId === customerId && record.purpose === purpose)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
@@ -193,7 +225,15 @@ export class ConsentManagementService {
   /**
    * Get all consents for a customer
    */
-  getCustomerConsents(customerId: string): ConsentRecord[] {
+  async getCustomerConsents(customerId: string): Promise<ConsentRecord[]> {
+    if (this.repo) {
+      const entities = await this.repo.find({
+        where: { customerId },
+        order: { createdAt: 'DESC' },
+      });
+      return entities.map(e => this.toRecord(e));
+    }
+
     return this.consentRecords
       .filter(record => record.customerId === customerId)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
@@ -202,19 +242,17 @@ export class ConsentManagementService {
   /**
    * Check if customer has granted consent for a purpose
    */
-  hasConsent(customerId: string, purpose: ConsentPurpose): boolean {
-    const consent = this.getConsent(customerId, purpose);
-    
+  async hasConsent(customerId: string, purpose: ConsentPurpose): Promise<boolean> {
+    const consent = await this.getConsent(customerId, purpose);
+
     if (!consent || consent.status !== 'granted') {
       return false;
     }
 
-    // Check if consent has expired
     if (consent.expiresAt && consent.expiresAt < new Date()) {
       return false;
     }
 
-    // Check if consent has been revoked
     if (consent.revokedAt) {
       return false;
     }
@@ -225,29 +263,40 @@ export class ConsentManagementService {
   /**
    * Revoke consent
    */
-  revokeConsent(customerId: string, purpose: ConsentPurpose): ConsentRecord | null {
-    const consent = this.getConsent(customerId, purpose);
-    
-    if (!consent || consent.status !== 'granted') {
-      return null;
-    }
-
+  async revokeConsent(customerId: string, purpose: ConsentPurpose): Promise<ConsentRecord | null> {
     const template = this.getTemplate(purpose);
     if (!template || !template.revocable) {
       throw new Error('This consent cannot be revoked');
     }
 
+    if (this.repo) {
+      const entity = await this.repo.findOne({
+        where: { customerId, purpose, status: 'granted' },
+        order: { createdAt: 'DESC' },
+      });
+      if (!entity) return null;
+      entity.status = 'revoked';
+      entity.revokedAt = new Date();
+      entity.updatedAt = new Date();
+      await this.repo.save(entity);
+      return this.toRecord(entity);
+    }
+
+    const consent = await this.getConsent(customerId, purpose);
+    if (!consent || consent.status !== 'granted') {
+      return null;
+    }
+
     consent.status = 'revoked';
     consent.revokedAt = new Date();
     consent.updatedAt = new Date();
-
     return consent;
   }
 
   /**
    * Renew consent (create new record with same purpose)
    */
-  renewConsent(customerId: string, purpose: ConsentPurpose, ipAddress?: string, userAgent?: string): ConsentRecord {
+  async renewConsent(customerId: string, purpose: ConsentPurpose, ipAddress?: string, userAgent?: string): Promise<ConsentRecord> {
     const template = this.getTemplate(purpose);
     if (!template) {
       throw new Error(`No consent template found for purpose: ${purpose}`);
@@ -265,9 +314,22 @@ export class ConsentManagementService {
   /**
    * Check for expired consents and update their status
    */
-  checkExpiredConsents(): number {
+  async checkExpiredConsents(): Promise<number> {
     const now = new Date();
     let expiredCount = 0;
+
+    if (this.repo) {
+      const granted = await this.repo.find({ where: { status: 'granted' } });
+      for (const entity of granted) {
+        if (entity.expiresAt && entity.expiresAt < now) {
+          entity.status = 'expired';
+          entity.updatedAt = now;
+          await this.repo.save(entity);
+          expiredCount++;
+        }
+      }
+      return expiredCount;
+    }
 
     for (const consent of this.consentRecords) {
       if (consent.status === 'granted' && consent.expiresAt && consent.expiresAt < now) {
@@ -283,29 +345,35 @@ export class ConsentManagementService {
   /**
    * Get consent statistics
    */
-  getConsentStats(): {
+  async getConsentStats(): Promise<{
     total: number;
     byStatus: Record<ConsentStatus, number>;
     byPurpose: Record<ConsentPurpose, number>;
     expired: number;
-  } {
+  }> {
+    const records = this.repo ? (await this.repo.find()).map(e => this.toRecord(e)) : this.consentRecords;
+
     const stats = {
-      total: this.consentRecords.length,
+      total: records.length,
       byStatus: {} as Record<ConsentStatus, number>,
       byPurpose: {} as Record<ConsentPurpose, number>,
       expired: 0,
     };
 
-    for (const consent of this.consentRecords) {
+    for (const consent of records) {
       stats.byStatus[consent.status] = (stats.byStatus[consent.status] || 0) + 1;
       stats.byPurpose[consent.purpose] = (stats.byPurpose[consent.purpose] || 0) + 1;
-      
+
       if (consent.status === 'expired' || (consent.expiresAt && consent.expiresAt < new Date())) {
         stats.expired++;
       }
     }
 
     return stats;
+  }
+
+  private toRecord(entity: ConsentRecordEntity): ConsentRecord {
+    return { ...entity };
   }
 
   /**

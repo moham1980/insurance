@@ -42,6 +42,7 @@ export class WorkItemsController {
     const off = parseInt(offset, 10);
 
     const { rows, total } = await this.orchestratorService.listWorkItems({
+      tenantId: String(tenantId),
       status,
       assignedTo,
       priority,
@@ -70,7 +71,7 @@ export class WorkItemsController {
     const actor = req?.user?.userId as string | undefined;
     auditLogger.info('work_items.get.request', { correlationId, tenantId, actor, action: 'work_items:view', workItemId });
 
-    const workItem = await this.orchestratorService.getWorkItem(workItemId);
+    const workItem = await this.orchestratorService.getWorkItem(String(tenantId), workItemId);
     if (!workItem) {
       auditLogger.warn('work_items.get.not_found', { correlationId, tenantId, actor, action: 'work_items:view', workItemId });
       return {
@@ -123,6 +124,7 @@ export class WorkItemsController {
 
     try {
       const result = await this.orchestratorService.completeWorkItem({
+        tenantId: String(tenantId),
         correlationId,
         workItemId,
         decision: body.decision,
@@ -216,6 +218,7 @@ export class WorkItemsController {
 
     try {
       const workItem = await this.orchestratorService.assignWorkItem({
+        tenantId: String(tenantId),
         correlationId,
         workItemId,
         assignedTo,
@@ -296,7 +299,8 @@ export class WorkItemsController {
     }
 
     const { saga, workItem } = await this.orchestratorService.createSanhabFollowupWorkItem({
-      correlationId,
+        tenantId: String(tenantId),
+        correlationId,
       policyId: body.policyId,
       claimId: body.claimId,
       reasonCode: String(body.reasonCode),
@@ -354,7 +358,8 @@ export class WorkItemsController {
     }
 
     const { saga, workItem } = await this.orchestratorService.createUnderwritingReviewWorkItem({
-      correlationId,
+        tenantId: String(tenantId),
+        correlationId,
       policyId: String(body.policyId),
       reasonCode: String(body.reasonCode),
       context: body.context && typeof body.context === 'object' ? body.context : undefined,
@@ -415,6 +420,7 @@ export class WorkItemsController {
 
     try {
       const { saga, workItem } = await this.orchestratorService.createSuspiciousCaseWorkItem({
+        tenantId: String(tenantId),
         correlationId,
         policyId: hasPolicyId ? String(body.policyId) : undefined,
         claimId: hasClaimId ? String(body.claimId) : undefined,
@@ -490,7 +496,8 @@ export class WorkItemsController {
     }
 
     const { saga, workItem } = await this.orchestratorService.createOverrideReviewWorkItem({
-      correlationId,
+        tenantId: String(tenantId),
+        correlationId,
       policyId: hasPolicyId ? String(body.policyId) : undefined,
       claimId: hasClaimId ? String(body.claimId) : undefined,
       reasonCode: String(body.reasonCode),

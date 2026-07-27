@@ -3,6 +3,9 @@ import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 @Entity('rm_fraud_signal')
 @Index(['updatedAt'])
 export class RmFraudSignal {
+  @Column({ type: 'uuid', name: 'tenant_id', nullable: true })
+  tenantId?: string | null;
+
   @PrimaryColumn({ name: 'claim_id', type: 'uuid' })
   claimId!: string;
 

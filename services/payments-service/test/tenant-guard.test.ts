@@ -23,13 +23,12 @@ describe('TenantGuard', () => {
     expect(request.tenantId).toBe('t1');
   });
 
-  it('should set req.tenantId from header when user tenantId is missing', () => {
+  it('should reject a regular user without a tenantId even when a tenant header is provided', () => {
     const request = {
       headers: { 'x-tenant-id': 't2' },
       user: { sub: 'u1' },
     } as any;
-    expect(guard.canActivate(createContext(request))).toBe(true);
-    expect(request.tenantId).toBe('t2');
+    expect(() => guard.canActivate(createContext(request))).toThrow(/tenant identifier required/i);
   });
 
   it('should reject when user tenantId and header tenantId mismatch', () => {
@@ -40,9 +39,9 @@ describe('TenantGuard', () => {
     expect(() => guard.canActivate(createContext(request))).toThrow(/mismatch/i);
   });
 
-  it('should reject when no user is present', () => {
+  it('should allow unauthenticated requests so AuthGuard can handle authentication', () => {
     const request = { headers: {}, user: null } as any;
-    expect(() => guard.canActivate(createContext(request))).toThrow(/authentication required/i);
+    expect(guard.canActivate(createContext(request))).toBe(true);
   });
 
   it('should reject when no tenantId and user is not a system user', () => {

@@ -3,6 +3,10 @@
  * Tracks the flow of data through the system for audit and compliance
  */
 
+import { DataSource, Repository } from 'typeorm';
+import { v4 as uuidv4 } from 'uuid';
+import { LineageEventEntity } from './entities/LineageEventEntity';
+
 export interface LineageEvent {
   id: string;
   timestamp: Date;
@@ -10,13 +14,13 @@ export interface LineageEvent {
   sourceEntity: string;
   sourceEntityId: string;
   operation: 'create' | 'read' | 'update' | 'delete' | 'transform' | 'export' | 'import';
-  targetSystem?: string;
-  targetEntity?: string;
-  targetEntityId?: string;
-  transformation?: string;
-  userId?: string;
-  tenantId?: string;
-  metadata?: Record<string, any>;
+  targetSystem?: string | null;
+  targetEntity?: string | null;
+  targetEntityId?: string | null;
+  transformation?: string | null;
+  userId?: string | null;
+  tenantId?: string | null;
+  metadata?: Record<string, any> | null;
 }
 
 export interface LineageQuery {
@@ -34,30 +38,50 @@ export interface LineageQuery {
 
 /**
  * Data Lineage Service
- * In-memory implementation (replace with persistent storage in production)
  */
 class DataLineageService {
+  private repo?: Repository<LineageEventEntity>;
   private lineageEvents: LineageEvent[] = [];
+
+  constructor(dataSource?: DataSource) {
+    if (dataSource) {
+      this.repo = dataSource.getRepository(LineageEventEntity);
+    }
+  }
+
+  setDataSource(dataSource: DataSource): void {
+    this.repo = dataSource.getRepository(LineageEventEntity);
+  }
 
   /**
    * Record a lineage event
    */
-  recordEvent(event: Omit<LineageEvent, 'id' | 'timestamp'>): LineageEvent {
+  async recordEvent(event: Omit<LineageEvent, 'id' | 'timestamp'>): Promise<LineageEvent> {
     const lineageEvent: LineageEvent = {
-      id: `LINEAGE-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: uuidv4(),
       timestamp: new Date(),
       ...event,
     };
 
-    this.lineageEvents.push(lineageEvent);
+    if (this.repo) {
+      const entity = this.repo.create(lineageEvent);
+      await this.repo.save(entity);
+    } else {
+      this.lineageEvents.push(lineageEvent);
+    }
+
     return lineageEvent;
   }
 
   /**
    * Query lineage events
    */
-  queryEvents(query: LineageQuery): LineageEvent[] {
-    let results = [...this.lineageEvents];
+  async queryEvents(query: LineageQuery): Promise<LineageEvent[]> {
+    const events = this.repo
+      ? (await this.repo.find({ order: { timestamp: 'DESC' } })).map(e => this.toRecord(e))
+      : [...this.lineageEvents];
+
+    let results = events;
 
     if (query.sourceSystem) {
       results = results.filter(e => e.sourceSystem === query.sourceSystem);
@@ -96,12 +120,14 @@ class DataLineageService {
   /**
    * Get data flow for a specific entity
    */
-  getDataFlow(entityId: string, entity: string): {
+  async getDataFlow(entityId: string, entity: string): Promise<{
     upstream: LineageEvent[];
     downstream: LineageEvent[];
-  } {
-    const upstream = this.lineageEvents.filter(e => e.targetEntityId === entityId && e.targetEntity === entity);
-    const downstream = this.lineageEvents.filter(e => e.sourceEntityId === entityId && e.sourceEntity === entity);
+  }> {
+    const all = this.repo ? (await this.repo.find()).map(e => this.toRecord(e)) : this.lineageEvents;
+
+    const upstream = all.filter(e => e.targetEntityId === entityId && e.targetEntity === entity);
+    const downstream = all.filter(e => e.sourceEntityId === entityId && e.sourceEntity === entity);
 
     return {
       upstream: upstream.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime()),
@@ -112,8 +138,10 @@ class DataLineageService {
   /**
    * Get transformation history for an entity
    */
-  getTransformationHistory(entityId: string, entity: string): LineageEvent[] {
-    return this.lineageEvents
+  async getTransformationHistory(entityId: string, entity: string): Promise<LineageEvent[]> {
+    const all = this.repo ? (await this.repo.find()).map(e => this.toRecord(e)) : this.lineageEvents;
+
+    return all
       .filter(e => e.sourceEntityId === entityId && e.sourceEntity === entity && e.operation === 'transform')
       .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
   }
@@ -121,8 +149,10 @@ class DataLineageService {
   /**
    * Get data access history for an entity
    */
-  getAccessHistory(entityId: string, entity: string): LineageEvent[] {
-    return this.lineageEvents
+  async getAccessHistory(entityId: string, entity: string): Promise<LineageEvent[]> {
+    const all = this.repo ? (await this.repo.find()).map(e => this.toRecord(e)) : this.lineageEvents;
+
+    return all
       .filter(e => e.sourceEntityId === entityId && e.sourceEntity === entity && ['read', 'update', 'delete'].includes(e.operation))
       .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
   }
@@ -130,9 +160,18 @@ class DataLineageService {
   /**
    * Clear old lineage events (for data retention)
    */
-  clearOldEvents(retentionDays: number): number {
+  async clearOldEvents(retentionDays: number): Promise<number> {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+
+    if (this.repo) {
+      const result = await this.repo
+        .createQueryBuilder()
+        .delete()
+        .where('timestamp < :cutoff', { cutoff: cutoffDate })
+        .execute();
+      return result.affected || 0;
+    }
 
     const beforeCount = this.lineageEvents.length;
     this.lineageEvents = this.lineageEvents.filter(e => e.timestamp >= cutoffDate);
@@ -144,9 +183,13 @@ class DataLineageService {
   /**
    * Export lineage events for audit
    */
-  exportEvents(query: LineageQuery): string {
-    const events = this.queryEvents(query);
+  async exportEvents(query: LineageQuery): Promise<string> {
+    const events = await this.queryEvents(query);
     return JSON.stringify(events, null, 2);
+  }
+
+  private toRecord(entity: LineageEventEntity): LineageEvent {
+    return { ...entity };
   }
 }
 
@@ -156,14 +199,14 @@ export const dataLineageService = new DataLineageService();
 /**
  * Helper function to record data creation
  */
-export function recordDataCreation(params: {
+export async function recordDataCreation(params: {
   sourceSystem: string;
   sourceEntity: string;
   sourceEntityId: string;
   userId?: string;
   tenantId?: string;
   metadata?: Record<string, any>;
-}): LineageEvent {
+}): Promise<LineageEvent> {
   return dataLineageService.recordEvent({
     ...params,
     operation: 'create',
@@ -173,7 +216,7 @@ export function recordDataCreation(params: {
 /**
  * Helper function to record data update
  */
-export function recordDataUpdate(params: {
+export async function recordDataUpdate(params: {
   sourceSystem: string;
   sourceEntity: string;
   sourceEntityId: string;
@@ -181,7 +224,7 @@ export function recordDataUpdate(params: {
   userId?: string;
   tenantId?: string;
   metadata?: Record<string, any>;
-}): LineageEvent {
+}): Promise<LineageEvent> {
   return dataLineageService.recordEvent({
     ...params,
     operation: 'update',
@@ -191,7 +234,7 @@ export function recordDataUpdate(params: {
 /**
  * Helper function to record data transformation
  */
-export function recordDataTransformation(params: {
+export async function recordDataTransformation(params: {
   sourceSystem: string;
   sourceEntity: string;
   sourceEntityId: string;
@@ -202,7 +245,7 @@ export function recordDataTransformation(params: {
   userId?: string;
   tenantId?: string;
   metadata?: Record<string, any>;
-}): LineageEvent {
+}): Promise<LineageEvent> {
   return dataLineageService.recordEvent({
     ...params,
     operation: 'transform',
@@ -212,7 +255,7 @@ export function recordDataTransformation(params: {
 /**
  * Helper function to record data export
  */
-export function recordDataExport(params: {
+export async function recordDataExport(params: {
   sourceSystem: string;
   sourceEntity: string;
   sourceEntityId: string;
@@ -220,7 +263,7 @@ export function recordDataExport(params: {
   userId?: string;
   tenantId?: string;
   metadata?: Record<string, any>;
-}): LineageEvent {
+}): Promise<LineageEvent> {
   return dataLineageService.recordEvent({
     ...params,
     operation: 'export',

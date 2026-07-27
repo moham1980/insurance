@@ -3,11 +3,14 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, Update
 export type ReReconciliationStatus = 'open' | 'matched' | 'disputed' | 'closed';
 
 @Entity('re_reconciliations')
-@Index(['statementId', 'createdAt'])
-@Index(['status', 'createdAt'])
+@Index(['tenantId', 'statementId', 'createdAt'])
+@Index(['tenantId', 'status', 'createdAt'])
 export class ReReconciliation {
   @PrimaryGeneratedColumn('uuid', { name: 'reconciliation_id' })
   reconciliationId!: string;
+
+  @Column({ name: 'tenant_id', type: 'text' })
+  tenantId!: string;
 
   @Column({ name: 'statement_id', type: 'uuid' })
   statementId!: string;

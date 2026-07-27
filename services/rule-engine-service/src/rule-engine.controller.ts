@@ -1,22 +1,34 @@
-import { Controller, Post, Get, Body, Param, Headers, Put, Delete, Query, Req, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, Headers, Put, Delete, Query, Req, UseGuards, UnauthorizedException } from '@nestjs/common';
 import { RuleEngineService } from './rule-engine.service';
 import { RuleStatus, RuleType } from './entities/Rule';
 import { ExecutionStatus } from './entities/RuleExecution';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { PermissionsGuard } from './permissions.guard';
-import { AbacGuard } from './abac.guard';
 import { TenantGuard } from './tenant.guard';
+import { RequirePermissions } from './permissions.decorator';
 
 @Controller('rule-engine')
-@UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard, TenantGuard)
 export class RuleEngineController {
   constructor(private readonly service: RuleEngineService) {}
 
+  private tenantIdFrom(req: any): string {
+    const tenantId = req?.user?.tenantId;
+    if (!tenantId) {
+      throw new UnauthorizedException({
+        success: false,
+        error: { code: 'UNAUTHORIZED', message: 'Tenant not available in token' },
+      });
+    }
+    return tenantId as string;
+  }
+
   @Post('rules')
+  @RequirePermissions('rule_engine:rules:create')
   async createRule(
+    @Req() req: any,
     @Headers() headers: Record<string, any>,
     @Body() body: {
-      tenantId: string;
       name: string;
       ruleSetKey: string;
       type: RuleType;
@@ -31,7 +43,8 @@ export class RuleEngineController {
     },
   ) {
     const correlationId = headers['x-correlation-id'] || `re-${Date.now()}`;
-    const result = await this.service.createRule(body);
+    const tenantId = this.tenantIdFrom(req);
+    const result = await this.service.createRule({ ...body, tenantId });
     return {
       success: true,
       data: result,
@@ -40,12 +53,15 @@ export class RuleEngineController {
   }
 
   @Put('rules/:id/activate')
+  @RequirePermissions('rule_engine:rules:activate')
   async activateRule(
+    @Req() req: any,
     @Param('id') id: string,
     @Headers() headers: Record<string, any>,
   ) {
     const correlationId = headers['x-correlation-id'] || `re-${Date.now()}`;
-    const result = await this.service.activateRule(id);
+    const tenantId = this.tenantIdFrom(req);
+    const result = await this.service.activateRule(tenantId, id);
     return {
       success: true,
       data: result,
@@ -54,12 +70,15 @@ export class RuleEngineController {
   }
 
   @Put('rules/:id/deactivate')
+  @RequirePermissions('rule_engine:rules:deactivate')
   async deactivateRule(
+    @Req() req: any,
     @Param('id') id: string,
     @Headers() headers: Record<string, any>,
   ) {
     const correlationId = headers['x-correlation-id'] || `re-${Date.now()}`;
-    const result = await this.service.deactivateRule(id);
+    const tenantId = this.tenantIdFrom(req);
+    const result = await this.service.deactivateRule(tenantId, id);
     return {
       success: true,
       data: result,
@@ -68,7 +87,9 @@ export class RuleEngineController {
   }
 
   @Put('rules/:id')
+  @RequirePermissions('rule_engine:rules:update')
   async updateRule(
+    @Req() req: any,
     @Param('id') id: string,
     @Headers() headers: Record<string, any>,
     @Body() body: {
@@ -83,7 +104,8 @@ export class RuleEngineController {
     },
   ) {
     const correlationId = headers['x-correlation-id'] || `re-${Date.now()}`;
-    const result = await this.service.updateRule(id, body);
+    const tenantId = this.tenantIdFrom(req);
+    const result = await this.service.updateRule(tenantId, id, body);
     if (!result) {
       return {
         success: false,
@@ -99,12 +121,15 @@ export class RuleEngineController {
   }
 
   @Delete('rules/:id')
+  @RequirePermissions('rule_engine:rules:delete')
   async deleteRule(
+    @Req() req: any,
     @Param('id') id: string,
     @Headers() headers: Record<string, any>,
   ) {
     const correlationId = headers['x-correlation-id'] || `re-${Date.now()}`;
-    const result = await this.service.deleteRule(id);
+    const tenantId = this.tenantIdFrom(req);
+    const result = await this.service.deleteRule(tenantId, id);
     return {
       success: result,
       correlationId,
@@ -112,12 +137,15 @@ export class RuleEngineController {
   }
 
   @Get('rules/:id/validate')
+  @RequirePermissions('rule_engine:rules:view')
   async validateRule(
+    @Req() req: any,
     @Param('id') id: string,
     @Headers() headers: Record<string, any>,
   ) {
     const correlationId = headers['x-correlation-id'] || `re-${Date.now()}`;
-    const result = await this.service.validateRule(id);
+    const tenantId = this.tenantIdFrom(req);
+    const result = await this.service.validateRule(tenantId, id);
     return {
       success: true,
       data: result,
@@ -126,10 +154,11 @@ export class RuleEngineController {
   }
 
   @Post('evaluate')
+  @RequirePermissions('rule_engine:evaluate')
   async evaluateRules(
+    @Req() req: any,
     @Headers() headers: Record<string, any>,
     @Body() body: {
-      tenantId: string;
       ruleSetKey: string;
       businessKey?: string;
       input: Record<string, any>;
@@ -138,7 +167,8 @@ export class RuleEngineController {
     },
   ) {
     const correlationId = headers['x-correlation-id'] || `re-${Date.now()}`;
-    const result = await this.service.evaluateRules(body);
+    const tenantId = this.tenantIdFrom(req);
+    const result = await this.service.evaluateRules({ ...body, tenantId });
     return {
       success: true,
       data: result,
@@ -147,8 +177,10 @@ export class RuleEngineController {
   }
 
   @Get('rules/:id')
-  async getRule(@Param('id') id: string) {
-    const result = await this.service.getRule(id);
+  @RequirePermissions('rule_engine:rules:view')
+  async getRule(@Req() req: any, @Param('id') id: string) {
+    const tenantId = this.tenantIdFrom(req);
+    const result = await this.service.getRule(tenantId, id);
     if (!result) {
       return {
         success: false,
@@ -162,13 +194,15 @@ export class RuleEngineController {
   }
 
   @Get('rules')
+  @RequirePermissions('rule_engine:rules:list')
   async listRules(
     @Req() req: any,
     @Headers() headers: Record<string, any>,
     @Query() query: any,
   ) {
+    const tenantId = this.tenantIdFrom(req);
     const result = await this.service.listRules({
-      tenantId: req?.user?.tenantId || query.tenantId,
+      tenantId,
       ruleSetKey: query.ruleSetKey,
       status: query.status as RuleStatus,
       type: query.type as RuleType,
@@ -184,13 +218,15 @@ export class RuleEngineController {
   }
 
   @Get('executions')
+  @RequirePermissions('rule_engine:executions:list')
   async listExecutions(
     @Req() req: any,
     @Headers() headers: Record<string, any>,
     @Query() query: any,
   ) {
+    const tenantId = this.tenantIdFrom(req);
     const result = await this.service.listExecutions({
-      tenantId: req?.user?.tenantId || query.tenantId,
+      tenantId,
       ruleSetKey: query.ruleSetKey,
       businessKey: query.businessKey,
       status: query.status as ExecutionStatus,
@@ -205,8 +241,10 @@ export class RuleEngineController {
   }
 
   @Get('executions/:id')
-  async getExecution(@Param('id') id: string) {
-    const result = await this.service.getExecution(id);
+  @RequirePermissions('rule_engine:executions:view')
+  async getExecution(@Req() req: any, @Param('id') id: string) {
+    const tenantId = this.tenantIdFrom(req);
+    const result = await this.service.getExecution(tenantId, id);
     if (!result) {
       return {
         success: false,
@@ -220,13 +258,15 @@ export class RuleEngineController {
   }
 
   @Get('executions/metrics')
+  @RequirePermissions('rule_engine:executions:list')
   async getExecutionMetrics(
     @Req() req: any,
     @Headers() headers: Record<string, any>,
     @Query() query: any,
   ) {
+    const tenantId = this.tenantIdFrom(req);
     const result = await this.service.getExecutionMetrics({
-      tenantId: req?.user?.tenantId || query.tenantId,
+      tenantId,
       ruleSetKey: query.ruleSetKey,
       fromDate: query.fromDate ? new Date(query.fromDate) : undefined,
       toDate: query.toDate ? new Date(query.toDate) : undefined,
@@ -238,10 +278,11 @@ export class RuleEngineController {
   }
 
   @Post('templates')
+  @RequirePermissions('rule_engine:templates:create')
   async createTemplate(
+    @Req() req: any,
     @Headers() headers: Record<string, any>,
     @Body() body: {
-      tenantId: string;
       name: string;
       category: string;
       description?: string;
@@ -251,7 +292,8 @@ export class RuleEngineController {
     },
   ) {
     const correlationId = headers['x-correlation-id'] || `re-${Date.now()}`;
-    const result = await this.service.createTemplate(body);
+    const tenantId = this.tenantIdFrom(req);
+    const result = await this.service.createTemplate({ ...body, tenantId });
     return {
       success: true,
       data: result,
@@ -260,13 +302,15 @@ export class RuleEngineController {
   }
 
   @Get('templates')
+  @RequirePermissions('rule_engine:templates:list')
   async listTemplates(
     @Req() req: any,
     @Headers() headers: Record<string, any>,
     @Query() query: any,
   ) {
+    const tenantId = this.tenantIdFrom(req);
     const result = await this.service.listTemplates({
-      tenantId: req?.user?.tenantId || query.tenantId,
+      tenantId,
       category: query.category,
       limit: Math.min(parseInt(query.limit, 10) || 50, 200),
       offset: parseInt(query.offset, 10) || 0,
@@ -279,11 +323,12 @@ export class RuleEngineController {
   }
 
   @Post('templates/:templateId/rules')
+  @RequirePermissions('rule_engine:templates:create')
   async createRuleFromTemplate(
+    @Req() req: any,
     @Param('templateId') templateId: string,
     @Headers() headers: Record<string, any>,
     @Body() body: {
-      tenantId: string;
       name: string;
       ruleSetKey: string;
       type: RuleType;
@@ -292,8 +337,10 @@ export class RuleEngineController {
     },
   ) {
     const correlationId = headers['x-correlation-id'] || `re-${Date.now()}`;
+    const tenantId = this.tenantIdFrom(req);
     const result = await this.service.createRuleFromTemplate({
       ...body,
+      tenantId,
       templateId,
     });
     return {

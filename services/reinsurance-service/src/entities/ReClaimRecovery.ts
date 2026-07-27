@@ -3,12 +3,15 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, Update
 export type ReClaimRecoveryStatus = 'open' | 'in_collection' | 'partially_collected' | 'collected' | 'written_off' | 'closed';
 
 @Entity('re_claim_recoveries')
-@Index(['treatyId', 'createdAt'])
-@Index(['status', 'createdAt'])
-@Index(['claimId'])
+@Index(['tenantId', 'treatyId', 'createdAt'])
+@Index(['tenantId', 'status', 'createdAt'])
+@Index(['tenantId', 'claimId'])
 export class ReClaimRecovery {
   @PrimaryGeneratedColumn('uuid', { name: 'recovery_id' })
   recoveryId!: string;
+
+  @Column({ name: 'tenant_id', type: 'text' })
+  tenantId!: string;
 
   @Column({ name: 'treaty_id', type: 'uuid' })
   treatyId!: string;

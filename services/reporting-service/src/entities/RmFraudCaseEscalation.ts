@@ -6,6 +6,9 @@ import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 @Index(['fraudCaseId'])
 @Index(['toUnit'])
 export class RmFraudCaseEscalation {
+  @Column({ type: 'uuid', name: 'tenant_id', nullable: true })
+  tenantId?: string | null;
+
   @PrimaryColumn({ name: 'event_id', type: 'text' })
   eventId!: string;
 

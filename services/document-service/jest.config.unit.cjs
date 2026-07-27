@@ -3,11 +3,12 @@ module.exports = {
   testEnvironment: 'node',
   roots: ['<rootDir>/src'],
   testMatch: ['**/*.spec.ts'],
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   moduleNameMapper: {
-    '^@insurance/shared$': '<rootDir>/../../packages/shared/src',
+    '^@insurance/shared$': '<rootDir>/../../packages/shared/src/index.ts',
   },
   transform: {
-    '^.+\\.ts$': [
+    '^.+\\.[jt]s$': [
       'ts-jest',
       {
         tsconfig: '<rootDir>/tsconfig.json',
@@ -15,4 +16,5 @@ module.exports = {
       },
     ],
   },
+  transformIgnorePatterns: [],
 };

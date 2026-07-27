@@ -136,6 +136,7 @@ export class WorkflowsController {
 
     try {
       const saga = await this.orchestratorService.startSaga({
+        tenantId: String(tenantId),
         sagaType,
         correlationId,
         claimId: claimId ?? null,
@@ -231,7 +232,7 @@ export class WorkflowsController {
       processInstanceId,
     });
 
-    const saga = await this.orchestratorService.getSaga(processInstanceId);
+    const saga = await this.orchestratorService.getSaga(String(tenantId), processInstanceId);
     if (!saga) {
       auditLogger.warn('workflows.process_get.not_found', {
         correlationId,
@@ -289,6 +290,7 @@ export class WorkflowsController {
     const off = parseInt(offset, 10);
 
     const { rows, total } = await this.orchestratorService.listWorkItems({
+      tenantId: String(tenantId),
       status,
       assignedTo: assigneeUserId,
       priority,
@@ -342,6 +344,7 @@ export class WorkflowsController {
 
     try {
       const workItem = await this.orchestratorService.assignWorkItem({
+        tenantId: String(tenantId),
         correlationId,
         workItemId,
         assignedTo,
@@ -447,6 +450,7 @@ export class WorkflowsController {
 
     try {
       const result = await this.orchestratorService.completeWorkItem({
+        tenantId: String(tenantId),
         correlationId,
         workItemId,
         decision: body.decision,

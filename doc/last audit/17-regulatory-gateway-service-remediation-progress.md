@@ -2,7 +2,7 @@
 
 **Start date:** 2026-07-27 22:28 +03:30  
 **Scope:** `d:\CascadeProjects\old\insurance\services\regulatory-gateway-service`  
-**Status:** In Progress — P0 fixes in flight
+**Status:** Completed — P0/P1/P2 fixes implemented, TypeScript build verified
 
 ## 1. Findings Summary (from 17-regulatory-gateway-service-code-audit.md)
 
@@ -52,4 +52,8 @@
 | # | Date | Item | Status |
 |---|------|------|--------|
 | - | 2026-07-27 | Created remediation plan and started Wave A | Done |
+| 1 | 2026-07-27 | Wave A: tenantId column/migration, permissions, guards, JWT JWKS/HS256 fallback, outbox migration | Done |
+| 2 | 2026-07-27 | Wave B: RealSanhabClient https.Agent/mTLS, warehouse-fire real HTTP call, SanhabSmsInquiry DB persistence + real SMS providers, webhook HMAC | Done |
+| 3 | 2026-07-27 | Wave C: Redis-backed circuit breaker, listEvents DTO mapping, health checks for Sanhab/Kafka, search_path in TypeORM config and main.ts | Done |
+| 4 | 2026-07-27 | TypeScript compilation verification (`npx tsc --noEmit`) | Pass |
 

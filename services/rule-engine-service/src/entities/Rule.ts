@@ -52,6 +52,7 @@ export class Rule {
     event?: string;
     payload?: any;
     message?: string;
+    stopAfterFirstMatch?: boolean;
   } | null;
 
   @Column({ type: 'integer', default: 0 })

@@ -2,6 +2,7 @@ import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import {Repository, DataSource} from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
+import { createHmac } from 'crypto';
 import { KafkaProducer, createEventEnvelope, createLogger, Logger, OutboxPublisher } from '@insurance/shared';
 import { SanhabEvent } from './entities/SanhabEvent';
 import { RegulatoryFailureLog } from './entities/RegulatoryFailureLog';
@@ -238,9 +239,8 @@ export class RegulatoryService implements OnModuleInit, OnModuleDestroy {
   }
 
   private computeWebhookSignature(body: any, secret: string): string {
-    const crypto = require('crypto');
     const payload = typeof body === 'string' ? body : JSON.stringify(body);
-    return crypto.createHmac('sha256', secret).update(payload).digest('hex');
+    return createHmac('sha256', secret).update(payload).digest('hex');
   }
 
   async simulate(params: { correlationId: string; tenantId?: string; actorUserId?: string; body: SanhabSimulateBody }): Promise<{ status: number; result: any }> {
@@ -311,9 +311,19 @@ export class RegulatoryService implements OnModuleInit, OnModuleDestroy {
 
     const [items, total] = await qb.getManyAndCount();
 
+    const data = items.map((event) => ({
+      sanhabEventId: event.sanhabEventId,
+      tenantId: event.tenantId,
+      externalEventId: event.externalEventId,
+      eventType: event.eventType,
+      source: event.source,
+      correlationId: event.correlationId,
+      receivedAt: event.receivedAt,
+    }));
+
     return {
       success: true,
-      data: items,
+      data,
       pagination: { total, limit: take, offset: skip },
       correlationId: params.correlationId,
     };

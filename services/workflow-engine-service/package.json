@@ -6,26 +6,30 @@
     "start": "bun run dist/main.js",
     "dev": "bun run src/main.ts",
     "build": "tsc",
-    "migrate": "bun run src/migrate.ts"
+    "migrate": "bun run src/migrate.ts",
+    "test": "jest --config jest.config.cjs"
   },
   "dependencies": {
     "@insurance/shared": "workspace:*",
+    "@nestjs/axios": "^3.0.1",
     "@nestjs/common": "^10.3.0",
     "@nestjs/core": "^10.3.0",
     "@nestjs/platform-fastify": "^10.3.0",
     "@nestjs/typeorm": "^10.0.1",
-    "@nestjs/axios": "^3.0.1",
     "axios": "^1.6.0",
-    "rxjs": "^7.8.1",
-    "typeorm": "^0.3.19",
-    "pg": "^8.11.3",
-    "jwks-rsa": "^3.1.0",
     "expr-eval": "^2.0.2",
-    "jsonwebtoken": "^9.0.2",
-    "reflect-metadata": "^0.2.1"
+    "jsonwebtoken": "^9.0.3",
+    "jwks-rsa": "^4.1.0",
+    "pg": "^8.11.3",
+    "reflect-metadata": "^0.2.1",
+    "rxjs": "^7.8.1",
+    "typeorm": "^0.3.19"
   },
   "devDependencies": {
     "@types/jsonwebtoken": "^9.0.5",
+    "@types/jest": "^30.0.0",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.12",
     "typescript": "^5.3.3"
   }
 }

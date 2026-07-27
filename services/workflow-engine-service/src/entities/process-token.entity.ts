@@ -1,5 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
-import { ProcessInstance } from './process-instance.entity';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index } from 'typeorm';
 
 export enum TokenStatus {
   ACTIVE = 'active',
@@ -21,10 +20,6 @@ export class ProcessToken {
   @Column()
   @Index()
   nodeId: string; // Current node where token resides
-
-  @ManyToOne(() => ProcessInstance, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'instance_id' })
-  instance: ProcessInstance;
 
   @Column({
     type: 'enum',

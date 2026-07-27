@@ -8,6 +8,9 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, Update
 @Index(['effectiveFrom', 'effectiveTo'])
 @Index(['createdAt'])
 export class RmPolicy {
+  @Column({ type: 'uuid', name: 'tenant_id', nullable: true })
+  tenantId?: string | null;
+
   @PrimaryGeneratedColumn('uuid', { name: 'policy_id' })
   policyId!: string;
 

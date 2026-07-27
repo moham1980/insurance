@@ -1,10 +1,13 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity('re_ticket_messages')
-@Index(['ticketId', 'createdAt'])
+@Index(['tenantId', 'ticketId', 'createdAt'])
 export class ReTicketMessage {
   @PrimaryGeneratedColumn('uuid', { name: 'ticket_message_id' })
   ticketMessageId!: string;
+
+  @Column({ name: 'tenant_id', type: 'text' })
+  tenantId!: string;
 
   @Column({ name: 'ticket_id', type: 'uuid' })
   ticketId!: string;

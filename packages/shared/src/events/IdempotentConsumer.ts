@@ -5,6 +5,7 @@ export type ConsumeOnceParams<TPayload> = {
   consumerName: string;
   topic: string;
   eventId: string;
+  tenantId: string;
   handler: () => Promise<TPayload>;
 };
 
@@ -17,17 +18,18 @@ export type MarkConsumedParams = {
   consumerName: string;
   topic: string;
   eventId: string;
+  tenantId: string;
 };
 
 export async function markConsumed(params: MarkConsumedParams): Promise<boolean> {
   const inserted = await params.dataSource.query(
     `
-    INSERT INTO consumed_events(event_id, consumer_name, consumed_at, topic)
-    VALUES ($1, $2, NOW(), $3)
-    ON CONFLICT (event_id, consumer_name) DO NOTHING
+    INSERT INTO consumed_events(event_id, consumer_name, tenant_id, consumed_at, topic)
+    VALUES ($1, $2, $3, NOW(), $4)
+    ON CONFLICT (event_id, consumer_name, tenant_id) DO NOTHING
     RETURNING event_id;
     `,
-    [params.eventId, params.consumerName, params.topic]
+    [params.eventId, params.consumerName, params.tenantId, params.topic]
   );
 
   return Array.isArray(inserted) && inserted.length > 0;
@@ -37,12 +39,12 @@ export async function consumeOnce<T>(params: ConsumeOnceParams<T>): Promise<Cons
   return await params.dataSource.transaction(async (manager) => {
     const inserted = await manager.query(
       `
-      INSERT INTO consumed_events(event_id, consumer_name, consumed_at, topic)
-      VALUES ($1, $2, NOW(), $3)
-      ON CONFLICT (event_id, consumer_name) DO NOTHING
+      INSERT INTO consumed_events(event_id, consumer_name, tenant_id, consumed_at, topic)
+      VALUES ($1, $2, $3, NOW(), $4)
+      ON CONFLICT (event_id, consumer_name, tenant_id) DO NOTHING
       RETURNING event_id;
       `,
-      [params.eventId, params.consumerName, params.topic]
+      [params.eventId, params.consumerName, params.tenantId, params.topic]
     );
 
     if (!Array.isArray(inserted) || inserted.length === 0) {

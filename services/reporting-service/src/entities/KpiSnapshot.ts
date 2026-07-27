@@ -1,9 +1,12 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity('kpi_snapshots')
-@Index(['kpiKey', 'periodStart', 'periodEnd'], { unique: true })
+@Index(['tenantId', 'kpiKey', 'periodStart', 'periodEnd'], { unique: true })
 @Index(['kpiKey', 'createdAt'])
 export class KpiSnapshot {
+  @Column({ type: 'uuid', name: 'tenant_id', nullable: true })
+  tenantId?: string | null;
+
   @PrimaryGeneratedColumn('uuid', { name: 'snapshot_id' })
   snapshotId!: string;
 

@@ -7,6 +7,9 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, Update
 @Index(['paymentType'])
 @Index(['createdAt'])
 export class RmPayment {
+  @Column({ type: 'uuid', name: 'tenant_id', nullable: true })
+  tenantId?: string | null;
+
   @PrimaryGeneratedColumn('uuid', { name: 'payment_id' })
   paymentId!: string;
 

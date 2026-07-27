@@ -1,4 +1,4 @@
-import { ExecutionContext } from '@nestjs/common';
+import { ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { TenantGuard } from './tenant.guard';
 
 describe('TenantGuard', () => {
@@ -30,12 +30,12 @@ describe('TenantGuard', () => {
     expect(guard.canActivate(context)).toBe(true);
   });
 
-  it('should deny request when header mismatches JWT tenantId', () => {
+  it('should throw ForbiddenException when header mismatches JWT tenantId', () => {
     const context = createMockExecutionContext({
       user: { tenantId: 'tenant-a' },
       headers: { 'x-tenant-id': 'tenant-b' },
     });
-    expect(guard.canActivate(context)).toBe(false);
+    expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
   });
 
   it('should set req.tenantId from JWT', () => {

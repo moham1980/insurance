@@ -24,6 +24,9 @@ import { OutboxEvent } from '@insurance/shared';
       password: process.env.DB_PASSWORD || 'postgres',
       database: process.env.DB_DATABASE || process.env.DB_NAME || 'postgres',
       schema: process.env.DB_SCHEMA || 'regulatory',
+      extra: {
+        options: `-c search_path=${process.env.DB_SCHEMA || 'regulatory'},public`,
+      },
       entities: [SanhabEvent, RegulatoryFailureLog, SanhabSmsInquiry, OutboxEvent],
       synchronize: process.env.NODE_ENV !== 'production' && process.env.DB_SYNC === 'true',
     }),

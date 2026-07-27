@@ -9,6 +9,9 @@ export class ConsumedEvent {
   @PrimaryColumn({ name: 'consumer_name', type: 'text' })
   consumerName: string;
 
+  @PrimaryColumn({ name: 'tenant_id', type: 'text' })
+  tenantId: string;
+
   @Column({ name: 'consumed_at', type: 'timestamptz', default: () => 'NOW()' })
   consumedAt: Date;
 

@@ -4,7 +4,6 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { PermissionsGuard } from './permissions.guard';
 import { RequirePermissions } from './permissions.decorator';
 import { auditLogger } from './audit.logger';
-import { AbacGuard } from './abac.guard';
 import { TenantGuard } from './tenant.guard';
 
 @Controller()
@@ -72,7 +71,7 @@ export class ReportingController {
   }
 
   @Get('/reporting/kpis/ready')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
   @RequirePermissions('reporting:view')
   async readyKpis(@Headers() headers: Record<string, any>, @Req() req: any) {
     const correlationId = this.getCorrelationId(headers);
@@ -91,7 +90,7 @@ export class ReportingController {
   }
 
   @Get('/reporting/ri/ceded')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
   @RequirePermissions('reporting:view')
   async listRiCeded(
     @Headers() headers: Record<string, any>,
@@ -142,7 +141,7 @@ export class ReportingController {
   }
 
   @Get('/reporting/claims/payments')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
   @RequirePermissions('reporting:view')
   async listClaimPayments(
     @Headers() headers: Record<string, any>,
@@ -189,7 +188,7 @@ export class ReportingController {
   }
 
   @Get('/reporting/fraud/case-escalations')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
   @RequirePermissions('reporting:view')
   async listFraudCaseEscalations(
     @Headers() headers: Record<string, any>,
@@ -239,7 +238,7 @@ export class ReportingController {
   }
 
   @Get('/reporting/complaints/sla-breaches')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
   @RequirePermissions('reporting:view')
   async listComplaintSlaBreaches(
     @Headers() headers: Record<string, any>,
@@ -295,7 +294,7 @@ export class ReportingController {
   }
 
   @Get('/reporting/claims/documents-attached')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
   @RequirePermissions('reporting:view')
   async listClaimDocumentsAttached(
     @Headers() headers: Record<string, any>,
@@ -339,7 +338,7 @@ export class ReportingController {
   }
 
   @Get('/reporting/ri/borderaux')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
   @RequirePermissions('reporting:view')
   async listRiBorderaux(
     @Headers() headers: Record<string, any>,
@@ -383,7 +382,7 @@ export class ReportingController {
   }
 
   @Get('/reporting/ri/recoveries')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
   @RequirePermissions('reporting:view')
   async listRiRecoveries(
     @Headers() headers: Record<string, any>,
@@ -430,7 +429,7 @@ export class ReportingController {
   }
 
   @Get('/reporting/kpis/governance')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
   @RequirePermissions('reporting:projections:admin')
   async listGovernancePolicies(@Headers() headers: Record<string, any>, @Req() req: any) {
     const correlationId = this.getCorrelationId(headers);
@@ -449,7 +448,7 @@ export class ReportingController {
   }
 
   @Get('/reporting/kpis/governance/:kpiKey')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
   @RequirePermissions('reporting:projections:admin')
   async getGovernancePolicy(@Headers() headers: Record<string, any>, @Req() req: any, @Param('kpiKey') kpiKey: string) {
     const correlationId = this.getCorrelationId(headers);
@@ -472,7 +471,7 @@ export class ReportingController {
   }
 
   @Put('/reporting/kpis/governance/:kpiKey')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
   @RequirePermissions('reporting:projections:admin')
   async upsertGovernancePolicy(@Headers() headers: Record<string, any>, @Req() req: any, @Param('kpiKey') kpiKey: string, @Body() body: any) {
     const correlationId = this.getCorrelationId(headers);
@@ -540,7 +539,7 @@ export class ReportingController {
   }
 
   @Post('/reporting/kpis/snapshots')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
   @RequirePermissions('reporting:ingest')
   async ingestSnapshot(@Headers() headers: Record<string, any>, @Req() req: any, @Body() body: any) {
     const correlationId = this.getCorrelationId(headers);
@@ -676,7 +675,7 @@ export class ReportingController {
   }
 
   @Get('/reporting/kpis/snapshots')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
   @RequirePermissions('reporting:view')
   async listSnapshots(
     @Headers() headers: Record<string, any>,
@@ -730,7 +729,7 @@ export class ReportingController {
   }
 
   @Get('/reporting/dashboard/executive')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
   @RequirePermissions('reporting:view')
   async getExecutiveDashboard(@Headers() headers: Record<string, any>, @Req() req: any) {
     const correlationId = this.getCorrelationId(headers);
@@ -749,7 +748,7 @@ export class ReportingController {
   }
 
   @Get('/reporting/policies')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
   @RequirePermissions('reporting:view')
   async listPolicies(
     @Headers() headers: Record<string, any>,
@@ -796,7 +795,7 @@ export class ReportingController {
   }
 
   @Get('/reporting/policies/:policyId')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
   @RequirePermissions('reporting:view')
   async getPolicy(@Headers() headers: Record<string, any>, @Param('policyId') policyId: string) {
     const correlationId = this.getCorrelationId(headers);
@@ -816,7 +815,7 @@ export class ReportingController {
   }
 
   @Get('/reporting/payments')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
   @RequirePermissions('reporting:view')
   async listPayments(
     @Headers() headers: Record<string, any>,
@@ -865,7 +864,7 @@ export class ReportingController {
   }
 
   @Get('/reporting/payments/:paymentId')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
   @RequirePermissions('reporting:view')
   async getPayment(@Headers() headers: Record<string, any>, @Param('paymentId') paymentId: string) {
     const correlationId = this.getCorrelationId(headers);
@@ -885,7 +884,7 @@ export class ReportingController {
   }
 
   @Get('/reporting/sales-partners')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
   @RequirePermissions('reporting:view')
   async listSalesPartners(
     @Headers() headers: Record<string, any>,
@@ -927,7 +926,7 @@ export class ReportingController {
   }
 
   @Get('/reporting/sales-partners/:partnerId')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
   @RequirePermissions('reporting:view')
   async getSalesPartner(@Headers() headers: Record<string, any>, @Param('partnerId') partnerId: string) {
     const correlationId = this.getCorrelationId(headers);
@@ -947,7 +946,7 @@ export class ReportingController {
   }
 
   @Get('/reporting/aml-transactions')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
   @RequirePermissions('reporting:view')
   async listAmlTransactions(
     @Headers() headers: Record<string, any>,
@@ -991,7 +990,7 @@ export class ReportingController {
   }
 
   @Get('/reporting/aml-transactions/:transactionId')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
   @RequirePermissions('reporting:view')
   async getAmlTransaction(@Headers() headers: Record<string, any>, @Param('transactionId') transactionId: string) {
     const correlationId = this.getCorrelationId(headers);
@@ -1011,7 +1010,7 @@ export class ReportingController {
   }
 
   @Get('/reporting/underwriting-requests')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
   @RequirePermissions('reporting:view')
   async listUnderwritingRequests(
     @Headers() headers: Record<string, any>,
@@ -1055,7 +1054,7 @@ export class ReportingController {
   }
 
   @Get('/reporting/underwriting-requests/:requestId')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
   @RequirePermissions('reporting:view')
   async getUnderwritingRequest(@Headers() headers: Record<string, any>, @Param('requestId') requestId: string) {
     const correlationId = this.getCorrelationId(headers);
@@ -1076,7 +1075,7 @@ export class ReportingController {
 
   // External system connection endpoints
   @Post('/reporting/external-systems')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
   @RequirePermissions('reporting:manage')
   async createExternalSystemConnection(
     @Headers() headers: Record<string, any>,
@@ -1127,7 +1126,7 @@ export class ReportingController {
   }
 
   @Put('/reporting/external-systems/:connectionId')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
   @RequirePermissions('reporting:manage')
   async updateExternalSystemConnection(
     @Headers() headers: Record<string, any>,
@@ -1172,7 +1171,7 @@ export class ReportingController {
   }
 
   @Get('/reporting/external-systems/:connectionId')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
   @RequirePermissions('reporting:view')
   async getExternalSystemConnection(
     @Headers() headers: Record<string, any>,
@@ -1195,7 +1194,7 @@ export class ReportingController {
   }
 
   @Get('/reporting/external-systems')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
   @RequirePermissions('reporting:view')
   async listExternalSystemConnections(
     @Headers() headers: Record<string, any>,
@@ -1231,7 +1230,7 @@ export class ReportingController {
   }
 
   @Post('/reporting/external-systems/:connectionId/sync')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
   @RequirePermissions('reporting:manage')
   async syncToExternalSystem(
     @Headers() headers: Record<string, any>,
@@ -1272,7 +1271,7 @@ export class ReportingController {
   }
 
   @Get('/reporting/external-systems/:connectionId/sync-status')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
   @RequirePermissions('reporting:view')
   async getExternalSystemSyncStatus(
     @Headers() headers: Record<string, any>,
@@ -1295,7 +1294,7 @@ export class ReportingController {
   }
 
   @Post('/reporting/external-systems/:connectionId/delete')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
   @RequirePermissions('reporting:manage')
   async deleteExternalSystemConnection(
     @Headers() headers: Record<string, any>,
@@ -1323,7 +1322,7 @@ export class ReportingController {
 
   // Financial, Market Share, and Satisfaction KPIs endpoints
   @Get('/reporting/kpis/financial')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
   @RequirePermissions('reporting:view')
   async getFinancialKPIs(
     @Headers() headers: Record<string, any>,
@@ -1365,7 +1364,7 @@ export class ReportingController {
   }
 
   @Get('/reporting/kpis/market-share')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
   @RequirePermissions('reporting:view')
   async getMarketShareKPIs(
     @Headers() headers: Record<string, any>,
@@ -1407,7 +1406,7 @@ export class ReportingController {
   }
 
   @Get('/reporting/kpis/satisfaction')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, PermissionsGuard)
   @RequirePermissions('reporting:view')
   async getSatisfactionKPIs(
     @Headers() headers: Record<string, any>,

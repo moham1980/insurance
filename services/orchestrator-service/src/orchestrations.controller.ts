@@ -74,6 +74,7 @@ export class OrchestrationsController {
 
     try {
       const saga = await this.orchestratorService.startSaga({
+        tenantId: String(tenantId),
         sagaType,
         correlationId,
         claimId: body.claimId ?? null,
@@ -147,7 +148,7 @@ export class OrchestrationsController {
     const actor = req?.user?.userId as string | undefined;
     auditLogger.info('orchestrations.saga_get.request', { correlationId, tenantId, actor, action: 'orchestrations:saga_view', sagaId });
 
-    const saga = await this.orchestratorService.getSaga(sagaId);
+    const saga = await this.orchestratorService.getSaga(String(tenantId), sagaId);
     if (!saga) {
       auditLogger.warn('orchestrations.saga_get.not_found', { correlationId, tenantId, actor, action: 'orchestrations:saga_view', sagaId });
       return {
@@ -186,7 +187,7 @@ export class OrchestrationsController {
     }
 
     try {
-      const saga = await this.orchestratorService.initiateCompensation(sagaId, body.reason, actor);
+      const saga = await this.orchestratorService.initiateCompensation(String(tenantId), sagaId, body.reason, actor);
       return { success: true, data: saga, correlationId };
     } catch (e: any) {
       if (e?.code === 'NOT_FOUND') {
@@ -224,7 +225,7 @@ export class OrchestrationsController {
     });
 
     try {
-      const saga = await this.orchestratorService.retryCompensation(sagaId);
+      const saga = await this.orchestratorService.retryCompensation(String(tenantId), sagaId);
       return { success: true, data: saga, correlationId };
     } catch (e: any) {
       if (e?.code === 'NOT_FOUND') {
@@ -262,7 +263,7 @@ export class OrchestrationsController {
     });
 
     try {
-      const status = await this.orchestratorService.getCompensationStatus(sagaId);
+      const status = await this.orchestratorService.getCompensationStatus(String(tenantId), sagaId);
       return { success: true, data: status, correlationId };
     } catch (e: any) {
       if (e?.code === 'NOT_FOUND') {

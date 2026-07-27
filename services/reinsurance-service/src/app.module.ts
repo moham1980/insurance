@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConsumedEvent, DeadLetterEvent, OutboxEvent } from '@insurance/shared';
-import { JwtAuthGuard } from './jwt-auth.guard';
+import { EcosystemJwtGuard } from './ecosystem-jwt.guard';
 import { PermissionsGuard } from './permissions.guard';
 import { ReinsuranceController } from './reinsurance.controller';
 import { ReinsuranceService } from './reinsurance.service';
@@ -16,7 +17,6 @@ import { ReTicketMessage } from './entities/ReTicketMessage';
 import { ReTicketAttachment } from './entities/ReTicketAttachment';
 import { HealthController } from './health.controller';
 
-import { AbacGuard } from './abac.guard';
 import { TenantGuard } from './tenant.guard';
 @Module({
   imports: [
@@ -58,6 +58,6 @@ import { TenantGuard } from './tenant.guard';
     ]),
   ],
   controllers: [ReinsuranceController, HealthController],
-  providers: [TenantGuard, AbacGuard, ReinsuranceService, PolicyConsumer, JwtAuthGuard, PermissionsGuard],
+  providers: [TenantGuard, Reflector, EcosystemJwtGuard, ReinsuranceService, PolicyConsumer, PermissionsGuard],
 })
 export class AppModule {}

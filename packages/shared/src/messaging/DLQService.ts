@@ -1,5 +1,5 @@
 import { Repository, DataSource } from 'typeorm';
-import { Kafka, KafkaMessage } from 'kafkajs';
+import { Kafka, KafkaMessage, Producer } from 'kafkajs';
 import { DeadLetterEvent } from '../events/DeadLetterEvent';
 import { Logger } from '../observability';
 
@@ -16,6 +16,7 @@ export interface DLQConfig {
 export class DeadLetterQueueService {
   private dlqRepo: Repository<DeadLetterEvent>;
   private kafka: Kafka | null = null;
+  private producer: Producer | null = null;
   private logger: Logger;
   private config: DLQConfig;
   private retryDelays: number[];
@@ -33,8 +34,17 @@ export class DeadLetterQueueService {
         clientId: this.config.kafkaConfig.clientId || 'dlq-service',
         brokers: this.config.kafkaConfig.brokers,
       });
+      this.producer = this.kafka.producer();
+      await this.producer.connect();
     }
     this.logger.info('DLQ Service initialized');
+  }
+
+  async shutdown(): Promise<void> {
+    if (this.producer) {
+      await this.producer.disconnect();
+      this.producer = null;
+    }
   }
 
   async addToDLQ(
@@ -44,13 +54,27 @@ export class DeadLetterQueueService {
     consumerGroup: string,
     partition?: number
   ): Promise<DeadLetterEvent> {
+    let parsedValue: any = null;
+    try {
+      parsedValue = JSON.parse(message.value?.toString() || '{}');
+    } catch {
+      parsedValue = { raw: message.value?.toString() || '' };
+    }
+    const headerTenantId = message.headers?.['x-tenant-id'];
+    const tenantId =
+      (headerTenantId ? String(headerTenantId) : undefined) ||
+      parsedValue?.tenantId ||
+      parsedValue?.subject?.tenantId ||
+      '';
+
     const dlqEntry = this.dlqRepo.create({
       originalEventId: `${topic}-${partition}-${message.offset}-${Date.now()}`,
       topic,
+      tenantId,
       partition: partition ?? null,
       offset: String(message.offset),
       key: message.key?.toString() || null,
-      value: JSON.parse(message.value?.toString() || '{}'),
+      value: parsedValue,
       headers: message.headers || null,
       errorMessage: error.message,
       errorStack: error.stack || null,
@@ -95,22 +119,20 @@ export class DeadLetterQueueService {
         await this.dlqRepo.save(entry);
 
         // Attempt to republish to original topic
-        if (this.kafka) {
-          const producer = this.kafka.producer();
-          await producer.connect();
-          await producer.send({
+        if (this.producer) {
+          await this.producer.send({
             topic: entry.topic,
             messages: [{
               key: entry.key || undefined,
               value: JSON.stringify(entry.value),
               headers: {
                 ...entry.headers,
+                'x-tenant-id': entry.tenantId,
                 'x-dlq-retry': String(entry.retryCount + 1),
                 'x-dlq-id': entry.dlqId,
               },
             }],
           });
-          await producer.disconnect();
         }
 
         entry.retryCount++;

@@ -11,15 +11,18 @@ BEGIN
           event_type TEXT NOT NULL,
           event_version INT NOT NULL,
           correlation_id TEXT NOT NULL,
+          tenant_id TEXT NOT NULL DEFAULT ''unknown'',
           subject_json JSONB NOT NULL DEFAULT ''{}'',
           payload_json JSONB NOT NULL DEFAULT ''{}'',
           status TEXT NOT NULL DEFAULT ''pending'',
           attempt_count INT NOT NULL DEFAULT 0,
           error_message TEXT
         )', s);
+      EXECUTE format('ALTER TABLE %I.outbox_events ADD COLUMN IF NOT EXISTS tenant_id TEXT NOT NULL DEFAULT ''unknown''', s);
+      EXECUTE format('UPDATE %I.outbox_events SET tenant_id = COALESCE(subject_json ->> ''tenantId'', subject_json ->> ''tenant_id'', ''unknown'') WHERE tenant_id = ''unknown''', s);
       EXECUTE format('CREATE INDEX IF NOT EXISTS idx_%s_outbox_status_occurred ON %I.outbox_events(status, occurred_at)', s, s);
       EXECUTE format('CREATE INDEX IF NOT EXISTS idx_%s_outbox_correlation ON %I.outbox_events(correlation_id)', s, s);
-      RAISE NOTICE 'Created outbox_events in %', s;
+      RAISE NOTICE 'Created/updated outbox_events in %', s;
     EXCEPTION WHEN OTHERS THEN
       RAISE NOTICE 'Failed for %: %', s, SQLERRM;
     END;

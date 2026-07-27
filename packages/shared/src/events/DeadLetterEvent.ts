@@ -14,6 +14,9 @@ export class DeadLetterEvent {
   @Column({ name: 'topic', type: 'text' })
   topic: string;
 
+  @Column({ name: 'tenant_id', type: 'text' })
+  tenantId: string;
+
   @Column({ name: 'partition', type: 'int', nullable: true })
   partition: number | null;
 

@@ -1,4 +1,6 @@
 // @ts-nocheck
+import { createHmac } from 'crypto';
+
 /**
  * GDPR and Privacy Compliance utilities
  * Provides data anonymization, right-to-erasure, and data portability
@@ -17,7 +19,7 @@ export interface AnonymizationConfig {
   generalizeFields?: string[];
 }
 
-export interface ConsentRecord {
+export interface GdprConsentRecord {
   partyId: string;
   purpose: string;
   granted: boolean;
@@ -37,19 +39,16 @@ export interface DataSubjectRequest {
   metadata?: Record<string, any>;
 }
 
+const ANONYMIZATION_SECRET = process.env.ANONYMIZATION_SECRET || '';
+
 /**
- * One-way hash for anonymization (using SHA-256)
- * Note: In production, use a keyed hash (HMAC) with a secret key
+ * One-way keyed hash (HMAC-SHA256) for anonymization.
+ * Requires ANONYMIZATION_SECRET to be configured in production.
  */
 export function anonymizeHash(value: string): string {
-  // Simple hash for demo - in production use crypto.subtle or Node crypto
-  let hash = 0;
-  for (let i = 0; i < value.length; i++) {
-    const char = value.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-  return `anon_${Math.abs(hash).toString(16).padStart(16, '0')}`;
+  const secret = ANONYMIZATION_SECRET || 'dev-only-change-me';
+  const hmac = createHmac('sha256', secret).update(value).digest('hex');
+  return `anon_${hmac}`;
 }
 
 /**

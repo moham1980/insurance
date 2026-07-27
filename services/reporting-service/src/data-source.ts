@@ -13,6 +13,12 @@ import { RmComplaintSlaBreach } from './entities/RmComplaintSlaBreach';
 import { KpiSnapshot } from './entities/KpiSnapshot';
 import { KpiIngestionAudit } from './entities/KpiIngestionAudit';
 import { KpiGovernancePolicy } from './entities/KpiGovernancePolicy';
+import { RmPolicy } from './entities/RmPolicy';
+import { RmPayment } from './entities/RmPayment';
+import { RmSalesNetwork } from './entities/RmSalesNetwork';
+import { RmAml } from './entities/RmAml';
+import { RmUnderwriting } from './entities/RmUnderwriting';
+import { ExternalSystemConnection } from './entities/ExternalSystemConnection';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -35,6 +41,12 @@ export const AppDataSource = new DataSource({
     KpiSnapshot,
     KpiIngestionAudit,
     KpiGovernancePolicy,
+    RmPolicy,
+    RmPayment,
+    RmSalesNetwork,
+    RmAml,
+    RmUnderwriting,
+    ExternalSystemConnection,
     ConsumedEvent,
   ],
   migrations: [__dirname + '/migrations/*.{js,ts}'],

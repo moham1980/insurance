@@ -2,8 +2,10 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryColumn, UpdateDateColum
 
 @Entity('kpi_governance_policies')
 export class KpiGovernancePolicy {
+  @PrimaryColumn({ name: 'tenant_id', type: 'uuid' })
+  tenantId!: string;
+
   @PrimaryColumn({ name: 'kpi_key', type: 'text' })
-  @Index({ unique: true })
   kpiKey!: string;
 
   @Column({ name: 'allowed_period_granularities', type: 'text', array: true, default: '{}' })

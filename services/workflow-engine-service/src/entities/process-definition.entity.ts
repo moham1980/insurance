@@ -1,5 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, Unique, Index } from 'typeorm';
-import { ProcessInstance } from './process-instance.entity';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Unique, Index } from 'typeorm';
 
 export enum ProcessDefinitionStatus {
   DRAFT = 'draft',
@@ -86,7 +85,4 @@ export class ProcessDefinition {
 
   @Column({ nullable: true })
   deletedAt: Date;
-
-  @OneToMany(() => ProcessInstance, instance => instance.definition)
-  instances: ProcessInstance[];
 }

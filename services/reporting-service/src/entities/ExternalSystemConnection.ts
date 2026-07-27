@@ -7,6 +7,9 @@ export type ConnectionStatus = 'active' | 'inactive' | 'error' | 'syncing';
 @Index(['systemType', 'status'])
 @Index(['status', 'lastSyncAt'])
 export class ExternalSystemConnection {
+  @Column({ type: 'uuid', name: 'tenant_id', nullable: true })
+  tenantId?: string | null;
+
   @PrimaryGeneratedColumn('uuid', { name: 'connection_id' })
   connectionId!: string;
 

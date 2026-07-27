@@ -7,8 +7,11 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter());
   const port = parseInt(process.env.PORT || '3009', 10);
-    // OutboxWorker setup for reliable event publishing
+
+  // Set search_path on the application DataSource for the regulatory schema
   const dataSource = app.get(DataSource);
+  const schema = process.env.DB_SCHEMA || 'regulatory';
+  await dataSource.query(`SET search_path TO ${schema}, public`);
   const kafkaBrokers = process.env.KAFKA_BROKERS?.split(',') || [];
   if (kafkaBrokers.length > 0) {
     const { KafkaProducer, OutboxWorker, createLogger } = await import('@insurance/shared');

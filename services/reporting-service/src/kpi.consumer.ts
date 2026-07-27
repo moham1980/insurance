@@ -49,6 +49,7 @@ export class KpiConsumer implements OnModuleInit, OnModuleDestroy {
     const row = existing
       ? existing
       : this.rmClaimDocsRepo.create({
+          tenantId: envelope.tenantId || null,
           claimId: String(claimId),
           documentsCount: 0,
           typesSummary: null,
@@ -93,6 +94,7 @@ export class KpiConsumer implements OnModuleInit, OnModuleDestroy {
 
     await this.rmFraudEscRepo.save(
       this.rmFraudEscRepo.create({
+        tenantId: envelope.tenantId || null,
         eventId: envelope.eventId,
         occurredAt,
         correlationId: typeof envelope.correlationId === 'string' ? envelope.correlationId : null,
@@ -136,6 +138,7 @@ export class KpiConsumer implements OnModuleInit, OnModuleDestroy {
 
     await this.rmComplaintSlaRepo.save(
       this.rmComplaintSlaRepo.create({
+        tenantId: envelope.tenantId || null,
         eventId: envelope.eventId,
         occurredAt,
         correlationId: typeof envelope.correlationId === 'string' ? envelope.correlationId : null,
@@ -177,6 +180,7 @@ export class KpiConsumer implements OnModuleInit, OnModuleDestroy {
 
     await this.rmRiCededRepo.save(
       this.rmRiCededRepo.create({
+        tenantId: envelope.tenantId || null,
         riKey,
         contractId,
         policyId,
@@ -210,6 +214,7 @@ export class KpiConsumer implements OnModuleInit, OnModuleDestroy {
 
     await this.rmRiBorderauxRepo.save(
       this.rmRiBorderauxRepo.create({
+        tenantId: envelope.tenantId || null,
         borderauxId,
         contractId,
         periodStart: Number.isNaN(periodStart.getTime()) ? new Date(0) : periodStart,
@@ -235,6 +240,7 @@ export class KpiConsumer implements OnModuleInit, OnModuleDestroy {
     const row = existing
       ? existing
       : this.rmRiRecoveryRepo.create({
+          tenantId: envelope.tenantId || null,
           recoveryId,
           claimId,
           contractId,
@@ -282,11 +288,12 @@ export class KpiConsumer implements OnModuleInit, OnModuleDestroy {
     return { kafkaBrokers, consumerGroupId };
   }
 
-  private async ensureIdempotent(eventId: string, consumerName: string, topic: string): Promise<boolean> {
+  private async ensureIdempotent(eventId: string, consumerName: string, topic: string, tenantId?: string): Promise<boolean> {
     const existing = await this.consumedRepo.findOne({ where: { eventId, consumerName } });
     if (existing) return false;
 
     const consumed = this.consumedRepo.create({
+      tenantId: tenantId || 'unknown',
       eventId,
       consumerName,
       topic,
@@ -311,6 +318,7 @@ export class KpiConsumer implements OnModuleInit, OnModuleDestroy {
     const row = existing
       ? existing
       : this.rmPolicyRepo.create({
+          tenantId: envelope.tenantId || null,
           policyId,
           policyNumber,
           quotedAt: null,
@@ -359,6 +367,7 @@ export class KpiConsumer implements OnModuleInit, OnModuleDestroy {
     const row = existing
       ? existing
       : this.rmClaimPaymentRepo.create({
+          tenantId: envelope.tenantId || null,
           claimId,
           claimNumber,
           policyId,
@@ -405,6 +414,7 @@ export class KpiConsumer implements OnModuleInit, OnModuleDestroy {
     const row = existing
       ? existing
       : this.rmClaimPaymentRepo.create({
+          tenantId: envelope.tenantId || null,
           claimId,
           claimNumber: envelope.payload?.claimNumber || null,
           policyId: envelope.payload?.policyId || null,
@@ -430,6 +440,7 @@ export class KpiConsumer implements OnModuleInit, OnModuleDestroy {
     const row = existing
       ? existing
       : this.rmFraudRepo.create({
+          tenantId: envelope.tenantId || null,
           claimId,
           claimNumber,
           latestScore: null,
@@ -536,7 +547,7 @@ export class KpiConsumer implements OnModuleInit, OnModuleDestroy {
           return;
         }
 
-        const should = await this.ensureIdempotent(envelope.eventId, consumerGroupId, topic);
+        const should = await this.ensureIdempotent(envelope.eventId, consumerGroupId, topic, envelope.tenantId);
         if (!should) return;
 
         try {

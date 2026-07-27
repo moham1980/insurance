@@ -20,3 +20,9 @@ This document records the runtime truth of workflow engine capabilities as requi
 | BPMN Execution | **NOT IMPLEMENTED** | No `executeBpmn` method exists | BPMN parser and runner not built | Future |
 | Saga Coordination | **NOT IMPLEMENTED** | No `startSaga` or compensation handlers | Distributed saga orchestrator not built | Future |
 | Event-Driven Steps (Kafka) | **NOT IMPLEMENTED** | No `handleEvent` Kafka consumer | Event wait nodes cannot subscribe to topics yet | Phase 2 |
+
+## Verification
+
+- `bun run build` in `services/workflow-engine-service` completes without TypeScript errors.
+- `bun test` in `services/workflow-engine-service` runs 11 unit tests and all pass.
+- Circular entity dependency between `ProcessDefinition` and `ProcessInstance` was resolved by removing bidirectional TypeORM relations; child collections (`tokens`, `variables`, `history`) and `definition.instances` are now queried explicitly via repository methods.

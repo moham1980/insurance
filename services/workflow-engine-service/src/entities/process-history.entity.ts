@@ -1,5 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
-import { ProcessInstance } from './process-instance.entity';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
 
 export enum HistoryEventType {
   NODE_ENTER = 'node_enter',
@@ -26,10 +25,6 @@ export class ProcessHistory {
 
   @Column()
   instanceId: string;
-
-  @ManyToOne(() => ProcessInstance, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'instance_id' })
-  instance: ProcessInstance;
 
   @Column()
   eventType: HistoryEventType;

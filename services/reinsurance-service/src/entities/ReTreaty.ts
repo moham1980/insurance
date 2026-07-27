@@ -3,12 +3,15 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, Update
 export type ReTreatyStatus = 'draft' | 'active' | 'closed';
 
 @Entity('re_treaties')
-@Index(['status', 'createdAt'])
-@Index(['treatyNumber'])
-@Index(['reinsurerName'])
+@Index(['tenantId', 'status', 'createdAt'])
+@Index(['tenantId', 'treatyNumber'])
+@Index(['tenantId', 'reinsurerName'])
 export class ReTreaty {
   @PrimaryGeneratedColumn('uuid', { name: 'treaty_id' })
   treatyId!: string;
+
+  @Column({ name: 'tenant_id', type: 'text' })
+  tenantId!: string;
 
   @Column({ name: 'treaty_number', type: 'text' })
   treatyNumber!: string;

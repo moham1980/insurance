@@ -1,4 +1,4 @@
-import { Injectable, NestMiddleware, ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, NestMiddleware, ForbiddenException, UnauthorizedException, createParamDecorator, ExecutionContext } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 
 // Extend Request type to include custom properties
@@ -59,16 +59,7 @@ export class TenantIsolationMiddleware implements NestMiddleware {
  * Tenant Context Decorator
  * Extracts tenant ID from request for use in controllers/services
  */
-export const TenantId = () => (target: any, propertyKey: string, descriptor: PropertyDescriptor) => {
-  const originalMethod = descriptor.value;
-
-  descriptor.value = function (...args: any[]) {
-    const request = args[args.length - 1]; // Last argument is typically the request object
-    const tenantId = (request as Request)?.tenantId || (request as Request)?.headers?.['x-tenant-id'] as string;
-    
-    // Inject tenantId as first argument
-    return originalMethod.apply(this, [tenantId, ...args.slice(0, -1)]);
-  };
-
-  return descriptor;
-};
+export const TenantId = createParamDecorator((data: unknown, ctx: ExecutionContext) => {
+  const request = ctx.switchToHttp().getRequest();
+  return request?.tenantId || request?.headers?.['x-tenant-id'];
+});

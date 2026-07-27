@@ -22,14 +22,7 @@
     }
   },
   "include": [
-    "src/main.ts",
-    "src/app.module.ts",
-    "src/regulatory.controller.ts",
-    "src/regulatory.service.ts",
-    "src/data-source.ts",
-    "src/migrate.ts",
-    "src/entities/**/*"
-    ,"src/migrations/**/*"
+    "src/**/*"
   ],
   "exclude": ["node_modules", "dist"]
 }

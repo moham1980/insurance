@@ -9,10 +9,14 @@ export class CreateReinsuranceTables1760000000510 implements MigrationInterface 
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS re_treaties (
         treaty_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        tenant_id TEXT NOT NULL,
         treaty_number TEXT NOT NULL,
         reinsurer_name TEXT NOT NULL,
         treaty_type TEXT NOT NULL,
         status TEXT NOT NULL DEFAULT 'draft',
+        retention_rate NUMERIC,
+        cession_rate NUMERIC,
+        config JSONB,
         effective_from DATE NOT NULL,
         effective_to DATE,
         currency TEXT NOT NULL DEFAULT 'IRR',
@@ -25,20 +29,31 @@ export class CreateReinsuranceTables1760000000510 implements MigrationInterface 
       );
     `);
 
-    await queryRunner.query(`CREATE UNIQUE INDEX IF NOT EXISTS ux_re_treaties_treaty_number ON re_treaties(treaty_number);`);
+    await queryRunner.query(`CREATE UNIQUE INDEX IF NOT EXISTS ux_re_treaties_treaty_number_tenant ON re_treaties(tenant_id, treaty_number);`);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_re_treaties_status_created_at ON re_treaties(status, created_at);`);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_re_treaties_reinsurer ON re_treaties(reinsurer_name);`);
+    await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_re_treaties_tenant_id ON re_treaties(tenant_id);`);
 
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS re_cessions (
         cession_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        tenant_id TEXT NOT NULL,
         treaty_id UUID NOT NULL,
         policy_id TEXT,
+        policy_number TEXT,
         risk_id TEXT,
+        cession_type TEXT,
         sum_insured NUMERIC(18,2),
         premium NUMERIC(18,2),
         cession_percent NUMERIC(6,3),
         ceded_amount NUMERIC(18,2),
+        ceded_premium NUMERIC(18,2),
+        ceded_sum_insured NUMERIC(18,2),
+        retention_rate NUMERIC,
+        cession_rate NUMERIC,
+        effective_from DATE,
+        effective_to DATE,
+        currency TEXT DEFAULT 'IRR',
         status TEXT NOT NULL DEFAULT 'pending',
         notes TEXT,
         created_by TEXT,
@@ -49,6 +64,7 @@ export class CreateReinsuranceTables1760000000510 implements MigrationInterface 
       );
     `);
 
+    await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_re_cessions_tenant_id ON re_cessions(tenant_id);`);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_re_cessions_treaty_created_at ON re_cessions(treaty_id, created_at);`);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_re_cessions_status_created_at ON re_cessions(status, created_at);`);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_re_cessions_policy_id ON re_cessions(policy_id);`);
@@ -56,6 +72,7 @@ export class CreateReinsuranceTables1760000000510 implements MigrationInterface 
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS re_statements (
         statement_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        tenant_id TEXT NOT NULL,
         treaty_id UUID NOT NULL,
         statement_type TEXT NOT NULL,
         status TEXT NOT NULL DEFAULT 'draft',
@@ -65,12 +82,13 @@ export class CreateReinsuranceTables1760000000510 implements MigrationInterface 
         created_by TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        CONSTRAINT chk_re_statements_type CHECK (statement_type IN ('bordereau','settlement')),
-        CONSTRAINT chk_re_statements_status CHECK (status IN ('draft','issued','settled','canceled')),
+        CONSTRAINT chk_re_statements_type CHECK (statement_type IN ('bordereau','settlement','period_close')),
+        CONSTRAINT chk_re_statements_status CHECK (status IN ('draft','issued','settled','canceled','finalized')),
         CONSTRAINT fk_re_statements_treaty FOREIGN KEY (treaty_id) REFERENCES re_treaties(treaty_id) ON DELETE RESTRICT
       );
     `);
 
+    await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_re_statements_tenant_id ON re_statements(tenant_id);`);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_re_statements_treaty_created_at ON re_statements(treaty_id, created_at);`);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_re_statements_status_created_at ON re_statements(status, created_at);`);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_re_statements_period ON re_statements(period_start, period_end);`);
@@ -78,6 +96,7 @@ export class CreateReinsuranceTables1760000000510 implements MigrationInterface 
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS re_reconciliations (
         reconciliation_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        tenant_id TEXT NOT NULL,
         statement_id UUID NOT NULL,
         status TEXT NOT NULL DEFAULT 'open',
         summary TEXT,
@@ -90,6 +109,7 @@ export class CreateReinsuranceTables1760000000510 implements MigrationInterface 
       );
     `);
 
+    await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_re_reconciliations_tenant_id ON re_reconciliations(tenant_id);`);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_re_reconciliations_statement_created_at ON re_reconciliations(statement_id, created_at);`);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_re_reconciliations_status_created_at ON re_reconciliations(status, created_at);`);
   }

@@ -8,8 +8,6 @@ import { RuleExecution } from './entities/RuleExecution';
 import { RuleTemplate } from './entities/RuleTemplate';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { PermissionsGuard } from './permissions.guard';
-
-import { AbacGuard } from './abac.guard';
 import { TenantGuard } from './tenant.guard';
 import { OutboxEvent } from '@insurance/shared';
 @Module({
@@ -28,6 +26,6 @@ import { OutboxEvent } from '@insurance/shared';
     TypeOrmModule.forFeature([Rule, RuleExecution, RuleTemplate, OutboxEvent]),
   ],
   controllers: [RuleEngineController, HealthController],
-  providers: [AbacGuard, TenantGuard, RuleEngineService, JwtAuthGuard, PermissionsGuard],
+  providers: [TenantGuard, RuleEngineService, JwtAuthGuard, PermissionsGuard],
 })
 export class AppModule {}

@@ -8,6 +8,7 @@ export interface PublishOptions {
   eventType: string;
   eventVersion: number;
   correlationId: string;
+  tenantId: string;
   subject: Record<string, string>;
   payload: unknown;
   producer?: string;
@@ -31,6 +32,7 @@ export class OutboxPublisher {
       eventType: options.eventType,
       eventVersion: options.eventVersion,
       correlationId: options.correlationId,
+      tenantId: options.tenantId,
       subjectJson: options.subject,
       payloadJson: options.payload as object,
       status: 'pending',
@@ -50,14 +52,12 @@ export class OutboxPublisher {
   }
 
   async markAsFailed(eventId: string, errorMessage: string): Promise<void> {
-    await this.outboxRepo.update(
-      { id: eventId },
-      { 
-        status: 'failed',
-        errorMessage,
-        attemptCount: () => '"attempt_count" + 1'
-      }
-    );
+    const event = await this.outboxRepo.findOne({ where: { id: eventId } });
+    if (!event) return;
+    event.status = 'failed';
+    event.errorMessage = errorMessage;
+    event.attemptCount = (event.attemptCount || 0) + 1;
+    await this.outboxRepo.save(event);
   }
 
   async getPendingEvents(limit: number = 100): Promise<OutboxEvent[]> {

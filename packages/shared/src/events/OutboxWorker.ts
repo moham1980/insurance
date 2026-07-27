@@ -1,5 +1,4 @@
 import { DataSource } from 'typeorm';
-import { In } from 'typeorm';
 import { OutboxEvent } from './OutboxEvent';
 import { DeadLetterEvent } from './DeadLetterEvent';
 import { createEventEnvelope } from './EventEnvelope';
@@ -81,151 +80,158 @@ export class OutboxWorker {
   }
 
   private async processBatch(): Promise<void> {
-    const { dataSource, batchSize } = this.config;
+    const { dataSource, batchSize, maxAttempts } = this.config;
 
-    await dataSource.transaction(async (manager) => {
-      const rows = (await manager.query(
-        `
-        SELECT id
-        FROM outbox_events
-        WHERE status = 'pending'
-          AND attempt_count < $1
-        ORDER BY occurred_at ASC
-        FOR UPDATE SKIP LOCKED
-        LIMIT $2
-        `,
-        [this.config.maxAttempts, batchSize]
-      )) as Array<{ id: string }>;
+    const rows = (await dataSource.query(
+      `
+      SELECT id
+      FROM outbox_events
+      WHERE status = 'pending'
+        AND attempt_count < $1
+      ORDER BY occurred_at ASC
+      LIMIT $2
+      `,
+      [maxAttempts, batchSize]
+    )) as Array<{ id: string }>;
 
-      if (!Array.isArray(rows) || rows.length === 0) return;
+    if (!Array.isArray(rows) || rows.length === 0) return;
 
-      const ids = rows.map((r) => r.id);
-      const repo = manager.getRepository(OutboxEvent);
-      const events = await repo.find({
-        where: { id: In(ids) },
-      });
-
-      const index = new Map<string, number>();
-      ids.forEach((id, i) => index.set(id, i));
-      events.sort((a, b) => (index.get(a.id) ?? 0) - (index.get(b.id) ?? 0));
-
-      for (const ev of events) {
-        await this.sendOne(manager, ev);
-      }
-    });
+    for (const row of rows) {
+      await this.sendOne(row.id);
+    }
   }
 
-  private async sendOne(manager: any, ev: OutboxEvent): Promise<void> {
-    const lagMs = Date.now() - new Date(ev.occurredAt).getTime();
-    try {
-      const tenantId = (ev.subjectJson as any)?.tenantId as string | undefined;
-      const traceparent = (ev.subjectJson as any)?.traceparent as string | undefined;
+  private async sendOne(eventId: string): Promise<void> {
+    let backoffMs = 0;
 
-      // Log high lag warnings
+    await this.config.dataSource.transaction(async (manager) => {
+      const [row] = (await manager.query(
+        `
+        SELECT *
+        FROM outbox_events
+        WHERE id = $1
+          AND status = 'pending'
+          AND attempt_count < $2
+        FOR UPDATE SKIP LOCKED
+        `,
+        [eventId, this.config.maxAttempts]
+      )) as Array<Record<string, any>>;
+
+      if (!row) return;
+
+      const lagMs = Date.now() - new Date(row.occurred_at).getTime();
+      const tenantId = row.tenant_id || (row.subject_json?.tenantId as string | undefined);
+      const traceparent = row.subject_json?.traceparent as string | undefined;
+
       if (lagMs > 60_000) {
-        this.logger.warn('Outbox event lag exceeds 60s', { eventId: ev.id, lagMs, topic: ev.topic });
+        this.logger.warn('Outbox event lag exceeds 60s', { eventId: row.id, lagMs, topic: row.topic });
       }
 
       const envelope = createEventEnvelope({
-        eventId: ev.id,
-        eventType: ev.eventType,
-        eventVersion: ev.eventVersion,
-        occurredAt: ev.occurredAt,
+        eventId: row.id,
+        eventType: row.event_type,
+        eventVersion: row.event_version,
+        occurredAt: row.occurred_at,
         producer: this.config.producerName,
-        correlationId: ev.correlationId,
+        correlationId: row.correlation_id,
         tenantId,
         traceparent,
-        subject: ev.subjectJson as any,
-        payload: ev.payloadJson,
+        subject: row.subject_json,
+        payload: row.payload_json,
       });
 
       const value = JSON.stringify(envelope);
 
-      await this.config.producer.send({
-        topic: ev.topic,
-        messages: [
-          {
-            key: ev.id,
-            value,
-            headers: {
-              'x-correlation-id': ev.correlationId,
-              'x-event-type': ev.eventType,
-              'x-event-version': String(ev.eventVersion),
-              ...(tenantId ? { 'x-tenant-id': tenantId } : {}),
-              ...(traceparent ? { traceparent } : {}),
-            },
-          },
-        ],
-      });
-
-      await manager.query(`UPDATE outbox_events SET status='sent' WHERE id=$1`, [ev.id]);
-
-      // Audit log for successful relay
-      this.logger.info('Outbox event relayed', {
-        eventId: ev.id,
-        topic: ev.topic,
-        lagMs,
-        correlationId: ev.correlationId,
-        producerName: this.config.producerName,
-      });
-    } catch (e: any) {
-      const attemptCount = (ev.attemptCount || 0) + 1;
-      const status = attemptCount >= this.config.maxAttempts ? 'failed' : 'pending';
-
-      const delay = Math.min(30_000, this.config.baseRetryDelayMs! * Math.pow(2, Math.max(0, attemptCount - 1)));
-      await this.sleep(delay);
-
-      await manager.query(
-        `
-        UPDATE outbox_events
-        SET status=$2,
-            attempt_count=attempt_count + 1,
-            error_message=$3
-        WHERE id=$1
-        `,
-        [ev.id, status, String(e?.message || e)]
-      );
-
-      if (status === 'failed') {
-        this.logger.error('Outbox event permanently failed', e as Error, { eventId: ev.id, topic: ev.topic });
-
-        if (this.config.dlqOnPermanentFailure) {
-          try {
-            const dlqRepo = manager.getRepository(DeadLetterEvent);
-            const dlq = dlqRepo.create({
-              originalEventId: ev.id,
-              topic: ev.topic,
-              partition: null,
-              offset: null,
-              key: ev.id,
-              value: {
-                eventId: ev.id,
-                eventType: ev.eventType,
-                eventVersion: ev.eventVersion,
-                occurredAt: ev.occurredAt.toISOString(),
-                correlationId: ev.correlationId,
-                subject: ev.subjectJson,
-                payload: ev.payloadJson,
-                lagMs,
+      try {
+        await this.config.producer.send({
+          topic: row.topic,
+          messages: [
+            {
+              key: row.id,
+              value,
+              headers: {
+                'x-correlation-id': row.correlation_id,
+                'x-event-type': row.event_type,
+                'x-event-version': String(row.event_version),
+                ...(tenantId ? { 'x-tenant-id': tenantId } : {}),
+                ...(traceparent ? { traceparent } : {}),
               },
-              headers: { 'x-correlation-id': ev.correlationId },
-              errorMessage: String(e?.message || e),
-              errorStack: e?.stack ? String(e.stack) : null,
-              consumerGroup: `outbox:${this.config.producerName}`,
-              retryCount: 0,
-              maxRetries: 0,
-              status: 'failed',
-              nextRetryAt: null,
-              lastErrorAt: new Date(),
-              resolvedAt: null,
-              createdAt: new Date(),
-            });
-            await dlqRepo.save(dlq);
-          } catch (dlqErr: any) {
-            this.logger.error('Failed to persist outbox DLQ entry', dlqErr as Error, { eventId: ev.id });
+            },
+          ],
+        });
+
+        await manager.query(`UPDATE outbox_events SET status='sent' WHERE id=$1`, [row.id]);
+
+        this.logger.info('Outbox event relayed', {
+          eventId: row.id,
+          topic: row.topic,
+          lagMs,
+          correlationId: row.correlation_id,
+          producerName: this.config.producerName,
+        });
+      } catch (e: any) {
+        const attemptCount = (row.attempt_count || 0) + 1;
+        const status = attemptCount >= this.config.maxAttempts ? 'failed' : 'pending';
+
+        backoffMs = Math.min(30_000, this.config.baseRetryDelayMs! * Math.pow(2, Math.max(0, attemptCount - 1)));
+
+        await manager.query(
+          `
+          UPDATE outbox_events
+          SET status=$2,
+              attempt_count=$3,
+              error_message=$4
+          WHERE id=$1
+          `,
+          [row.id, status, attemptCount, String(e?.message || e)]
+        );
+
+        if (status === 'failed') {
+          this.logger.error('Outbox event permanently failed', e as Error, { eventId: row.id, topic: row.topic });
+
+          if (this.config.dlqOnPermanentFailure) {
+            try {
+              const dlqRepo = manager.getRepository(DeadLetterEvent);
+              const dlq = dlqRepo.create({
+                originalEventId: row.id,
+                topic: row.topic,
+                tenantId: row.tenant_id || tenantId || '',
+                partition: null,
+                offset: null,
+                key: row.id,
+                value: {
+                  eventId: row.id,
+                  eventType: row.event_type,
+                  eventVersion: row.event_version,
+                  occurredAt: new Date(row.occurred_at).toISOString(),
+                  correlationId: row.correlation_id,
+                  subject: row.subject_json,
+                  payload: row.payload_json,
+                  lagMs,
+                },
+                headers: { 'x-correlation-id': row.correlation_id },
+                errorMessage: String(e?.message || e),
+                errorStack: e?.stack ? String(e.stack) : null,
+                consumerGroup: `outbox:${this.config.producerName}`,
+                retryCount: 0,
+                maxRetries: 0,
+                status: 'failed',
+                nextRetryAt: null,
+                lastErrorAt: new Date(),
+                resolvedAt: null,
+                createdAt: new Date(),
+              });
+              await dlqRepo.save(dlq);
+            } catch (dlqErr: any) {
+              this.logger.error('Failed to persist outbox DLQ entry', dlqErr as Error, { eventId: row.id });
+            }
           }
         }
       }
+    });
+
+    if (backoffMs > 0) {
+      await this.sleep(backoffMs);
     }
   }
 }

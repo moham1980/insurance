@@ -86,7 +86,12 @@ export class DocumentsService {
   }
 
   private safeFileName(originalName: string): string {
-    const base = (originalName || 'file').replace(/[^a-zA-Z0-9._-]/g, '_');
+    let base = (originalName || 'file')
+      .replace(/[^a-zA-Z0-9._-]/g, '_')
+      .replace(/\.{2,}/g, '_')
+      .replace(/^[.]+/, '')
+      .replace(/\.$/, '');
+    if (!base) base = 'file';
     return `${Date.now()}-${uuidv4()}-${base}`;
   }
 
@@ -122,7 +127,7 @@ export class DocumentsService {
     if (!objectStoragePrefix.test(storageRef) && !storageRef.startsWith(expectedPrefix)) {
       throw new BadRequestException({
         code: 'CROSS_TENANT_STORAGE_REF',
-        message: 'storageRef does not belong to the request tenant',
+        message: 'storageRef does not belong to the request tenant (CROSS_TENANT_STORAGE_REF)',
       });
     }
   }
@@ -172,6 +177,15 @@ export class DocumentsService {
     return Readable.from([buffer]);
   }
 
+  private validateDocumentType(documentType: string): asserts documentType is Document['documentType'] {
+    if (!DOCUMENT_TYPES.includes(documentType as Document['documentType'])) {
+      throw new BadRequestException({
+        code: 'INVALID_DOCUMENT_TYPE',
+        message: `Invalid documentType: ${documentType}. Allowed: ${DOCUMENT_TYPES.join(', ')}`,
+      });
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Document CRUD
   // ---------------------------------------------------------------------------
@@ -183,6 +197,7 @@ export class DocumentsService {
     documentType: Document['documentType'];
     file: UploadFile;
   }): Promise<Document> {
+    this.validateDocumentType(params.documentType);
     const storageRef = await this.storeFile(params.tenantId, params.file);
 
     const doc = this.documentRepo.create({
@@ -266,6 +281,7 @@ export class DocumentsService {
     file: LinkFile;
     createdBy?: string;
   }): Promise<Document> {
+    this.validateDocumentType(params.documentType);
     this.validateStorageRef(params.file.storageRef, params.tenantId);
 
     const doc = this.documentRepo.create({
@@ -698,6 +714,10 @@ export class DocumentsService {
       .createHmac('sha256', this.getSigningSecret())
       .update(`${documentId}:${tenantId}:${sub}:${exp}`)
       .digest('base64url');
+
+    if (signature.length !== expected.length) {
+      throw new BadRequestException({ code: 'INVALID_TOKEN', message: 'Token signature mismatch' });
+    }
 
     if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
       throw new BadRequestException({ code: 'INVALID_TOKEN', message: 'Token signature mismatch' });

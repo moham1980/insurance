@@ -6,6 +6,17 @@
 
 import { Request, Response, NextFunction } from 'express';
 import Redis from 'ioredis';
+import {
+  applyDecorators,
+  CallHandler,
+  ExecutionContext,
+  Injectable,
+  NestInterceptor,
+  SetMetadata,
+  UseInterceptors,
+} from '@nestjs/common';
+import { Observable, of, from } from 'rxjs';
+import { tap } from 'rxjs/operators';
 
 export interface IdempotencyOptions {
   /** Header name for idempotency key (default: 'Idempotency-Key') */
@@ -15,7 +26,7 @@ export interface IdempotencyOptions {
   /** Whether to use a persistent store (default: true) */
   persistent?: boolean;
   /** Custom key generator function */
-  keyGenerator?: (req: Request) => string | null;
+  keyGenerator?: (req: any) => string | null;
 }
 
 export interface IdempotencyResult {
@@ -134,24 +145,25 @@ const globalStore: IdempotencyStore = createIdempotencyStore();
 /**
  * Default key generator: extracts idempotency key from header
  */
-function defaultKeyGenerator(req: Request): string | null {
+function defaultKeyGenerator(req: any): string | null {
   const headerName = 'idempotency-key';
-  const key = req.headers[headerName.toLowerCase()] || req.headers[headerName];
-  
+  const headers = req.headers || (req.raw?.headers);
+  const key = headers?.[headerName.toLowerCase()] || headers?.[headerName];
+
   if (typeof key === 'string' && key.length > 0) {
     return key;
   }
-  
+
   return null;
 }
 
 /**
  * Generate a composite key from request method and path + idempotency key
  */
-function generateCompositeKey(req: Request, idempotencyKey: string): string {
-  const method = req.method.toLowerCase();
-  const path = req.path;
-  const userId = (req as any)?.user?.userId || 'anonymous';
+function generateCompositeKey(req: any, idempotencyKey: string): string {
+  const method = (req.method || req.raw?.method || 'unknown').toLowerCase();
+  const path = req.path || req.route?.path || req.url || req.raw?.url || '/';
+  const userId = req.user?.userId || req.raw?.user?.userId || 'anonymous';
   return `${method}:${path}:${userId}:${idempotencyKey}`;
 }
 
@@ -216,6 +228,46 @@ export function idempotencyMiddleware(options: IdempotencyOptions = {}) {
 }
 
 /**
+ * NestJS interceptor that provides idempotency for Express and Fastify adapters.
+ */
+@Injectable()
+export class IdempotencyInterceptor implements NestInterceptor {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+    const options: IdempotencyOptions =
+      Reflect.getMetadata('IDEMPOTENCY_OPTIONS', context.getHandler()) || {};
+    const ttl = options.ttl ?? 86400;
+    const keyGenerator = options.keyGenerator || defaultKeyGenerator;
+
+    const request = context.switchToHttp().getRequest();
+    const idempotencyKey = keyGenerator(request);
+
+    if (!idempotencyKey) {
+      return next.handle();
+    }
+
+    const compositeKey = generateCompositeKey(request, idempotencyKey);
+
+    const cached = globalStore.get(compositeKey);
+    if (cached && typeof (cached as Promise<any>).then === 'function') {
+      return from(cached as Promise<any>);
+    }
+    if (cached) {
+      return of(cached);
+    }
+
+    return next.handle().pipe(
+      tap(async (result) => {
+        if (result !== undefined && result !== null) {
+          await globalStore.set(compositeKey, result, ttl);
+        }
+      })
+    );
+  }
+}
+
+const IDEMPOTENCY_OPTIONS_KEY = 'IDEMPOTENCY_OPTIONS';
+
+/**
  * Decorator for NestJS controllers/methods to enable idempotency
  *
  * Usage:
@@ -228,48 +280,10 @@ export function idempotencyMiddleware(options: IdempotencyOptions = {}) {
  * ```
  */
 export function Idempotent(options: IdempotencyOptions = {}) {
-  return function (
-    target: any,
-    propertyKey: string,
-    descriptor: PropertyDescriptor
-  ) {
-    const originalMethod = descriptor.value;
-
-    descriptor.value = async function (...args: any[]) {
-      // Extract request from args (first argument for NestJS controllers)
-      const req = args[0];
-
-      const {
-        ttl = 86400,
-        keyGenerator = defaultKeyGenerator,
-      } = options;
-
-      const idempotencyKey = keyGenerator(req);
-
-      if (!idempotencyKey) {
-        return originalMethod.apply(this, args);
-      }
-
-      const compositeKey = generateCompositeKey(req, idempotencyKey);
-      const cachedResult = await globalStore.get(compositeKey);
-
-      if (cachedResult) {
-        return cachedResult;
-      }
-
-      // Execute original method
-      const result = await originalMethod.apply(this, args);
-
-      // Cache successful result
-      if (result) {
-        await globalStore.set(compositeKey, result, ttl);
-      }
-
-      return result;
-    };
-
-    return descriptor;
-  };
+  return applyDecorators(
+    SetMetadata(IDEMPOTENCY_OPTIONS_KEY, options),
+    UseInterceptors(IdempotencyInterceptor)
+  );
 }
 
 /**

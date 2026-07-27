@@ -7,6 +7,9 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, Update
 @Index(['riskLevel'])
 @Index(['createdAt'])
 export class RmAml {
+  @Column({ type: 'uuid', name: 'tenant_id', nullable: true })
+  tenantId?: string | null;
+
   @PrimaryGeneratedColumn('uuid', { name: 'transaction_id' })
   transactionId!: string;
 

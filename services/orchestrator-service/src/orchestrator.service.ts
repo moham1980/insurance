@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { KafkaProducer, OutboxPublisher, createEventEnvelope, createLogger, Logger } from '@insurance/shared';
 import { SagaInstance } from './entities/SagaInstance';
 import { SagaStep } from './entities/SagaStep';
-import { WorkItem } from './entities/WorkItem';
+import { WorkItem, WorkItemPriority, WorkItemStatus } from './entities/WorkItem';
 
 @Injectable()
 export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
@@ -25,6 +25,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
   }
 
   async onFraudScoreComputed(params: {
+    tenantId: string;
     topic: string;
     correlationId: string;
     claimId: string;
@@ -37,6 +38,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
     const signals = params?.payload?.payload?.signals;
 
     await this.createSuspiciousCaseWorkItem({
+      tenantId: params.tenantId,
       correlationId: params.correlationId,
       claimId: params.claimId,
       reasonCodes: Array.isArray(signals) && signals.length > 0 ? signals : ['FRAUD_SCORE_HOLD'],
@@ -51,6 +53,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
   }
 
   async onDocumentNeedsReview(params: {
+    tenantId: string;
     topic: string;
     correlationId: string;
     claimId: string;
@@ -59,6 +62,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
   }): Promise<void> {
     const saga = this.sagaRepo.create({
       sagaId: uuidv4(),
+      tenantId: params.tenantId,
       sagaType: 'ClaimPayment',
       status: 'waiting',
       correlationId: params.correlationId,
@@ -79,6 +83,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
     const workItem = await this.createWorkItem({
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       stepName: 'DOCUMENT_REVIEW',
       workItemType: 'document_review',
       claimId: params.claimId,
@@ -87,11 +92,12 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
         topic: params.topic,
         payload: params.payload,
       },
-      priority: 'high',
+      priority: WorkItemPriority.high,
     });
 
     await this.publishSagaEvent('insurance.saga.document_review.required', {
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       workItemId: workItem.workItemId,
       correlationId: params.correlationId,
       claimId: params.claimId,
@@ -100,6 +106,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
   }
 
   async onComplaintCreated(params: {
+    tenantId: string;
     topic: string;
     correlationId: string;
     complaintId: string;
@@ -107,6 +114,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
   }): Promise<void> {
     const saga = this.sagaRepo.create({
       sagaId: uuidv4(),
+      tenantId: params.tenantId,
       sagaType: 'ComplaintResolution',
       status: 'waiting',
       correlationId: params.correlationId,
@@ -129,6 +137,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
     const workItem = await this.createWorkItem({
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       stepName: 'COMPLAINT_TRIAGE',
       workItemType: 'complaint_triage',
       claimId: params.payload?.subject?.claimId || undefined,
@@ -138,11 +147,12 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
         complaintType: params.payload?.payload?.complaintType,
         description: params.payload?.payload?.description,
       },
-      priority: 'high',
+      priority: WorkItemPriority.high,
     });
 
     await this.publishSagaEvent('insurance.complaint.routed', {
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       workItemId: workItem.workItemId,
       correlationId: params.correlationId,
       complaintId: params.complaintId,
@@ -150,10 +160,12 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
       policyId: params.payload?.subject?.policyId || null,
     });
 
-    this.logger.info('Complaint triage work item created', { sagaId: saga.sagaId, workItemId: workItem.workItemId, complaintId: params.complaintId });
+    this.logger.info('Complaint triage work item created', { sagaId: saga.sagaId,
+      tenantId: saga.tenantId, workItemId: workItem.workItemId, complaintId: params.complaintId });
   }
 
   async onComplaintSlaBreached(params: {
+    tenantId: string;
     topic: string;
     correlationId: string;
     complaintId: string;
@@ -163,6 +175,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
     const saga = this.sagaRepo.create({
       sagaId: uuidv4(),
+      tenantId: params.tenantId,
       sagaType: 'ComplaintResolution',
       status: 'waiting',
       correlationId: params.correlationId,
@@ -189,6 +202,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
     const workItem = await this.createWorkItem({
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       stepName: 'COMPLAINT_SLA_BREACH',
       workItemType: 'complaint_sla_breach',
       claimId: saga.claimId || undefined,
@@ -198,11 +212,12 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
         topic: params.topic,
         payload: params.payload,
       },
-      priority: 'critical',
+      priority: WorkItemPriority.critical,
     });
 
     await this.publishSagaEvent('insurance.saga.complaint.sla_breach.required', {
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       workItemId: workItem.workItemId,
       correlationId: params.correlationId,
       complaintId: params.complaintId,
@@ -214,12 +229,14 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
     this.logger.info('Complaint SLA breach work item created', {
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       workItemId: workItem.workItemId,
       complaintId: params.complaintId,
     });
   }
 
   async onFraudCaseEscalated(params: {
+    tenantId: string;
     topic: string;
     correlationId: string;
     fraudCaseId: string;
@@ -230,6 +247,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
     const saga = this.sagaRepo.create({
       sagaId: uuidv4(),
+      tenantId: params.tenantId,
       sagaType: 'FraudInvestigation',
       status: 'waiting',
       correlationId: params.correlationId,
@@ -256,6 +274,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
     const workItem = await this.createWorkItem({
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       stepName: 'FRAUD_CASE_ESCALATION',
       workItemType: 'fraud_case_escalation',
       claimId: params.claimId,
@@ -268,11 +287,12 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
         notes: p?.notes || null,
         topic: params.topic,
       },
-      priority: p?.requiresHumanApproval === false ? 'high' : 'critical',
+      priority: p?.requiresHumanApproval === false ? WorkItemPriority.high : WorkItemPriority.critical,
     });
 
     await this.publishSagaEvent('insurance.saga.fraud.case_escalation.required', {
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       workItemId: workItem.workItemId,
       correlationId: params.correlationId,
       fraudCaseId: params.fraudCaseId,
@@ -285,6 +305,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
     this.logger.info('Fraud case escalation work item created', {
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       workItemId: workItem.workItemId,
       fraudCaseId: params.fraudCaseId,
       claimId: params.claimId,
@@ -299,15 +320,17 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
     const workItem = await this.createWorkItem({
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       stepName: 'PAYMENT_PREPARE',
       workItemType: 'payment_prepare',
       claimId: saga.claimId || undefined,
       context: { approvedAmount: saga.context?.approvedAmount },
-      priority: 'high',
+      priority: WorkItemPriority.high,
     });
 
     await this.publishSagaEvent('insurance.saga.payment.prepare.required', {
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       claimId: saga.claimId,
       workItemId: workItem.workItemId,
     });
@@ -321,6 +344,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
     const workItem = await this.createWorkItem({
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       stepName: 'FINANCE_APPROVAL',
       workItemType: 'payment_finance_approval',
       claimId: saga.claimId || undefined,
@@ -328,11 +352,12 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
         approvedAmount: saga.context?.approvedAmount,
         paymentIntentId: saga.context?.paymentIntentId,
       },
-      priority: 'high',
+      priority: WorkItemPriority.high,
     });
 
     await this.publishSagaEvent('insurance.saga.payment.finance_approval.required', {
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       claimId: saga.claimId,
       workItemId: workItem.workItemId,
       paymentIntentId: saga.context?.paymentIntentId || null,
@@ -347,15 +372,17 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
     const workItem = await this.createWorkItem({
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       stepName: 'PAYMENT_EXECUTE',
       workItemType: 'payment_execute',
       claimId: saga.claimId || undefined,
       context: { paymentIntentId: saga.context?.paymentIntentId },
-      priority: 'high',
+      priority: WorkItemPriority.high,
     });
 
     await this.publishSagaEvent('insurance.saga.payment.execute.required', {
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       claimId: saga.claimId,
       workItemId: workItem.workItemId,
       paymentIntentId: saga.context?.paymentIntentId || null,
@@ -370,15 +397,17 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
     const workItem = await this.createWorkItem({
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       stepName: 'PAYMENT_NOTIFY',
       workItemType: 'payment_notify',
       claimId: saga.claimId || undefined,
       context: { paymentIntentId: saga.context?.paymentIntentId },
-      priority: 'medium',
+      priority: WorkItemPriority.medium,
     });
 
     await this.publishSagaEvent('insurance.saga.payment.notify.required', {
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       claimId: saga.claimId,
       workItemId: workItem.workItemId,
       paymentIntentId: saga.context?.paymentIntentId || null,
@@ -405,7 +434,9 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
   private async publishSagaEvent(topic: string, event: any): Promise<void> {
     const correlationId = String(event?.correlationId || uuidv4());
-    const tenantId = typeof event?.tenantId === 'string' && event.tenantId.length > 0 ? event.tenantId : undefined;
+    const tenantId =
+      (typeof event?.tenantId === 'string' && event.tenantId.length > 0 ? event.tenantId : undefined) ||
+      '00000000-0000-0000-0000-000000000000';
     const traceparent = typeof event?.traceparent === 'string' && event.traceparent.length > 0 ? event.traceparent : undefined;
 
     const envelope = createEventEnvelope({
@@ -433,6 +464,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
         eventType: envelope.eventType,
         eventVersion: envelope.eventVersion,
         correlationId,
+        tenantId,
         subject: Object.fromEntries(Object.entries(envelope.subject).filter(([, v]) => v !== undefined)) as Record<string, string>,
         payload: envelope,
       });
@@ -440,24 +472,26 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async createWorkItem(params: {
+    tenantId: string;
     sagaId: string;
     stepName: string;
     workItemType: WorkItem['workItemType'];
     claimId?: string;
     policyId?: string;
     context?: Record<string, any>;
-    priority?: WorkItem['priority'];
+    priority?: WorkItemPriority;
   }): Promise<WorkItem> {
     const workItem = this.workItemRepo.create({
       workItemId: uuidv4(),
+      tenantId: params.tenantId,
       sagaId: params.sagaId,
       stepName: params.stepName,
       workItemType: params.workItemType,
-      status: 'pending',
+      status: WorkItemStatus.pending,
       claimId: params.claimId || null,
       policyId: params.policyId || null,
       context: params.context || {},
-      priority: params.priority || 'medium',
+      priority: params.priority || WorkItemPriority.medium,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -468,6 +502,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
   // Saga Step Tracking
   async createSagaStep(params: {
+    tenantId: string;
     sagaId: string;
     stepName: string;
     stepOrder: number;
@@ -476,6 +511,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
   }): Promise<SagaStep> {
     const step = this.sagaStepRepo.create({
       stepId: uuidv4(),
+      tenantId: params.tenantId,
       sagaId: params.sagaId,
       stepName: params.stepName,
       stepOrder: params.stepOrder,
@@ -497,8 +533,8 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
     return step;
   }
 
-  async startSagaStep(stepId: string): Promise<SagaStep> {
-    const step = await this.sagaStepRepo.findOne({ where: { stepId } });
+  async startSagaStep(tenantId: string, stepId: string): Promise<SagaStep> {
+    const step = await this.sagaStepRepo.findOne({ where: { stepId, tenantId } });
     if (!step) throw new Error('SagaStep not found');
 
     step.status = 'in_progress';
@@ -508,8 +544,8 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
     return step;
   }
 
-  async completeSagaStep(stepId: string, outputPayload?: Record<string, any>): Promise<SagaStep> {
-    const step = await this.sagaStepRepo.findOne({ where: { stepId } });
+  async completeSagaStep(tenantId: string, stepId: string, outputPayload?: Record<string, any>): Promise<SagaStep> {
+    const step = await this.sagaStepRepo.findOne({ where: { stepId, tenantId } });
     if (!step) throw new Error('SagaStep not found');
 
     const now = new Date();
@@ -523,8 +559,8 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
     return step;
   }
 
-  async failSagaStep(stepId: string, errorMessage: string, errorCode?: string): Promise<SagaStep> {
-    const step = await this.sagaStepRepo.findOne({ where: { stepId } });
+  async failSagaStep(tenantId: string, stepId: string, errorMessage: string, errorCode?: string): Promise<SagaStep> {
+    const step = await this.sagaStepRepo.findOne({ where: { stepId, tenantId } });
     if (!step) throw new Error('SagaStep not found');
 
     step.status = 'failed';
@@ -534,14 +570,14 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
     return step;
   }
 
-  async getSagaSteps(sagaId: string): Promise<SagaStep[]> {
+  async getSagaSteps(tenantId: string, sagaId: string): Promise<SagaStep[]> {
     return await this.sagaStepRepo.find({
-      where: { sagaId },
+      where: { sagaId, tenantId },
       order: { stepOrder: 'ASC', createdAt: 'ASC' },
     });
   }
 
-  async getSagaStepMetrics(sagaId: string): Promise<{
+  async getSagaStepMetrics(tenantId: string, sagaId: string): Promise<{
     totalSteps: number;
     completedSteps: number;
     failedSteps: number;
@@ -549,7 +585,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
     totalDurationMs: number;
     averageStepDurationMs: number;
   }> {
-    const steps = await this.getSagaSteps(sagaId);
+    const steps = await this.getSagaSteps(tenantId, sagaId);
     const completedSteps = steps.filter((s) => s.status === 'completed');
     const failedSteps = steps.filter((s) => s.status === 'failed');
     const pendingSteps = steps.filter((s) => s.status === 'pending' || s.status === 'in_progress');
@@ -568,6 +604,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
   }
 
   async createSanhabFollowupWorkItem(params: {
+    tenantId: string;
     correlationId: string;
     policyId?: string;
     claimId?: string;
@@ -578,6 +615,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
   }): Promise<{ saga: SagaInstance; workItem: WorkItem }> {
     const saga = this.sagaRepo.create({
       sagaId: uuidv4(),
+      tenantId: params.tenantId,
       sagaType: 'PolicyIssuance',
       status: 'waiting',
       correlationId: params.correlationId,
@@ -600,6 +638,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
     const workItem = await this.createWorkItem({
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       stepName: 'SANHAB_FOLLOWUP',
       workItemType: 'sanhab_followup',
       claimId: params.claimId,
@@ -610,17 +649,19 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
         inquiry: params.inquiry,
         result: params.result,
       },
-      priority: params.priority || 'high',
+      priority: params.priority || WorkItemPriority.high,
     });
 
     this.logger.info('SANHAB follow-up work item created', {
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       workItemId: workItem.workItemId,
       reasonCode: params.reasonCode,
     });
 
     await this.publishSagaEvent('insurance.saga.sanhab_followup.required', {
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       workItemId: workItem.workItemId,
       correlationId: params.correlationId,
       reasonCode: params.reasonCode,
@@ -632,6 +673,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
   }
 
   async createUnderwritingReviewWorkItem(params: {
+    tenantId: string;
     correlationId: string;
     policyId: string;
     reasonCode: string;
@@ -641,6 +683,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
   }): Promise<{ saga: SagaInstance; workItem: WorkItem }> {
     const saga = this.sagaRepo.create({
       sagaId: uuidv4(),
+      tenantId: params.tenantId,
       sagaType: 'PolicyIssuance',
       status: 'waiting',
       correlationId: params.correlationId,
@@ -663,6 +706,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
     const workItem = await this.createWorkItem({
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       stepName: 'UNDERWRITING_REVIEW',
       workItemType: 'underwriting_review',
       policyId: params.policyId,
@@ -671,7 +715,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
         reasonCode: params.reasonCode,
         ...(params.context ? { context: params.context } : {}),
       },
-      priority: params.priority || 'high',
+      priority: params.priority || WorkItemPriority.high,
     });
 
     if (params.dueDate) {
@@ -684,6 +728,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
     await this.publishSagaEvent('insurance.saga.underwriting_review.required', {
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       workItemId: workItem.workItemId,
       correlationId: params.correlationId,
       reasonCode: params.reasonCode,
@@ -695,6 +740,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
   }
 
   async createOverrideReviewWorkItem(params: {
+    tenantId: string;
     correlationId: string;
     policyId?: string;
     claimId?: string;
@@ -705,6 +751,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
   }): Promise<{ saga: SagaInstance; workItem: WorkItem }> {
     const saga = this.sagaRepo.create({
       sagaId: uuidv4(),
+      tenantId: params.tenantId,
       sagaType: 'PolicyIssuance',
       status: 'waiting',
       correlationId: params.correlationId,
@@ -727,6 +774,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
     const workItem = await this.createWorkItem({
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       stepName: 'OVERRIDE_REVIEW',
       workItemType: 'override_review',
       claimId: params.claimId,
@@ -737,7 +785,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
         reasonCode: params.reasonCode,
         ...(params.context ? { context: params.context } : {}),
       },
-      priority: params.priority || 'high',
+      priority: params.priority || WorkItemPriority.high,
     });
 
     if (params.dueDate) {
@@ -750,6 +798,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
     await this.publishSagaEvent('insurance.saga.override_review.required', {
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       workItemId: workItem.workItemId,
       correlationId: params.correlationId,
       reasonCode: params.reasonCode,
@@ -762,6 +811,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
   }
 
   async createSuspiciousCaseWorkItem(params: {
+    tenantId: string;
     correlationId: string;
     policyId?: string;
     claimId?: string;
@@ -783,6 +833,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
     const saga = this.sagaRepo.create({
       sagaId: uuidv4(),
+      tenantId: params.tenantId,
       sagaType: 'FraudInvestigation',
       status: 'waiting',
       correlationId: params.correlationId,
@@ -807,6 +858,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
     const workItem = await this.createWorkItem({
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       stepName: 'SUSPICIOUS_CASE',
       workItemType: 'suspicious_case',
       claimId: params.claimId,
@@ -818,7 +870,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
         fraudScore: typeof params.fraudScore === 'number' ? params.fraudScore : null,
         explainability: params.explainability || null,
       },
-      priority: params.priority || 'high',
+      priority: params.priority || WorkItemPriority.high,
     });
 
     if (params.dueDate) {
@@ -831,6 +883,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
     await this.publishSagaEvent('insurance.saga.suspicious_case.required', {
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       workItemId: workItem.workItemId,
       correlationId: params.correlationId,
       policyId: params.policyId || null,
@@ -850,11 +903,12 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
     const workItem = await this.createWorkItem({
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       stepName: 'FRAUD_CHECK',
       workItemType: 'fraud_check',
       claimId: saga.claimId || undefined,
       context: { approvedAmount: saga.context?.approvedAmount },
-      priority: 'high',
+      priority: WorkItemPriority.high,
     });
 
     saga.status = 'waiting';
@@ -862,11 +916,13 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
     await this.publishSagaEvent('insurance.saga.fraud_check.required', {
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       claimId: saga.claimId,
       workItemId: workItem.workItemId,
     });
 
-    this.logger.info('Fraud check work item created', { sagaId: saga.sagaId, workItemId: workItem.workItemId });
+    this.logger.info('Fraud check work item created', { sagaId: saga.sagaId,
+      tenantId: saga.tenantId, workItemId: workItem.workItemId });
   }
 
   private async handleHumanApprovalStep(saga: SagaInstance): Promise<void> {
@@ -878,6 +934,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
     const workItem = await this.createWorkItem({
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       stepName: 'HUMAN_APPROVAL',
       workItemType: 'human_approval',
       claimId: saga.claimId || undefined,
@@ -885,7 +942,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
         approvedAmount,
         requiresSeniorApproval: approvedAmount > parseInt(process.env.HUMAN_APPROVAL_THRESHOLD_HIGH || '50000000', 10),
       },
-      priority: approvedAmount > parseInt(process.env.HUMAN_APPROVAL_THRESHOLD_HIGH || '50000000', 10) ? 'critical' : 'high',
+      priority: approvedAmount > parseInt(process.env.HUMAN_APPROVAL_THRESHOLD_HIGH || '50000000', 10) ? WorkItemPriority.critical : WorkItemPriority.high,
     });
 
     saga.status = 'waiting';
@@ -893,19 +950,22 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
     await this.publishSagaEvent('insurance.saga.human_approval.required', {
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       claimId: saga.claimId,
       workItemId: workItem.workItemId,
       approvedAmount,
     });
 
-    this.logger.info('Human approval work item created', { sagaId: saga.sagaId, workItemId: workItem.workItemId });
+    this.logger.info('Human approval work item created', { sagaId: saga.sagaId,
+      tenantId: saga.tenantId, workItemId: workItem.workItemId });
   }
 
   private async handleAutoPaymentStep(saga: SagaInstance): Promise<void> {
     // In Iran-aligned operational flow, payment step includes: payment docs -> finance approval -> execution -> notification.
     // We model it with work items and optionally advance via events.
     await this.handlePaymentPrepareStep(saga);
-    this.logger.info('Payment flow started (prepare required)', { sagaId: saga.sagaId, claimId: saga.claimId });
+    this.logger.info('Payment flow started (prepare required)', { sagaId: saga.sagaId,
+      tenantId: saga.tenantId, claimId: saga.claimId });
   }
 
   private async completeSaga(saga: SagaInstance, success: boolean, errorMessage?: string): Promise<void> {
@@ -919,6 +979,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
     await this.publishSagaEvent(success ? 'insurance.saga.completed' : 'insurance.saga.failed', {
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       claimId: saga.claimId,
       sagaType: saga.sagaType,
       completedSteps: saga.completedSteps,
@@ -929,6 +990,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
   }
 
   async onPaymentEvent(params: {
+    tenantId: string;
     topic: string;
     correlationId: string;
     claimId: string;
@@ -938,6 +1000,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
     const sagas = await this.sagaRepo
       .createQueryBuilder('s')
       .where('s.saga_type = :sagaType', { sagaType: 'ClaimPayment' })
+      .andWhere('s.tenant_id = :tenantId', { tenantId: params.tenantId })
       .andWhere('s.claim_id = :claimId', { claimId: params.claimId })
       .andWhere('s.status IN (:...statuses)', { statuses: ['started', 'waiting', 'compensating'] })
       .orderBy('s.created_at', 'DESC')
@@ -980,6 +1043,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
           topic: params.topic,
           claimId: params.claimId,
           sagaId: saga.sagaId,
+          tenantId: saga.tenantId,
           correlationId: params.correlationId,
         });
         await this.completeSaga(saga, false, `Payment event handling failed: ${err.message}`);
@@ -988,12 +1052,14 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async findExistingSagaByDedupeKey(params: {
+    tenantId: string;
     sagaType: SagaInstance['sagaType'];
     dedupeKey: string;
   }): Promise<SagaInstance | null> {
     return this.sagaRepo
       .createQueryBuilder('s')
       .where('s.saga_type = :sagaType', { sagaType: params.sagaType })
+      .andWhere('s.tenant_id = :tenantId', { tenantId: params.tenantId })
       .andWhere("COALESCE(s.context->>'dedupeKey','') = :dedupeKey", { dedupeKey: params.dedupeKey })
       .andWhere('s.status IN (:...statuses)', { statuses: ['started', 'waiting', 'compensating'] })
       .orderBy('s.created_at', 'DESC')
@@ -1001,6 +1067,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
   }
 
   async startSaga(params: {
+    tenantId: string;
     sagaType: 'ClaimPayment' | 'PolicyIssuance' | 'ComplaintHandling' | 'ComplaintResolution' | 'ReinsuranceRecovery';
     correlationId: string;
     claimId?: string | null;
@@ -1018,7 +1085,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
         err.code = 'VALIDATION_ERROR';
         throw err;
       }
-      return this.startClaimPaymentSaga({ claimId: String(params.claimId), correlationId: params.correlationId, context });
+      return this.startClaimPaymentSaga({ tenantId: params.tenantId, claimId: String(params.claimId), correlationId: params.correlationId, context });
     }
 
     if (params.sagaType === 'PolicyIssuance') {
@@ -1028,11 +1095,12 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
         throw err;
       }
       const dedupeKey = `PolicyIssuance:${String(params.policyId)}`;
-      const existing = await this.findExistingSagaByDedupeKey({ sagaType: 'PolicyIssuance', dedupeKey });
+      const existing = await this.findExistingSagaByDedupeKey({ tenantId: params.tenantId, sagaType: 'PolicyIssuance', dedupeKey });
       if (existing) return existing;
 
       const saga = this.sagaRepo.create({
         sagaId: uuidv4(),
+        tenantId: params.tenantId,
         sagaType: 'PolicyIssuance',
         status: 'started',
         correlationId: params.correlationId,
@@ -1058,32 +1126,35 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
       // Create work items for each saga step
       const underwritingItem = await this.createWorkItem({
         sagaId: saga.sagaId,
+        tenantId: saga.tenantId,
         stepName: 'UNDERWRITING_REVIEW',
         workItemType: 'underwriting_review',
         policyId: saga.policyId || undefined,
         claimId: saga.claimId || undefined,
         context: { policyId: saga.policyId, correlationId: params.correlationId },
-        priority: 'high',
+        priority: WorkItemPriority.high,
       });
 
       await this.createWorkItem({
         sagaId: saga.sagaId,
+        tenantId: saga.tenantId,
         stepName: 'SANHAB_FOLLOWUP',
         workItemType: 'sanhab_followup',
         policyId: saga.policyId || undefined,
         claimId: saga.claimId || undefined,
         context: { policyId: saga.policyId, correlationId: params.correlationId },
-        priority: 'medium',
+        priority: WorkItemPriority.medium,
       });
 
       await this.createWorkItem({
         sagaId: saga.sagaId,
+        tenantId: saga.tenantId,
         stepName: 'OVERRIDE_REVIEW',
         workItemType: 'override_review',
         policyId: saga.policyId || undefined,
         claimId: saga.claimId || undefined,
         context: { policyId: saga.policyId, correlationId: params.correlationId },
-        priority: 'medium',
+        priority: WorkItemPriority.medium,
       });
 
       saga.status = 'waiting';
@@ -1092,6 +1163,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
       await this.publishSagaEvent('insurance.saga.policy_issuance.started', {
         sagaId: saga.sagaId,
+        tenantId: saga.tenantId,
         policyId: saga.policyId,
         claimId: saga.claimId,
         correlationId: params.correlationId,
@@ -1107,11 +1179,12 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
         throw err;
       }
       const dedupeKey = `ComplaintHandling:${String(params.complaintId)}`;
-      const existing = await this.findExistingSagaByDedupeKey({ sagaType: 'ComplaintResolution', dedupeKey });
+      const existing = await this.findExistingSagaByDedupeKey({ tenantId: params.tenantId, sagaType: 'ComplaintResolution', dedupeKey });
       if (existing) return existing;
 
       const saga = this.sagaRepo.create({
         sagaId: uuidv4(),
+        tenantId: params.tenantId,
         sagaType: 'ComplaintResolution',
         status: 'started',
         correlationId: params.correlationId,
@@ -1137,6 +1210,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
       await this.publishSagaEvent('insurance.saga.complaint_handling.started', {
         sagaId: saga.sagaId,
+        tenantId: saga.tenantId,
         policyId: saga.policyId,
         claimId: saga.claimId,
         complaintId: String(params.complaintId),
@@ -1152,11 +1226,12 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
         throw err;
       }
       const dedupeKey = `ReinsuranceRecovery:${String(params.recoveryId)}`;
-      const existing = await this.findExistingSagaByDedupeKey({ sagaType: 'ReinsuranceRecovery', dedupeKey });
+      const existing = await this.findExistingSagaByDedupeKey({ tenantId: params.tenantId, sagaType: 'ReinsuranceRecovery', dedupeKey });
       if (existing) return existing;
 
       const saga = this.sagaRepo.create({
         sagaId: uuidv4(),
+        tenantId: params.tenantId,
         sagaType: 'ReinsuranceRecovery',
         status: 'started',
         correlationId: params.correlationId,
@@ -1183,6 +1258,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
       await this.publishSagaEvent('insurance.saga.reinsurance_recovery.started', {
         sagaId: saga.sagaId,
+        tenantId: saga.tenantId,
         claimId: saga.claimId,
         policyId: saga.policyId,
         recoveryId: String(params.recoveryId),
@@ -1197,12 +1273,14 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
     throw err;
   }
 
-  async startClaimPaymentSaga(params: { claimId: string; correlationId: string; context?: Record<string, any> }): Promise<SagaInstance> {
+  async startClaimPaymentSaga(params: {
+    tenantId: string; claimId: string; correlationId: string; context?: Record<string, any> }): Promise<SagaInstance> {
     const context = params.context || {};
 
     const existing = await this.sagaRepo
       .createQueryBuilder('s')
       .where('s.saga_type = :sagaType', { sagaType: 'ClaimPayment' })
+      .andWhere('s.tenant_id = :tenantId', { tenantId: params.tenantId })
       .andWhere('s.claim_id = :claimId', { claimId: params.claimId })
       .andWhere('s.status IN (:...statuses)', { statuses: ['started', 'waiting', 'compensating'] })
       .orderBy('s.created_at', 'DESC')
@@ -1214,6 +1292,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
     const saga = this.sagaRepo.create({
       sagaId: uuidv4(),
+      tenantId: params.tenantId,
       sagaType: 'ClaimPayment',
       status: 'started',
       correlationId: params.correlationId,
@@ -1237,12 +1316,14 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
     await this.publishSagaEvent('insurance.saga.claim_payment.started', {
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       claimId: params.claimId,
       correlationId: params.correlationId,
       approvedAmount: context.approvedAmount,
     });
 
-    this.logger.info('Claim payment saga started', { sagaId: saga.sagaId, claimId: params.claimId, correlationId: params.correlationId });
+    this.logger.info('Claim payment saga started', { sagaId: saga.sagaId,
+      tenantId: saga.tenantId, claimId: params.claimId, correlationId: params.correlationId });
 
     if (saga.context?.requiresFraudCheck) {
       await this.handleFraudCheckStep(saga);
@@ -1255,12 +1336,15 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
     return saga;
   }
 
-  async getSaga(sagaId: string): Promise<SagaInstance | null> {
-    return this.sagaRepo.findOne({ where: { sagaId } });
+  async getSaga(tenantId: string, sagaId: string): Promise<SagaInstance | null> {
+    return this.sagaRepo.findOne({ where: { sagaId, tenantId } });
   }
 
-  async listWorkItems(params: { status?: string; assignedTo?: string; priority?: string; limit: number; offset: number }): Promise<{ rows: WorkItem[]; total: number }> {
+  async listWorkItems(params: {
+    tenantId: string; status?: string; assignedTo?: string; priority?: string; limit: number; offset: number }): Promise<{ rows: WorkItem[]; total: number }> {
     const qb = this.workItemRepo.createQueryBuilder('wi');
+
+    qb.andWhere('wi.tenant_id = :tenantId', { tenantId: params.tenantId });
 
     if (params.status) qb.andWhere('wi.status = :status', { status: params.status });
     if (params.assignedTo) qb.andWhere('wi.assigned_to = :assignedTo', { assignedTo: params.assignedTo });
@@ -1275,16 +1359,17 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
     return { rows, total };
   }
 
-  async getWorkItem(workItemId: string): Promise<WorkItem | null> {
-    return this.workItemRepo.findOne({ where: { workItemId } });
+  async getWorkItem(tenantId: string, workItemId: string): Promise<WorkItem | null> {
+    return this.workItemRepo.findOne({ where: { workItemId, tenantId } });
   }
 
-  async assignWorkItem(params: { correlationId: string; workItemId: string; assignedTo: string }): Promise<WorkItem | null> {
-    const workItem = await this.workItemRepo.findOne({ where: { workItemId: params.workItemId } });
+  async assignWorkItem(params: {
+    tenantId: string; correlationId: string; workItemId: string; assignedTo: string }): Promise<WorkItem | null> {
+    const workItem = await this.workItemRepo.findOne({ where: { workItemId: params.workItemId, tenantId: params.tenantId } });
     if (!workItem) return null;
 
     workItem.assignedTo = params.assignedTo;
-    workItem.status = 'in_progress';
+    workItem.status = WorkItemStatus.in_progress;
     workItem.updatedAt = new Date();
     await this.workItemRepo.save(workItem);
 
@@ -1292,6 +1377,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
   }
 
   async completeWorkItem(params: {
+    tenantId: string;
     correlationId: string;
     workItemId: string;
     decision: 'approved' | 'rejected' | 'escalated';
@@ -1299,7 +1385,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
     notes?: string;
     result?: any;
   }): Promise<{ workItem: WorkItem; saga: SagaInstance | null } | null> {
-    const workItem = await this.workItemRepo.findOne({ where: { workItemId: params.workItemId } });
+    const workItem = await this.workItemRepo.findOne({ where: { workItemId: params.workItemId, tenantId: params.tenantId } });
     if (!workItem) return null;
 
     if ((params.decision === 'rejected' || params.decision === 'escalated') && (!params.notes || String(params.notes).trim().length === 0)) {
@@ -1308,35 +1394,37 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
       throw err;
     }
 
-    if (workItem.status === 'approved' || workItem.status === 'rejected') {
+    if (workItem.status === WorkItemStatus.approved || workItem.status === WorkItemStatus.rejected) {
       const err: any = new Error('Work item has already been decided');
       err.code = 'ALREADY_DECIDED';
       throw err;
     }
 
-    workItem.status = params.decision;
+    workItem.status = params.decision as WorkItemStatus;
     workItem.decidedBy = params.decidedBy;
     workItem.decisionNotes = params.notes || null;
     if (params.result !== undefined) {
       workItem.context = { ...(workItem.context || {}), result: params.result };
     }
-    workItem.completedAt = new Date();
+    workItem.completedAt = params.decision === 'escalated' ? null : new Date();
     workItem.updatedAt = new Date();
     await this.workItemRepo.save(workItem);
 
-    const saga = await this.sagaRepo.findOne({ where: { sagaId: workItem.sagaId } });
+    const saga = await this.sagaRepo.findOne({ where: { sagaId: workItem.sagaId, tenantId: params.tenantId } });
     if (saga) {
-      saga.completedSteps = [...saga.completedSteps, workItem.stepName];
       saga.updatedAt = new Date();
 
       if (params.decision === 'rejected') {
         await this.completeSaga(saga, false, `Rejected at ${workItem.stepName}: ${params.notes || 'No notes'}`);
       } else if (params.decision === 'escalated') {
-        workItem.status = 'escalated';
-        await this.workItemRepo.save(workItem);
+        const escalationStepName = `${workItem.stepName}_ESCALATION`;
+        saga.currentStep = escalationStepName;
+        saga.status = 'waiting';
+
         const escalationItem = await this.createWorkItem({
           sagaId: saga.sagaId,
-          stepName: `${workItem.stepName}_ESCALATION`,
+          tenantId: saga.tenantId,
+          stepName: escalationStepName,
           workItemType: 'fraud_case_escalation',
           claimId: (saga.context as any)?.claimId || null,
           context: {
@@ -1345,35 +1433,39 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
             escalatedBy: params.decidedBy,
             notes: params.notes || null,
           },
-          priority: 'critical',
+          priority: WorkItemPriority.critical,
         });
         await this.publishSagaEvent('insurance.saga.work_item.escalated', {
           sagaId: saga.sagaId,
+          tenantId: saga.tenantId,
           workItemId: workItem.workItemId,
           escalationWorkItemId: escalationItem.workItemId,
           stepName: workItem.stepName,
           decidedBy: params.decidedBy,
           notes: params.notes || null,
         });
-      } else if (params.decision === 'approved' && saga.context) {
-        if (workItem.stepName === 'FRAUD_CHECK') {
-          if (saga.context.requiresHumanApproval) {
-            await this.handleHumanApprovalStep(saga);
-          } else {
+      } else if (params.decision === 'approved') {
+        saga.completedSteps = [...saga.completedSteps, workItem.stepName];
+        if (saga.context) {
+          if (workItem.stepName === 'FRAUD_CHECK') {
+            if (saga.context.requiresHumanApproval) {
+              await this.handleHumanApprovalStep(saga);
+            } else {
+              await this.handleAutoPaymentStep(saga);
+            }
+          } else if (workItem.stepName === 'HUMAN_APPROVAL') {
             await this.handleAutoPaymentStep(saga);
+          } else if (workItem.stepName === 'PAYMENT_PREPARE') {
+            const paymentIntentId = (workItem.context as any)?.result?.paymentIntentId as string | undefined;
+            saga.context = { ...(saga.context || {}), paymentIntentId: paymentIntentId || saga.context?.paymentIntentId };
+            await this.handleFinanceApprovalStep(saga);
+          } else if (workItem.stepName === 'FINANCE_APPROVAL') {
+            await this.handlePaymentExecuteStep(saga);
+          } else if (workItem.stepName === 'PAYMENT_EXECUTE') {
+            await this.handlePaymentNotifyStep(saga);
+          } else if (workItem.stepName === 'PAYMENT_NOTIFY') {
+            await this.completeSaga(saga, true);
           }
-        } else if (workItem.stepName === 'HUMAN_APPROVAL') {
-          await this.handleAutoPaymentStep(saga);
-        } else if (workItem.stepName === 'PAYMENT_PREPARE') {
-          const paymentIntentId = (workItem.context as any)?.result?.paymentIntentId as string | undefined;
-          saga.context = { ...(saga.context || {}), paymentIntentId: paymentIntentId || saga.context?.paymentIntentId };
-          await this.handleFinanceApprovalStep(saga);
-        } else if (workItem.stepName === 'FINANCE_APPROVAL') {
-          await this.handlePaymentExecuteStep(saga);
-        } else if (workItem.stepName === 'PAYMENT_EXECUTE') {
-          await this.handlePaymentNotifyStep(saga);
-        } else if (workItem.stepName === 'PAYMENT_NOTIFY') {
-          await this.completeSaga(saga, true);
         }
       }
 
@@ -1382,6 +1474,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
     await this.publishSagaEvent('insurance.saga.work_item.completed', {
       sagaId: workItem.sagaId,
+      tenantId: params.tenantId,
       workItemId: workItem.workItemId,
       stepName: workItem.stepName,
       decision: params.decision,
@@ -1392,8 +1485,8 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
   }
 
   // Saga Compensation/Rollback
-  async initiateCompensation(sagaId: string, reason: string, triggeredBy?: string): Promise<SagaInstance> {
-    const saga = await this.sagaRepo.findOne({ where: { sagaId } });
+  async initiateCompensation(tenantId: string, sagaId: string, reason: string, triggeredBy?: string): Promise<SagaInstance> {
+    const saga = await this.sagaRepo.findOne({ where: { sagaId, tenantId } });
     if (!saga) {
       const err: any = new Error('Saga not found');
       err.code = 'NOT_FOUND';
@@ -1415,6 +1508,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
     await this.publishSagaEvent('insurance.saga.compensation.started', {
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       sagaType: saga.sagaType,
       claimId: saga.claimId,
       policyId: saga.policyId,
@@ -1433,13 +1527,15 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
     });
 
     const completedSteps = steps.filter((s) => s.status === 'completed');
-    this.logger.info('Starting compensation for completed steps', { sagaId: saga.sagaId, stepCount: completedSteps.length });
+    this.logger.info('Starting compensation for completed steps', { sagaId: saga.sagaId,
+      tenantId: saga.tenantId, stepCount: completedSteps.length });
 
     for (const step of completedSteps) {
       try {
         await this.compensateStep(saga, step);
       } catch (e: any) {
-        this.logger.error('Compensation failed for step', e, { sagaId: saga.sagaId, stepName: step.stepName });
+        this.logger.error('Compensation failed for step', e, { sagaId: saga.sagaId,
+        tenantId: saga.tenantId, stepName: step.stepName });
         await this.recordCompensationFailure(saga, step, e.message);
       }
     }
@@ -1451,6 +1547,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
     await this.publishSagaEvent('insurance.saga.compensation.completed', {
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       sagaType: saga.sagaType,
       claimId: saga.claimId,
       policyId: saga.policyId,
@@ -1462,7 +1559,8 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
   private async compensateStep(saga: SagaInstance, step: SagaStep): Promise<void> {
     const compensationAction = this.getCompensationAction(step.stepName);
     if (!compensationAction) {
-      this.logger.warn('No compensation action defined for step', { sagaId: saga.sagaId, stepName: step.stepName });
+      this.logger.warn('No compensation action defined for step', { sagaId: saga.sagaId,
+      tenantId: saga.tenantId, stepName: step.stepName });
       return;
     }
 
@@ -1476,7 +1574,8 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
     step.updatedAt = new Date();
     await this.sagaStepRepo.save(step);
 
-    this.logger.info('Step compensated', { sagaId: saga.sagaId, stepName: step.stepName });
+    this.logger.info('Step compensated', { sagaId: saga.sagaId,
+      tenantId: saga.tenantId, stepName: step.stepName });
   }
 
   private getCompensationAction(stepName: string): ((saga: SagaInstance, step: SagaStep) => Promise<void>) | null {
@@ -1486,6 +1585,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
         if (paymentIntentId) {
           await this.publishSagaEvent('insurance.payment.cancel', {
             sagaId: saga.sagaId,
+            tenantId: saga.tenantId,
             paymentIntentId,
             reason: 'Saga compensation',
           });
@@ -1496,6 +1596,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
         if (paymentId) {
           await this.publishSagaEvent('insurance.payment.refund', {
             sagaId: saga.sagaId,
+            tenantId: saga.tenantId,
             paymentId,
             reason: 'Saga compensation',
           });
@@ -1504,6 +1605,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
       PAYMENT_NOTIFY: async (saga) => {
         await this.publishSagaEvent('insurance.notification.compensation', {
           sagaId: saga.sagaId,
+          tenantId: saga.tenantId,
           claimId: saga.claimId,
           message: 'Payment process was rolled back',
         });
@@ -1511,6 +1613,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
       FRAUD_CHECK: async (saga) => {
         await this.publishSagaEvent('insurance.fraud.clear_hold', {
           sagaId: saga.sagaId,
+          tenantId: saga.tenantId,
           claimId: saga.claimId,
         });
       },
@@ -1523,6 +1626,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
         if (policyId) {
           await this.publishSagaEvent('insurance.policy.cancel', {
             sagaId: saga.sagaId,
+            tenantId: saga.tenantId,
             policyId,
             reason: 'Saga compensation',
           });
@@ -1541,13 +1645,14 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
     await this.publishSagaEvent('insurance.saga.compensation.failed', {
       sagaId: saga.sagaId,
+      tenantId: saga.tenantId,
       stepName: step.stepName,
       error,
     });
   }
 
-  async retryCompensation(sagaId: string): Promise<SagaInstance> {
-    const saga = await this.sagaRepo.findOne({ where: { sagaId } });
+  async retryCompensation(tenantId: string, sagaId: string): Promise<SagaInstance> {
+    const saga = await this.sagaRepo.findOne({ where: { sagaId, tenantId } });
     if (!saga) {
       const err: any = new Error('Saga not found');
       err.code = 'NOT_FOUND';
@@ -1576,7 +1681,8 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
       try {
         await this.compensateStep(saga, step);
       } catch (e: any) {
-        this.logger.error('Compensation retry failed for step', e, { sagaId: saga.sagaId, stepName: step.stepName });
+        this.logger.error('Compensation retry failed for step', e, { sagaId: saga.sagaId,
+      tenantId: saga.tenantId, stepName: step.stepName });
       }
     }
 
@@ -1587,14 +1693,14 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
     return saga;
   }
 
-  async getCompensationStatus(sagaId: string): Promise<{
+  async getCompensationStatus(tenantId: string, sagaId: string): Promise<{
     saga: SagaInstance;
     steps: SagaStep[];
     completedCount: number;
     failedCount: number;
     pendingCount: number;
   }> {
-    const saga = await this.sagaRepo.findOne({ where: { sagaId } });
+    const saga = await this.sagaRepo.findOne({ where: { sagaId, tenantId } });
     if (!saga) {
       const err: any = new Error('Saga not found');
       err.code = 'NOT_FOUND';

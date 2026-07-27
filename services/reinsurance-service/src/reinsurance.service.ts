@@ -32,9 +32,7 @@ export class ReinsuranceService {
     @InjectRepository(ReTicket) private readonly ticketsRepo: Repository<ReTicket>,
     @InjectRepository(ReTicketMessage) private readonly ticketMessagesRepo: Repository<ReTicketMessage>,
     @InjectRepository(ReTicketAttachment) private readonly ticketAttachmentsRepo: Repository<ReTicketAttachment>
-  ) {
-    // OutboxPublisher is now created per-operation inside transactions
-  }
+  ) {}
 
   private n(v: any): number {
     const x = typeof v === 'number' ? v : v !== null && v !== undefined ? parseFloat(String(v)) : NaN;
@@ -57,24 +55,29 @@ export class ReinsuranceService {
     const ceded = this.n(params.cession.cededAmount);
     const retained = Math.max(0, gross - ceded);
 
-    await this.dataSource.transaction(async (manager) => { const outbox = new OutboxPublisher(manager); await outbox.publish({
-      topic: 'insurance.ri.ceded_calculated',
-      eventType: 'CededCalculated',
-      eventVersion: 1,
-      correlationId: params.correlationId,
-      subject: {
-        contractId: params.treaty.treatyId,
-        ...(params.cession.policyId ? { policyId: String(params.cession.policyId) } : {}),
-      },
-      payload: {
-        calculationBasis: params.cession.policyId ? 'policy' : 'policy',
-        grossAmount: gross,
-        cededAmount: ceded,
-        retainedAmount: retained,
-        currency: params.treaty.currency || 'IRR',
-        counterpartyId: params.treaty.reinsurerName,
-      },
-    }); });
+    await this.dataSource.transaction(async (manager) => {
+      const outbox = new OutboxPublisher(manager);
+      await outbox.publish({
+        topic: 'insurance.ri.ceded_calculated',
+        eventType: 'CededCalculated',
+        eventVersion: 1,
+        correlationId: params.correlationId,
+        tenantId: params.treaty.tenantId,
+        subject: {
+          contractId: params.treaty.treatyId,
+          tenantId: params.treaty.tenantId,
+          ...(params.cession.policyId ? { policyId: String(params.cession.policyId) } : {}),
+        },
+        payload: {
+          calculationBasis: params.cession.policyId ? 'policy' : 'policy',
+          grossAmount: gross,
+          cededAmount: ceded,
+          retainedAmount: retained,
+          currency: params.treaty.currency || 'IRR',
+          counterpartyId: params.treaty.reinsurerName,
+        },
+      });
+    });
   }
 
   private async publishBorderauxGenerated(params: {
@@ -84,22 +87,60 @@ export class ReinsuranceService {
   }): Promise<void> {
     const itemsCount = typeof (params.statement.totals as any)?.itemsCount === 'number' ? (params.statement.totals as any).itemsCount : 0;
 
-    await this.dataSource.transaction(async (manager) => { const outbox = new OutboxPublisher(manager); await outbox.publish({
-      topic: 'insurance.ri.borderaux_generated',
-      eventType: 'BorderauxGenerated',
-      eventVersion: 1,
-      correlationId: params.correlationId,
-      subject: {
-        borderauxId: params.statement.statementId,
-        contractId: params.statement.treatyId,
-      },
-      payload: {
-        periodStart: this.isoDateAsDateTime(params.statement.periodStart),
-        periodEnd: this.isoDateAsDateTime(params.statement.periodEnd),
-        itemsCount,
-        documentId: (params.statement.totals as any)?.documentId ?? null,
-      },
-    }); });
+    await this.dataSource.transaction(async (manager) => {
+      const outbox = new OutboxPublisher(manager);
+      await outbox.publish({
+        topic: 'insurance.ri.borderaux_generated',
+        eventType: 'BorderauxGenerated',
+        eventVersion: 1,
+        correlationId: params.correlationId,
+        tenantId: params.treaty.tenantId,
+        subject: {
+          borderauxId: params.statement.statementId,
+          contractId: params.statement.treatyId,
+          tenantId: params.treaty.tenantId,
+        },
+        payload: {
+          periodStart: this.isoDateAsDateTime(params.statement.periodStart),
+          periodEnd: this.isoDateAsDateTime(params.statement.periodEnd),
+          itemsCount,
+          documentId: (params.statement.totals as any)?.documentId ?? null,
+        },
+      });
+    });
+  }
+
+  private async publishPeriodClosed(params: {
+    correlationId: string;
+    statement: ReStatement;
+    treaty: ReTreaty;
+    actorUserId?: string | null;
+    notes?: string | null;
+  }): Promise<void> {
+    await this.dataSource.transaction(async (manager) => {
+      const outbox = new OutboxPublisher(manager);
+      await outbox.publish({
+        topic: 'insurance.reinsurance.period_closed',
+        eventType: 'ReinsurancePeriodClosed',
+        eventVersion: 1,
+        correlationId: params.correlationId,
+        tenantId: params.treaty.tenantId,
+        subject: {
+          treatyId: params.treaty.treatyId,
+          statementId: params.statement.statementId,
+          tenantId: params.treaty.tenantId,
+        },
+        payload: {
+          treatyId: params.treaty.treatyId,
+          statementId: params.statement.statementId,
+          periodEnd: params.statement.periodEnd,
+          totals: params.statement.totals,
+          closedBy: params.actorUserId,
+          closedAt: new Date().toISOString(),
+          notes: params.notes,
+        },
+      });
+    });
   }
 
   private async publishRecoveryIdentified(params: {
@@ -107,46 +148,56 @@ export class ReinsuranceService {
     recovery: ReClaimRecovery;
     treaty: ReTreaty;
   }): Promise<void> {
-    await this.dataSource.transaction(async (manager) => { const outbox = new OutboxPublisher(manager); await outbox.publish({
-      topic: 'insurance.ri.recovery_identified',
-      eventType: 'RecoveryIdentified',
-      eventVersion: 1,
-      correlationId: params.correlationId,
-      subject: {
-        recoveryId: params.recovery.recoveryId,
-        claimId: String(params.recovery.claimId),
-        contractId: params.recovery.treatyId,
-      },
-      payload: {
-        recoverableAmount: this.n(params.recovery.cededLossAmount),
-        currency: params.recovery.currency || 'IRR',
-        counterpartyId: params.treaty.reinsurerName,
-        identifiedAt: new Date().toISOString(),
-      },
-    }); });
+    await this.dataSource.transaction(async (manager) => {
+      const outbox = new OutboxPublisher(manager);
+      await outbox.publish({
+        topic: 'insurance.ri.recovery_identified',
+        eventType: 'RecoveryIdentified',
+        eventVersion: 1,
+        correlationId: params.correlationId,
+        tenantId: params.treaty.tenantId,
+        subject: {
+          recoveryId: params.recovery.recoveryId,
+          claimId: String(params.recovery.claimId),
+          contractId: params.recovery.treatyId,
+          tenantId: params.treaty.tenantId,
+        },
+        payload: {
+          recoverableAmount: this.n(params.recovery.cededLossAmount),
+          currency: params.recovery.currency || 'IRR',
+          counterpartyId: params.treaty.reinsurerName,
+          identifiedAt: new Date().toISOString(),
+        },
+      });
+    });
   }
 
   private async publishRecoveryReceived(params: {
     correlationId: string;
     recovery: ReClaimRecovery;
   }): Promise<void> {
-    await this.dataSource.transaction(async (manager) => { const outbox = new OutboxPublisher(manager); await outbox.publish({
-      topic: 'insurance.ri.recovery_received',
-      eventType: 'RecoveryReceived',
-      eventVersion: 1,
-      correlationId: params.correlationId,
-      subject: {
-        recoveryId: params.recovery.recoveryId,
-        claimId: String(params.recovery.claimId),
-        contractId: params.recovery.treatyId,
-      },
-      payload: {
-        receivedAt: new Date().toISOString(),
-        amount: this.n(params.recovery.recoveredAmount),
-        currency: params.recovery.currency || 'IRR',
-        referenceNumber: null,
-      },
-    }); });
+    await this.dataSource.transaction(async (manager) => {
+      const outbox = new OutboxPublisher(manager);
+      await outbox.publish({
+        topic: 'insurance.ri.recovery_received',
+        eventType: 'RecoveryReceived',
+        eventVersion: 1,
+        correlationId: params.correlationId,
+        tenantId: params.recovery.tenantId,
+        subject: {
+          recoveryId: params.recovery.recoveryId,
+          claimId: String(params.recovery.claimId),
+          contractId: params.recovery.treatyId,
+          tenantId: params.recovery.tenantId,
+        },
+        payload: {
+          receivedAt: new Date().toISOString(),
+          amount: this.n(params.recovery.recoveredAmount),
+          currency: params.recovery.currency || 'IRR',
+          referenceNumber: null,
+        },
+      });
+    });
   }
 
   private getTicketSlaResponseHoursDefault(): number | null {
@@ -161,37 +212,47 @@ export class ReinsuranceService {
     return { limit: clampInt(limit, 50, 1, 200), offset: clampInt(offset, 0, 0, 1000000) };
   }
 
+  // Treaties
   async createTreaty(params: {
+    tenantId: string;
     treatyNumber: string;
     reinsurerName: string;
     treatyType: ReTreaty['treatyType'];
     effectiveFrom: string;
     effectiveTo?: string | null;
     currency?: string;
+    retentionRate?: string | number | null;
+    cessionRate?: string | number | null;
+    config?: any | null;
     terms?: any | null;
     createdBy?: string | null;
   }): Promise<ReTreaty> {
+    const tenantId = (params.tenantId || '').trim();
     const treatyNumber = (params.treatyNumber || '').trim();
     const reinsurerName = (params.reinsurerName || '').trim();
 
-    if (!treatyNumber || !reinsurerName || !params.treatyType || !params.effectiveFrom) {
+    if (!tenantId || !treatyNumber || !reinsurerName || !params.treatyType || !params.effectiveFrom) {
       throw new BadRequestException({
         success: false,
-        error: { code: 'VALIDATION_ERROR', message: 'treatyNumber, reinsurerName, treatyType, effectiveFrom are required' },
+        error: { code: 'VALIDATION_ERROR', message: 'tenantId, treatyNumber, reinsurerName, treatyType, effectiveFrom are required' },
       });
     }
 
-    const existing = await this.treatiesRepo.findOne({ where: { treatyNumber } });
+    const existing = await this.treatiesRepo.findOne({ where: { tenantId, treatyNumber } });
     if (existing) {
-      throw new BadRequestException({ success: false, error: { code: 'DUPLICATE', message: 'treatyNumber already exists' } });
+      throw new BadRequestException({ success: false, error: { code: 'DUPLICATE', message: 'treatyNumber already exists for tenant' } });
     }
 
     const t = this.treatiesRepo.create({
       treatyId: uuidv4(),
+      tenantId,
       treatyNumber,
       reinsurerName,
       treatyType: params.treatyType,
       status: 'draft',
+      retentionRate: params.retentionRate !== undefined && params.retentionRate !== null ? String(params.retentionRate) : null,
+      cessionRate: params.cessionRate !== undefined && params.cessionRate !== null ? String(params.cessionRate) : null,
+      config: params.config ?? null,
       effectiveFrom: params.effectiveFrom,
       effectiveTo: params.effectiveTo ?? null,
       currency: params.currency || 'IRR',
@@ -205,23 +266,43 @@ export class ReinsuranceService {
     return t;
   }
 
-  async getTreaty(treatyId: string): Promise<ReTreaty | null> {
-    return await this.treatiesRepo.findOne({ where: { treatyId } });
+  async getTreaty(tenantId: string, treatyId: string): Promise<ReTreaty | null> {
+    return await this.treatiesRepo.findOne({ where: { tenantId, treatyId } });
   }
 
   async listTreaties(params: {
+    tenantId: string;
     status?: ReTreatyStatus;
     reinsurerName?: string;
     lineOfBusiness?: string;
+    productCode?: string;
     q?: string;
     limit: number;
     offset: number;
   }): Promise<{ rows: ReTreaty[]; total: number }> {
+    const tenantId = (params.tenantId || '').trim();
+    if (!tenantId) {
+      throw new BadRequestException({ success: false, error: { code: 'VALIDATION_ERROR', message: 'tenantId is required' } });
+    }
+
     const qb = this.treatiesRepo.createQueryBuilder('t');
+    qb.andWhere('t.tenant_id = :tenantId', { tenantId });
 
     if (params.status) qb.andWhere('t.status = :status', { status: params.status });
     if (params.reinsurerName) qb.andWhere('t.reinsurer_name = :rn', { rn: params.reinsurerName });
     if (params.q) qb.andWhere('(t.treaty_number ILIKE :q OR t.reinsurer_name ILIKE :q)', { q: `%${params.q}%` });
+
+    // Filter by lineOfBusiness or productCode stored in terms JSONB
+    const productFilter = params.productCode || params.lineOfBusiness;
+    if (productFilter) {
+      qb.andWhere(
+        `(t.terms IS NULL OR (t.terms->>'productCodes') IS NULL OR EXISTS (
+          SELECT 1 FROM jsonb_array_elements_text(COALESCE(t.terms->'productCodes', '[]'::jsonb)) AS pc
+          WHERE pc = :productCode
+        ))`,
+        { productCode: productFilter }
+      );
+    }
 
     qb.orderBy('t.created_at', 'DESC').limit(params.limit).offset(params.offset);
 
@@ -230,15 +311,19 @@ export class ReinsuranceService {
   }
 
   async updateTreaty(params: {
+    tenantId: string;
     treatyId: string;
     reinsurerName?: string;
     effectiveFrom?: string;
     effectiveTo?: string | null;
     currency?: string;
+    retentionRate?: string | number | null;
+    cessionRate?: string | number | null;
+    config?: any | null;
     terms?: any | null;
     status?: ReTreatyStatus;
   }): Promise<ReTreaty> {
-    const t = await this.getTreaty(params.treatyId);
+    const t = await this.getTreaty(params.tenantId, params.treatyId);
     if (!t) throw new NotFoundException({ success: false, error: { code: 'NOT_FOUND', message: 'Treaty not found' } });
 
     if (params.reinsurerName !== undefined) {
@@ -249,6 +334,9 @@ export class ReinsuranceService {
     if (params.effectiveFrom !== undefined) t.effectiveFrom = params.effectiveFrom;
     if (params.effectiveTo !== undefined) t.effectiveTo = params.effectiveTo ?? null;
     if (params.currency !== undefined) t.currency = params.currency || 'IRR';
+    if (params.retentionRate !== undefined) t.retentionRate = params.retentionRate !== null ? String(params.retentionRate) : null;
+    if (params.cessionRate !== undefined) t.cessionRate = params.cessionRate !== null ? String(params.cessionRate) : null;
+    if (params.config !== undefined) t.config = params.config ?? null;
     if (params.terms !== undefined) t.terms = params.terms ?? null;
     if (params.status !== undefined) t.status = params.status;
 
@@ -257,8 +345,8 @@ export class ReinsuranceService {
     return t;
   }
 
-  async closeTreaty(treatyId: string): Promise<ReTreaty> {
-    const t = await this.getTreaty(treatyId);
+  async closeTreaty(tenantId: string, treatyId: string): Promise<ReTreaty> {
+    const t = await this.getTreaty(tenantId, treatyId);
     if (!t) throw new NotFoundException({ success: false, error: { code: 'NOT_FOUND', message: 'Treaty not found' } });
     t.status = 'closed';
     t.updatedAt = new Date();
@@ -268,7 +356,9 @@ export class ReinsuranceService {
 
   // Cessions
   async calculateAutomaticCessions(params: {
+    tenantId: string;
     policyId: string;
+    policyNumber?: string | null;
     sumInsured: number;
     premium: number;
     productCode: string;
@@ -279,9 +369,14 @@ export class ReinsuranceService {
     totalCeded: number;
     totalRetained: number;
   }> {
-    // Find applicable treaties for this product and date
+    const tenantId = (params.tenantId || '').trim();
+    if (!tenantId) {
+      throw new BadRequestException({ success: false, error: { code: 'VALIDATION_ERROR', message: 'tenantId is required' } });
+    }
+
     const applicableTreaties = await this.treatiesRepo.find({
       where: {
+        tenantId,
         status: 'active' as ReTreatyStatus,
       },
     });
@@ -290,18 +385,14 @@ export class ReinsuranceService {
     let totalCeded = 0;
 
     for (const treaty of applicableTreaties) {
-      // Check if treaty is applicable based on product and date
       const isApplicable = this.isTreatyApplicable({
         treaty,
         productCode: params.productCode,
         effectiveDate: params.effectiveDate,
       });
 
-      if (!isApplicable) {
-        continue;
-      }
+      if (!isApplicable) continue;
 
-      // Calculate cession based on treaty type
       const cessionResult = this.calculateCessionAmount({
         treaty,
         sumInsured: params.sumInsured,
@@ -310,12 +401,22 @@ export class ReinsuranceService {
 
       if (cessionResult.cededAmount > 0) {
         const cession = await this.createCession({
+          tenantId,
           treatyId: treaty.treatyId,
           policyId: params.policyId,
+          policyNumber: params.policyNumber ?? null,
           sumInsured: params.sumInsured,
           premium: params.premium,
           cessionPercent: cessionResult.cessionPercent,
           cededAmount: cessionResult.cededAmount,
+          cededPremium: (params.premium * cessionResult.cessionPercent) / 100,
+          cededSumInsured: cessionResult.cededAmount,
+          cessionType: treaty.treatyType,
+          retentionRate: treaty.retentionRate,
+          cessionRate: treaty.cessionRate,
+          effectiveFrom: treaty.effectiveFrom,
+          effectiveTo: treaty.effectiveTo,
+          currency: treaty.currency,
           notes: `Automatic cession calculated on issuance`,
           correlationId: params.correlationId,
         });
@@ -327,11 +428,7 @@ export class ReinsuranceService {
 
     const totalRetained = Math.max(0, params.sumInsured - totalCeded);
 
-    return {
-      cessions,
-      totalCeded,
-      totalRetained,
-    };
+    return { cessions, totalCeded, totalRetained };
   }
 
   private isTreatyApplicable(params: {
@@ -342,18 +439,16 @@ export class ReinsuranceService {
     const treaty = params.treaty;
     const effectiveDate = new Date(params.effectiveDate);
 
-    // Check if treaty is within effective period
-    if (treaty.effectiveFrom && new Date(treaty.effectiveFrom) > effectiveDate) {
-      return false;
-    }
+    if (treaty.effectiveFrom && new Date(treaty.effectiveFrom) > effectiveDate) return false;
+    if (treaty.effectiveTo && new Date(treaty.effectiveTo) < effectiveDate) return false;
 
-    if (treaty.effectiveTo && new Date(treaty.effectiveTo) < effectiveDate) {
-      return false;
-    }
+    const terms = (treaty.terms as any) || {};
+    const productCodes: string[] = Array.isArray(terms.productCodes) ? terms.productCodes : [];
+    if (productCodes.length > 0 && !productCodes.includes(params.productCode)) return false;
 
-    // Check if treaty applies to this product
-    // In a real implementation, this would check treaty.productCodes or similar
-    // For now, we'll assume all active treaties are applicable
+    const lob = terms.lineOfBusiness;
+    if (lob && lob !== params.productCode) return false;
+
     return true;
   }
 
@@ -366,23 +461,22 @@ export class ReinsuranceService {
     cededAmount: number;
   } {
     const treaty = params.treaty;
-    const treatyConfig = treaty.config as any || {};
+    const terms = (treaty.terms as any) || {};
+    const config = (treaty.config as any) || {};
 
-    const treatyType = treatyConfig.treatyType || 'quota_share';
+    const treatyType = terms.treatyType || config.treatyType || 'quota_share';
 
     let cessionPercent = 0;
     let cededAmount = 0;
 
     switch (treatyType) {
       case 'quota_share':
-        // Quota Share: cession percentage is fixed
-        cessionPercent = treatyConfig.cessionPercent || 0;
+        cessionPercent = this.n(terms.cessionPercent ?? config.cessionPercent ?? treaty.cessionRate);
         cededAmount = (params.sumInsured * cessionPercent) / 100;
         break;
 
       case 'excess_of_loss':
-        // Excess of Loss: cede amount above retention limit
-        const retentionLimit = treatyConfig.retentionLimit || 0;
+        const retentionLimit = this.n(terms.retentionLimit ?? config.retentionLimit);
         if (params.sumInsured > retentionLimit) {
           cededAmount = params.sumInsured - retentionLimit;
           cessionPercent = (cededAmount / params.sumInsured) * 100;
@@ -390,30 +484,26 @@ export class ReinsuranceService {
         break;
 
       case 'surplus':
-        // Surplus: cede percentage of amount above retention
-        const surplusRetention = treatyConfig.retentionLimit || 0;
-        const surplusCapacity = treatyConfig.capacity || 0;
+        const surplusRetention = this.n(terms.retentionLimit ?? config.retentionLimit);
+        const surplusCapacity = this.n(terms.capacity ?? config.capacity);
         if (params.sumInsured > surplusRetention) {
           const surplusAmount = params.sumInsured - surplusRetention;
           const cedibleSurplus = Math.min(surplusAmount, surplusCapacity);
-          cessionPercent = treatyConfig.cessionPercent || 50;
+          cessionPercent = this.n(terms.cessionPercent ?? config.cessionPercent ?? 50);
           cededAmount = (cedibleSurplus * cessionPercent) / 100;
         }
         break;
 
       default:
-        // Default to quota share with treaty's cession percentage
-        cessionPercent = treatyConfig.cessionPercent || 0;
+        cessionPercent = this.n(terms.cessionPercent ?? config.cessionPercent ?? treaty.cessionRate);
         cededAmount = (params.sumInsured * cessionPercent) / 100;
     }
 
-    return {
-      cessionPercent,
-      cededAmount,
-    };
+    return { cessionPercent, cededAmount };
   }
 
   async createCession(params: {
+    tenantId: string;
     treatyId: string;
     policyId?: string | null;
     policyNumber?: string | null;
@@ -427,33 +517,49 @@ export class ReinsuranceService {
     cessionRate?: string | number | null;
     cededPremium?: string | number | null;
     cededSumInsured?: string | number | null;
-    effectiveFrom?: Date | null;
-    effectiveTo?: Date | null;
+    effectiveFrom?: string | Date | null;
+    effectiveTo?: string | Date | null;
     currency?: string | null;
     notes?: string | null;
     createdBy?: string | null;
     correlationId?: string;
   }): Promise<ReCession> {
+    const tenantId = (params.tenantId || '').trim();
     const treatyId = (params.treatyId || '').trim();
-    if (!treatyId) {
-      throw new BadRequestException({ success: false, error: { code: 'VALIDATION_ERROR', message: 'treatyId is required' } });
+    if (!tenantId || !treatyId) {
+      throw new BadRequestException({ success: false, error: { code: 'VALIDATION_ERROR', message: 'tenantId and treatyId are required' } });
     }
 
-    const t = await this.getTreaty(treatyId);
+    const t = await this.getTreaty(tenantId, treatyId);
     if (!t) {
       throw new BadRequestException({ success: false, error: { code: 'VALIDATION_ERROR', message: 'treatyId is invalid' } });
     }
 
+    const toDateString = (v: string | Date | null | undefined): string | null => {
+      if (!v) return null;
+      if (v instanceof Date) return v.toISOString().split('T')[0];
+      return String(v);
+    };
+
     const c = this.cessionsRepo.create({
       cessionId: uuidv4(),
+      tenantId,
       treatyId,
       policyId: params.policyId ?? null,
+      policyNumber: params.policyNumber ?? null,
       riskId: params.riskId ?? null,
+      cessionType: params.cessionType ?? null,
       sumInsured: params.sumInsured !== undefined && params.sumInsured !== null ? String(params.sumInsured) : null,
       premium: params.premium !== undefined && params.premium !== null ? String(params.premium) : null,
-      cessionPercent:
-        params.cessionPercent !== undefined && params.cessionPercent !== null ? String(params.cessionPercent) : null,
+      cessionPercent: params.cessionPercent !== undefined && params.cessionPercent !== null ? String(params.cessionPercent) : null,
       cededAmount: params.cededAmount !== undefined && params.cededAmount !== null ? String(params.cededAmount) : null,
+      cededPremium: params.cededPremium !== undefined && params.cededPremium !== null ? String(params.cededPremium) : null,
+      cededSumInsured: params.cededSumInsured !== undefined && params.cededSumInsured !== null ? String(params.cededSumInsured) : null,
+      retentionRate: params.retentionRate !== undefined && params.retentionRate !== null ? String(params.retentionRate) : null,
+      cessionRate: params.cessionRate !== undefined && params.cessionRate !== null ? String(params.cessionRate) : null,
+      effectiveFrom: toDateString(params.effectiveFrom),
+      effectiveTo: toDateString(params.effectiveTo),
+      currency: params.currency || 'IRR',
       status: 'pending',
       notes: params.notes ?? null,
       createdBy: params.createdBy ?? null,
@@ -471,18 +577,25 @@ export class ReinsuranceService {
     return c;
   }
 
-  async getCession(cessionId: string): Promise<ReCession | null> {
-    return await this.cessionsRepo.findOne({ where: { cessionId } });
+  async getCession(tenantId: string, cessionId: string): Promise<ReCession | null> {
+    return await this.cessionsRepo.findOne({ where: { tenantId, cessionId } });
   }
 
   async listCessions(params: {
+    tenantId: string;
     treatyId?: string;
     status?: ReCessionStatus;
     policyId?: string;
     limit: number;
     offset: number;
   }): Promise<{ rows: ReCession[]; total: number }> {
+    const tenantId = (params.tenantId || '').trim();
+    if (!tenantId) {
+      throw new BadRequestException({ success: false, error: { code: 'VALIDATION_ERROR', message: 'tenantId is required' } });
+    }
+
     const qb = this.cessionsRepo.createQueryBuilder('c');
+    qb.andWhere('c.tenant_id = :tenantId', { tenantId });
 
     if (params.treatyId) qb.andWhere('c.treaty_id = :tid', { tid: params.treatyId });
     if (params.status) qb.andWhere('c.status = :status', { status: params.status });
@@ -495,30 +608,34 @@ export class ReinsuranceService {
   }
 
   async updateCession(params: {
+    tenantId: string;
     cessionId: string;
     notes?: string | null;
     sumInsured?: string | number | null;
     premium?: string | number | null;
     cessionPercent?: string | number | null;
     cededAmount?: string | number | null;
+    cededPremium?: string | number | null;
+    cededSumInsured?: string | number | null;
     status?: ReCessionStatus;
     correlationId?: string;
   }): Promise<ReCession> {
-    const c = await this.getCession(params.cessionId);
+    const c = await this.getCession(params.tenantId, params.cessionId);
     if (!c) throw new NotFoundException({ success: false, error: { code: 'NOT_FOUND', message: 'Cession not found' } });
 
     if (params.notes !== undefined) c.notes = params.notes ?? null;
     if (params.sumInsured !== undefined) c.sumInsured = params.sumInsured !== null ? String(params.sumInsured) : null;
     if (params.premium !== undefined) c.premium = params.premium !== null ? String(params.premium) : null;
-    if (params.cessionPercent !== undefined)
-      c.cessionPercent = params.cessionPercent !== null ? String(params.cessionPercent) : null;
+    if (params.cessionPercent !== undefined) c.cessionPercent = params.cessionPercent !== null ? String(params.cessionPercent) : null;
     if (params.cededAmount !== undefined) c.cededAmount = params.cededAmount !== null ? String(params.cededAmount) : null;
+    if (params.cededPremium !== undefined) c.cededPremium = params.cededPremium !== null ? String(params.cededPremium) : null;
+    if (params.cededSumInsured !== undefined) c.cededSumInsured = params.cededSumInsured !== null ? String(params.cededSumInsured) : null;
     if (params.status !== undefined) c.status = params.status;
 
     c.updatedAt = new Date();
     await this.cessionsRepo.save(c);
 
-    const t = await this.getTreaty(c.treatyId);
+    const t = await this.getTreaty(c.tenantId, c.treatyId);
     if (t) {
       await this.publishCededCalculated({
         correlationId: params.correlationId || uuidv4(),
@@ -529,15 +646,15 @@ export class ReinsuranceService {
     return c;
   }
 
-  async approveCession(params: { cessionId: string; approved: boolean; notes?: string | null }): Promise<ReCession> {
-    const c = await this.getCession(params.cessionId);
+  async approveCession(params: { tenantId: string; cessionId: string; approved: boolean; notes?: string | null }): Promise<ReCession> {
+    const c = await this.getCession(params.tenantId, params.cessionId);
     if (!c) throw new NotFoundException({ success: false, error: { code: 'NOT_FOUND', message: 'Cession not found' } });
     c.status = params.approved ? 'approved' : 'rejected';
     if (params.notes !== undefined) c.notes = params.notes ?? null;
     c.updatedAt = new Date();
     await this.cessionsRepo.save(c);
 
-    const t = await this.getTreaty(c.treatyId);
+    const t = await this.getTreaty(c.tenantId, c.treatyId);
     if (t) {
       await this.publishCededCalculated({
         correlationId: uuidv4(),
@@ -550,6 +667,7 @@ export class ReinsuranceService {
 
   // Statements
   async createStatement(params: {
+    tenantId: string;
     treatyId: string;
     statementType: ReStatement['statementType'];
     periodStart: string;
@@ -557,19 +675,21 @@ export class ReinsuranceService {
     totals?: any | null;
     createdBy?: string | null;
   }): Promise<ReStatement> {
+    const tenantId = (params.tenantId || '').trim();
     const treatyId = (params.treatyId || '').trim();
-    if (!treatyId || !params.statementType || !params.periodStart || !params.periodEnd) {
+    if (!tenantId || !treatyId || !params.statementType || !params.periodStart || !params.periodEnd) {
       throw new BadRequestException({
         success: false,
-        error: { code: 'VALIDATION_ERROR', message: 'treatyId, statementType, periodStart, periodEnd are required' },
+        error: { code: 'VALIDATION_ERROR', message: 'tenantId, treatyId, statementType, periodStart, periodEnd are required' },
       });
     }
 
-    const t = await this.getTreaty(treatyId);
+    const t = await this.getTreaty(tenantId, treatyId);
     if (!t) throw new BadRequestException({ success: false, error: { code: 'VALIDATION_ERROR', message: 'treatyId is invalid' } });
 
     const s = this.statementsRepo.create({
       statementId: uuidv4(),
+      tenantId,
       treatyId,
       statementType: params.statementType,
       status: 'draft',
@@ -585,18 +705,25 @@ export class ReinsuranceService {
     return s;
   }
 
-  async getStatement(statementId: string): Promise<ReStatement | null> {
-    return await this.statementsRepo.findOne({ where: { statementId } });
+  async getStatement(tenantId: string, statementId: string): Promise<ReStatement | null> {
+    return await this.statementsRepo.findOne({ where: { tenantId, statementId } });
   }
 
   async listStatements(params: {
+    tenantId: string;
     treatyId?: string;
     status?: ReStatementStatus;
     statementType?: ReStatement['statementType'];
     limit: number;
     offset: number;
   }): Promise<{ rows: ReStatement[]; total: number }> {
+    const tenantId = (params.tenantId || '').trim();
+    if (!tenantId) {
+      throw new BadRequestException({ success: false, error: { code: 'VALIDATION_ERROR', message: 'tenantId is required' } });
+    }
+
     const qb = this.statementsRepo.createQueryBuilder('s');
+    qb.andWhere('s.tenant_id = :tenantId', { tenantId });
     if (params.treatyId) qb.andWhere('s.treaty_id = :tid', { tid: params.treatyId });
     if (params.status) qb.andWhere('s.status = :status', { status: params.status });
     if (params.statementType) qb.andWhere('s.statement_type = :st', { st: params.statementType });
@@ -605,8 +732,8 @@ export class ReinsuranceService {
     return { rows, total };
   }
 
-  async updateStatement(params: { statementId: string; status?: ReStatementStatus; totals?: any | null }): Promise<ReStatement> {
-    const s = await this.getStatement(params.statementId);
+  async updateStatement(params: { tenantId: string; statementId: string; status?: ReStatementStatus; totals?: any | null }): Promise<ReStatement> {
+    const s = await this.getStatement(params.tenantId, params.statementId);
     if (!s) throw new NotFoundException({ success: false, error: { code: 'NOT_FOUND', message: 'Statement not found' } });
     const prevStatus = s.status;
     if (params.status !== undefined) s.status = params.status;
@@ -615,7 +742,7 @@ export class ReinsuranceService {
     await this.statementsRepo.save(s);
 
     if (prevStatus !== 'issued' && s.status === 'issued' && s.statementType === 'bordereau') {
-      const t = await this.getTreaty(s.treatyId);
+      const t = await this.getTreaty(s.tenantId, s.treatyId);
       if (t) {
         await this.publishBorderauxGenerated({ correlationId: uuidv4(), statement: s, treaty: t });
       }
@@ -626,21 +753,24 @@ export class ReinsuranceService {
 
   // Reconciliations
   async createReconciliation(params: {
+    tenantId: string;
     statementId: string;
     summary?: string | null;
     details?: any | null;
     createdBy?: string | null;
   }): Promise<ReReconciliation> {
+    const tenantId = (params.tenantId || '').trim();
     const statementId = (params.statementId || '').trim();
-    if (!statementId) {
-      throw new BadRequestException({ success: false, error: { code: 'VALIDATION_ERROR', message: 'statementId is required' } });
+    if (!tenantId || !statementId) {
+      throw new BadRequestException({ success: false, error: { code: 'VALIDATION_ERROR', message: 'tenantId and statementId are required' } });
     }
 
-    const s = await this.getStatement(statementId);
+    const s = await this.getStatement(tenantId, statementId);
     if (!s) throw new BadRequestException({ success: false, error: { code: 'VALIDATION_ERROR', message: 'statementId is invalid' } });
 
     const r = this.reconciliationsRepo.create({
       reconciliationId: uuidv4(),
+      tenantId,
       statementId,
       status: 'open',
       summary: params.summary ?? null,
@@ -654,17 +784,24 @@ export class ReinsuranceService {
     return r;
   }
 
-  async getReconciliation(reconciliationId: string): Promise<ReReconciliation | null> {
-    return await this.reconciliationsRepo.findOne({ where: { reconciliationId } });
+  async getReconciliation(tenantId: string, reconciliationId: string): Promise<ReReconciliation | null> {
+    return await this.reconciliationsRepo.findOne({ where: { tenantId, reconciliationId } });
   }
 
   async listReconciliations(params: {
+    tenantId: string;
     statementId?: string;
     status?: ReReconciliationStatus;
     limit: number;
     offset: number;
   }): Promise<{ rows: ReReconciliation[]; total: number }> {
+    const tenantId = (params.tenantId || '').trim();
+    if (!tenantId) {
+      throw new BadRequestException({ success: false, error: { code: 'VALIDATION_ERROR', message: 'tenantId is required' } });
+    }
+
     const qb = this.reconciliationsRepo.createQueryBuilder('r');
+    qb.andWhere('r.tenant_id = :tenantId', { tenantId });
     if (params.statementId) qb.andWhere('r.statement_id = :sid', { sid: params.statementId });
     if (params.status) qb.andWhere('r.status = :status', { status: params.status });
     qb.orderBy('r.created_at', 'DESC').limit(params.limit).offset(params.offset);
@@ -673,12 +810,13 @@ export class ReinsuranceService {
   }
 
   async updateReconciliation(params: {
+    tenantId: string;
     reconciliationId: string;
     status?: ReReconciliationStatus;
     summary?: string | null;
     details?: any | null;
   }): Promise<ReReconciliation> {
-    const r = await this.getReconciliation(params.reconciliationId);
+    const r = await this.getReconciliation(params.tenantId, params.reconciliationId);
     if (!r)
       throw new NotFoundException({ success: false, error: { code: 'NOT_FOUND', message: 'Reconciliation not found' } });
 
@@ -692,6 +830,7 @@ export class ReinsuranceService {
   }
 
   async exportSnapshot(params: {
+    tenantId: string;
     treatiesLimit: number;
     cessionsLimit: number;
     statementsLimit: number;
@@ -706,6 +845,11 @@ export class ReinsuranceService {
     recoveries: ReClaimRecovery[];
     tickets: ReTicket[];
   }> {
+    const tenantId = (params.tenantId || '').trim();
+    if (!tenantId) {
+      throw new BadRequestException({ success: false, error: { code: 'VALIDATION_ERROR', message: 'tenantId is required' } });
+    }
+
     const treatiesLimit = clampInt(params.treatiesLimit, 200, 1, 2000);
     const cessionsLimit = clampInt(params.cessionsLimit, 200, 1, 2000);
     const statementsLimit = clampInt(params.statementsLimit, 200, 1, 2000);
@@ -714,12 +858,12 @@ export class ReinsuranceService {
     const ticketsLimit = clampInt(params.ticketsLimit ?? 200, 200, 1, 2000);
 
     const [treaties, cessions, statements, reconciliations, recoveries, tickets] = await Promise.all([
-      this.treatiesRepo.find({ order: { createdAt: 'DESC' }, take: treatiesLimit }),
-      this.cessionsRepo.find({ order: { createdAt: 'DESC' }, take: cessionsLimit }),
-      this.statementsRepo.find({ order: { createdAt: 'DESC' }, take: statementsLimit }),
-      this.reconciliationsRepo.find({ order: { createdAt: 'DESC' }, take: reconciliationsLimit }),
-      this.recoveriesRepo.find({ order: { createdAt: 'DESC' }, take: recoveriesLimit }),
-      this.ticketsRepo.find({ order: { createdAt: 'DESC' }, take: ticketsLimit }),
+      this.treatiesRepo.find({ where: { tenantId }, order: { createdAt: 'DESC' }, take: treatiesLimit }),
+      this.cessionsRepo.find({ where: { tenantId }, order: { createdAt: 'DESC' }, take: cessionsLimit }),
+      this.statementsRepo.find({ where: { tenantId }, order: { createdAt: 'DESC' }, take: statementsLimit }),
+      this.reconciliationsRepo.find({ where: { tenantId }, order: { createdAt: 'DESC' }, take: reconciliationsLimit }),
+      this.recoveriesRepo.find({ where: { tenantId }, order: { createdAt: 'DESC' }, take: recoveriesLimit }),
+      this.ticketsRepo.find({ where: { tenantId }, order: { createdAt: 'DESC' }, take: ticketsLimit }),
     ]);
 
     return { treaties, cessions, statements, reconciliations, recoveries, tickets };
@@ -727,6 +871,7 @@ export class ReinsuranceService {
 
   // Claim Recoveries
   async createRecovery(params: {
+    tenantId: string;
     treatyId: string;
     claimId: string;
     policyId?: string | null;
@@ -741,16 +886,18 @@ export class ReinsuranceService {
     createdBy?: string | null;
     correlationId?: string;
   }): Promise<ReClaimRecovery> {
+    const tenantId = (params.tenantId || '').trim();
     const treatyId = (params.treatyId || '').trim();
     const claimId = (params.claimId || '').trim();
-    if (!treatyId || !claimId) {
-      throw new BadRequestException({ success: false, error: { code: 'VALIDATION_ERROR', message: 'treatyId and claimId are required' } });
+    if (!tenantId || !treatyId || !claimId) {
+      throw new BadRequestException({ success: false, error: { code: 'VALIDATION_ERROR', message: 'tenantId, treatyId and claimId are required' } });
     }
-    const t = await this.getTreaty(treatyId);
+    const t = await this.getTreaty(tenantId, treatyId);
     if (!t) throw new BadRequestException({ success: false, error: { code: 'VALIDATION_ERROR', message: 'treatyId is invalid' } });
 
     const r = this.recoveriesRepo.create({
       recoveryId: uuidv4(),
+      tenantId,
       treatyId,
       claimId,
       policyId: params.policyId ?? null,
@@ -776,18 +923,25 @@ export class ReinsuranceService {
     return r;
   }
 
-  async getRecovery(recoveryId: string): Promise<ReClaimRecovery | null> {
-    return await this.recoveriesRepo.findOne({ where: { recoveryId } });
+  async getRecovery(tenantId: string, recoveryId: string): Promise<ReClaimRecovery | null> {
+    return await this.recoveriesRepo.findOne({ where: { tenantId, recoveryId } });
   }
 
   async listRecoveries(params: {
+    tenantId: string;
     treatyId?: string;
     status?: ReClaimRecoveryStatus;
     claimId?: string;
     limit: number;
     offset: number;
   }): Promise<{ rows: ReClaimRecovery[]; total: number }> {
+    const tenantId = (params.tenantId || '').trim();
+    if (!tenantId) {
+      throw new BadRequestException({ success: false, error: { code: 'VALIDATION_ERROR', message: 'tenantId is required' } });
+    }
+
     const qb = this.recoveriesRepo.createQueryBuilder('r');
+    qb.andWhere('r.tenant_id = :tenantId', { tenantId });
     if (params.treatyId) qb.andWhere('r.treaty_id = :tid', { tid: params.treatyId });
     if (params.status) qb.andWhere('r.status = :status', { status: params.status });
     if (params.claimId) qb.andWhere('r.claim_id = :claimId', { claimId: params.claimId });
@@ -797,6 +951,7 @@ export class ReinsuranceService {
   }
 
   async updateRecovery(params: {
+    tenantId: string;
     recoveryId: string;
     status?: ReClaimRecoveryStatus;
     recoveredAmount?: string | number | null;
@@ -804,7 +959,7 @@ export class ReinsuranceService {
     notes?: string | null;
     correlationId?: string;
   }): Promise<ReClaimRecovery> {
-    const r = await this.getRecovery(params.recoveryId);
+    const r = await this.getRecovery(params.tenantId, params.recoveryId);
     if (!r) throw new NotFoundException({ success: false, error: { code: 'NOT_FOUND', message: 'Recovery not found' } });
 
     const prevRecoveredAmount = r.recoveredAmount;
@@ -832,6 +987,7 @@ export class ReinsuranceService {
 
   // Reconciliation Tickets
   async createTicket(params: {
+    tenantId: string;
     reconciliationId: string;
     reasonCode: string;
     summary?: string | null;
@@ -839,12 +995,13 @@ export class ReinsuranceService {
     slaResponseDueAt?: string | null;
     createdBy?: string | null;
   }): Promise<ReTicket> {
+    const tenantId = (params.tenantId || '').trim();
     const reconciliationId = (params.reconciliationId || '').trim();
     const reasonCode = (params.reasonCode || '').trim();
-    if (!reconciliationId || !reasonCode) {
-      throw new BadRequestException({ success: false, error: { code: 'VALIDATION_ERROR', message: 'reconciliationId and reasonCode are required' } });
+    if (!tenantId || !reconciliationId || !reasonCode) {
+      throw new BadRequestException({ success: false, error: { code: 'VALIDATION_ERROR', message: 'tenantId, reconciliationId and reasonCode are required' } });
     }
-    const rec = await this.getReconciliation(reconciliationId);
+    const rec = await this.getReconciliation(tenantId, reconciliationId);
     if (!rec) throw new BadRequestException({ success: false, error: { code: 'VALIDATION_ERROR', message: 'reconciliationId is invalid' } });
 
     const now = new Date();
@@ -857,6 +1014,7 @@ export class ReinsuranceService {
 
     const t = this.ticketsRepo.create({
       ticketId: uuidv4(),
+      tenantId,
       reconciliationId,
       reasonCode,
       status: 'open',
@@ -872,18 +1030,25 @@ export class ReinsuranceService {
     return t;
   }
 
-  async getTicket(ticketId: string): Promise<ReTicket | null> {
-    return await this.ticketsRepo.findOne({ where: { ticketId } });
+  async getTicket(tenantId: string, ticketId: string): Promise<ReTicket | null> {
+    return await this.ticketsRepo.findOne({ where: { tenantId, ticketId } });
   }
 
   async listTickets(params: {
+    tenantId: string;
     reconciliationId?: string;
     status?: ReTicketStatus;
     assignedTo?: string;
     limit: number;
     offset: number;
   }): Promise<{ rows: ReTicket[]; total: number }> {
+    const tenantId = (params.tenantId || '').trim();
+    if (!tenantId) {
+      throw new BadRequestException({ success: false, error: { code: 'VALIDATION_ERROR', message: 'tenantId is required' } });
+    }
+
     const qb = this.ticketsRepo.createQueryBuilder('t');
+    qb.andWhere('t.tenant_id = :tenantId', { tenantId });
     if (params.reconciliationId) qb.andWhere('t.reconciliation_id = :rid', { rid: params.reconciliationId });
     if (params.status) qb.andWhere('t.status = :status', { status: params.status });
     if (params.assignedTo) qb.andWhere('t.assigned_to = :assignedTo', { assignedTo: params.assignedTo });
@@ -892,8 +1057,8 @@ export class ReinsuranceService {
     return { rows, total };
   }
 
-  async assignTicket(params: { ticketId: string; assignedTo: string | null }): Promise<ReTicket> {
-    const t = await this.getTicket(params.ticketId);
+  async assignTicket(params: { tenantId: string; ticketId: string; assignedTo: string | null }): Promise<ReTicket> {
+    const t = await this.getTicket(params.tenantId, params.ticketId);
     if (!t) throw new NotFoundException({ success: false, error: { code: 'NOT_FOUND', message: 'Ticket not found' } });
     t.assignedTo = params.assignedTo;
     t.updatedAt = new Date();
@@ -901,8 +1066,8 @@ export class ReinsuranceService {
     return t;
   }
 
-  async updateTicket(params: { ticketId: string; status?: ReTicketStatus; summary?: string | null }): Promise<ReTicket> {
-    const t = await this.getTicket(params.ticketId);
+  async updateTicket(params: { tenantId: string; ticketId: string; status?: ReTicketStatus; summary?: string | null }): Promise<ReTicket> {
+    const t = await this.getTicket(params.tenantId, params.ticketId);
     if (!t) throw new NotFoundException({ success: false, error: { code: 'NOT_FOUND', message: 'Ticket not found' } });
     if (params.status !== undefined) t.status = params.status;
     if (params.summary !== undefined) t.summary = params.summary ?? null;
@@ -912,17 +1077,19 @@ export class ReinsuranceService {
     return t;
   }
 
-  async addTicketMessage(params: { ticketId: string; messageType?: 'internal' | 'external'; body: string; createdBy?: string | null }): Promise<ReTicketMessage> {
+  async addTicketMessage(params: { tenantId: string; ticketId: string; messageType?: 'internal' | 'external'; body: string; createdBy?: string | null }): Promise<ReTicketMessage> {
+    const tenantId = (params.tenantId || '').trim();
     const ticketId = (params.ticketId || '').trim();
     const body = (params.body || '').trim();
-    if (!ticketId || !body) {
-      throw new BadRequestException({ success: false, error: { code: 'VALIDATION_ERROR', message: 'ticketId and body are required' } });
+    if (!tenantId || !ticketId || !body) {
+      throw new BadRequestException({ success: false, error: { code: 'VALIDATION_ERROR', message: 'tenantId, ticketId and body are required' } });
     }
-    const t = await this.getTicket(ticketId);
+    const t = await this.getTicket(tenantId, ticketId);
     if (!t) throw new NotFoundException({ success: false, error: { code: 'NOT_FOUND', message: 'Ticket not found' } });
 
     const m = this.ticketMessagesRepo.create({
       ticketMessageId: uuidv4(),
+      tenantId,
       ticketId,
       messageType: params.messageType ?? 'internal',
       body,
@@ -933,21 +1100,23 @@ export class ReinsuranceService {
     return m;
   }
 
-  async listTicketMessages(ticketId: string): Promise<ReTicketMessage[]> {
-    return await this.ticketMessagesRepo.find({ where: { ticketId }, order: { createdAt: 'ASC' } });
+  async listTicketMessages(tenantId: string, ticketId: string): Promise<ReTicketMessage[]> {
+    return await this.ticketMessagesRepo.find({ where: { tenantId, ticketId }, order: { createdAt: 'ASC' } });
   }
 
-  async addTicketAttachment(params: { ticketId: string; documentId: string; notes?: string | null; createdBy?: string | null }): Promise<ReTicketAttachment> {
+  async addTicketAttachment(params: { tenantId: string; ticketId: string; documentId: string; notes?: string | null; createdBy?: string | null }): Promise<ReTicketAttachment> {
+    const tenantId = (params.tenantId || '').trim();
     const ticketId = (params.ticketId || '').trim();
     const documentId = (params.documentId || '').trim();
-    if (!ticketId || !documentId) {
-      throw new BadRequestException({ success: false, error: { code: 'VALIDATION_ERROR', message: 'ticketId and documentId are required' } });
+    if (!tenantId || !ticketId || !documentId) {
+      throw new BadRequestException({ success: false, error: { code: 'VALIDATION_ERROR', message: 'tenantId, ticketId and documentId are required' } });
     }
-    const t = await this.getTicket(ticketId);
+    const t = await this.getTicket(tenantId, ticketId);
     if (!t) throw new NotFoundException({ success: false, error: { code: 'NOT_FOUND', message: 'Ticket not found' } });
 
     const a = this.ticketAttachmentsRepo.create({
       ticketAttachmentId: uuidv4(),
+      tenantId,
       ticketId,
       documentId,
       notes: params.notes ?? null,
@@ -958,7 +1127,12 @@ export class ReinsuranceService {
     return a;
   }
 
+  async listTicketAttachments(tenantId: string, ticketId: string): Promise<ReTicketAttachment[]> {
+    return await this.ticketAttachmentsRepo.find({ where: { tenantId, ticketId }, order: { createdAt: 'DESC' } });
+  }
+
   async registerExternalInvoice(params: {
+    tenantId: string;
     statementId: string;
     invoiceNumber: string;
     invoiceDate: string;
@@ -967,16 +1141,30 @@ export class ReinsuranceService {
     receivedFrom: string;
     createdBy?: string | null;
   }): Promise<ReReconciliation> {
-    const statement = await this.statementsRepo.findOne({ where: { statementId: params.statementId } });
+    const tenantId = (params.tenantId || '').trim();
+    const statement = await this.getStatement(tenantId, params.statementId);
     if (!statement) throw new NotFoundException({ success: false, error: { code: 'NOT_FOUND', message: 'Statement not found' } });
 
-    const existingReconciliation = await this.reconciliationsRepo.findOne({ where: { statementId: params.statementId } });
+    const existingReconciliation = await this.reconciliationsRepo.findOne({ where: { tenantId, statementId: params.statementId } });
     if (existingReconciliation) {
+      const previous = {
+        externalInvoiceNumber: existingReconciliation.externalInvoiceNumber,
+        externalInvoiceDate: existingReconciliation.externalInvoiceDate,
+        externalInvoiceAmount: existingReconciliation.externalInvoiceAmount,
+        externalInvoiceCurrency: existingReconciliation.externalInvoiceCurrency,
+        receivedFrom: existingReconciliation.receivedFrom,
+        updatedAt: existingReconciliation.updatedAt,
+      };
+
+      const history = (existingReconciliation.details as any)?.invoiceHistory || [];
+      history.push({ ...previous, recordedAt: new Date().toISOString() });
+
       existingReconciliation.externalInvoiceNumber = params.invoiceNumber;
       existingReconciliation.externalInvoiceDate = params.invoiceDate;
       existingReconciliation.externalInvoiceAmount = params.invoiceAmount;
       existingReconciliation.externalInvoiceCurrency = params.invoiceCurrency || 'IRR';
       existingReconciliation.receivedFrom = params.receivedFrom;
+      existingReconciliation.details = { ...(existingReconciliation.details || {}), invoiceHistory: history };
       existingReconciliation.updatedAt = new Date();
       await this.reconciliationsRepo.save(existingReconciliation);
       return existingReconciliation;
@@ -984,10 +1172,11 @@ export class ReinsuranceService {
 
     const reconciliation = this.reconciliationsRepo.create({
       reconciliationId: uuidv4(),
+      tenantId,
       statementId: params.statementId,
       status: 'open',
       summary: `External invoice ${params.invoiceNumber} received`,
-      details: null,
+      details: { invoiceHistory: [] },
       externalInvoiceNumber: params.invoiceNumber,
       externalInvoiceDate: params.invoiceDate,
       externalInvoiceAmount: params.invoiceAmount,
@@ -1004,20 +1193,21 @@ export class ReinsuranceService {
   }
 
   async autoMatchInvoice(params: {
+    tenantId: string;
     reconciliationId: string;
     tolerancePercent?: number;
   }): Promise<{ reconciliation: ReReconciliation; matched: boolean; confidence: number; reason: string }> {
-    const reconciliation = await this.reconciliationsRepo.findOne({ where: { reconciliationId: params.reconciliationId } });
+    const reconciliation = await this.getReconciliation(params.tenantId, params.reconciliationId);
     if (!reconciliation) throw new NotFoundException({ success: false, error: { code: 'NOT_FOUND', message: 'Reconciliation not found' } });
 
-    const statement = await this.statementsRepo.findOne({ where: { statementId: reconciliation.statementId } });
+    const statement = await this.getStatement(params.tenantId, reconciliation.statementId);
     if (!statement) throw new NotFoundException({ success: false, error: { code: 'NOT_FOUND', message: 'Statement not found' } });
 
-    const treaty = await this.treatiesRepo.findOne({ where: { treatyId: statement.treatyId } });
+    const treaty = await this.getTreaty(params.tenantId, statement.treatyId);
     if (!treaty) throw new NotFoundException({ success: false, error: { code: 'NOT_FOUND', message: 'Treaty not found' } });
 
     const tolerancePercent = params.tolerancePercent || 5;
-    const statementAmount = this.n((statement.totals as any)?.totalAmount || (statement.totals as any)?.cededAmount);
+    const statementAmount = this.n((statement.totals as any)?.totalCededAmount ?? (statement.totals as any)?.cededAmount ?? 0);
     const invoiceAmount = this.n(reconciliation.externalInvoiceAmount);
 
     const amountDiff = Math.abs(statementAmount - invoiceAmount);
@@ -1055,17 +1245,14 @@ export class ReinsuranceService {
     const invoice = new Date(invoiceDate);
     const start = new Date(periodStart);
     const end = new Date(periodEnd);
-    const bufferDays = 30;
+    const bufferDays = parseInt(process.env.RE_INVOICE_MATCH_BUFFER_DAYS || '3', 10) || 3;
     const bufferedStart = new Date(start.getTime() - bufferDays * 24 * 60 * 60 * 1000);
     const bufferedEnd = new Date(end.getTime() + bufferDays * 24 * 60 * 60 * 1000);
     return invoice >= bufferedStart && invoice <= bufferedEnd;
   }
 
-  async listTicketAttachments(ticketId: string): Promise<ReTicketAttachment[]> {
-    return await this.ticketAttachmentsRepo.find({ where: { ticketId }, order: { createdAt: 'DESC' } });
-  }
-
   async closePeriod(params: {
+    tenantId: string;
     treatyId: string;
     periodEnd: string;
     notes?: string | null;
@@ -1078,13 +1265,17 @@ export class ReinsuranceService {
     cessionsClosed: number;
     statementsCreated: number;
   }> {
+    const tenantId = (params.tenantId || '').trim();
+    if (!tenantId) {
+      throw new BadRequestException({ success: false, error: { code: 'VALIDATION_ERROR', message: 'tenantId is required' } });
+    }
+
     return await this.dataSource.transaction(async (manager) => {
       const treatyRepo = manager.getRepository(ReTreaty);
       const cessionRepo = manager.getRepository(ReCession);
       const statementRepo = manager.getRepository(ReStatement);
-      const outboxPublisher = new OutboxPublisher(manager);
 
-      const treaty = await treatyRepo.findOne({ where: { treatyId: params.treatyId } });
+      const treaty = await treatyRepo.findOne({ where: { tenantId, treatyId: params.treatyId } });
       if (!treaty) {
         throw new Error('Treaty not found');
       }
@@ -1094,83 +1285,84 @@ export class ReinsuranceService {
         throw new Error('Invalid periodEnd date');
       }
 
-      // Find all open cessions for this treaty up to the period end date
+      const periodStartDate = new Date(periodEndDate.getFullYear(), periodEndDate.getMonth(), 1);
+      const periodStartStr = periodStartDate.toISOString().split('T')[0];
+
       const cessions = await cessionRepo.find({
         where: {
+          tenantId,
           treatyId: params.treatyId,
           status: 'approved' as ReCessionStatus,
         },
       });
 
-      let cessionsClosed = 0;
-      let statementsCreated = 0;
+      const applicableCessions = cessions.filter((c) => c.createdAt <= periodEndDate);
 
-      for (const cession of cessions) {
-        // Check if cession is within the period
-        if (cession.createdAt <= periodEndDate) {
-          // Create a statement for this cession if not already exists
-          const existingStatement = await statementRepo.findOne({
-            where: {
-              treatyId: params.treatyId,
-              periodEnd: params.periodEnd,
-            },
-          });
+      if (applicableCessions.length === 0) {
+        return {
+          treatyId: params.treatyId,
+          periodEnd: params.periodEnd,
+          closedAt: new Date().toISOString(),
+          cessionsClosed: 0,
+          statementsCreated: 0,
+        };
+      }
 
-          if (!existingStatement) {
-            // Calculate totals for the period
-            const totals = {
-              totalCessions: 1,
-              totalCededAmount: cession.cededAmount || '0',
-              totalPremium: cession.premium || '0',
-            };
+      let existingStatement = await statementRepo.findOne({
+        where: {
+          tenantId,
+          treatyId: params.treatyId,
+          periodEnd: params.periodEnd,
+        },
+      });
 
-            const statement = statementRepo.create({
-              statementId: uuidv4(),
-              treatyId: params.treatyId,
-              statementType: 'period_close' as any,
-              periodStart: new Date(new Date(params.periodEnd).setDate(1)).toISOString().split('T')[0],
-              periodEnd: params.periodEnd,
-              totals,
-              status: 'finalized' as ReStatementStatus,
-              createdBy: params.actorUserId,
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            });
-            await statementRepo.save(statement);
-            statementsCreated++;
+      if (!existingStatement) {
+        const totalCessions = applicableCessions.length;
+        const totalCededAmount = applicableCessions.reduce((sum, c) => sum + this.n(c.cededAmount), 0);
+        const totalPremium = applicableCessions.reduce((sum, c) => sum + this.n(c.premium), 0);
 
-            // Publish period close event
-            await outboxPublisher.publish({
-              topic: 'insurance.reinsurance.period_closed',
-              eventType: 'ReinsurancePeriodClosed',
-              eventVersion: 1,
-              correlationId: params.correlationId || uuidv4(),
-              subject: {
-                treatyId: params.treatyId,
-                statementId: statement.statementId,
-              },
-              payload: {
-                treatyId: params.treatyId,
-                statementId: statement.statementId,
-                periodEnd: params.periodEnd,
-                totals,
-                closedBy: params.actorUserId,
-                closedAt: new Date().toISOString(),
-                notes: params.notes,
-              },
-            });
-          }
+        const totals = {
+          totalCessions,
+          totalCededAmount: totalCededAmount.toFixed(2),
+          totalPremium: totalPremium.toFixed(2),
+        };
 
-          cessionsClosed++;
-        }
+        existingStatement = statementRepo.create({
+          statementId: uuidv4(),
+          tenantId,
+          treatyId: params.treatyId,
+          statementType: 'period_close' as any,
+          periodStart: periodStartStr,
+          periodEnd: params.periodEnd,
+          totals,
+          status: 'finalized' as ReStatementStatus,
+          createdBy: params.actorUserId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        await statementRepo.save(existingStatement);
+
+        await this.publishPeriodClosed({
+          correlationId: params.correlationId || uuidv4(),
+          statement: existingStatement,
+          treaty,
+          actorUserId: params.actorUserId,
+          notes: params.notes,
+        });
+      }
+
+      for (const cession of applicableCessions) {
+        cession.status = 'settled';
+        cession.updatedAt = new Date();
+        await cessionRepo.save(cession);
       }
 
       return {
         treatyId: params.treatyId,
         periodEnd: params.periodEnd,
         closedAt: new Date().toISOString(),
-        cessionsClosed,
-        statementsCreated,
+        cessionsClosed: applicableCessions.length,
+        statementsCreated: 1,
       };
     });
   }

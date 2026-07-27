@@ -3,6 +3,9 @@ import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 @Entity('rm_claim_payment')
 @Index(['updatedAt'])
 export class RmClaimPayment {
+  @Column({ type: 'uuid', name: 'tenant_id', nullable: true })
+  tenantId?: string | null;
+
   @PrimaryColumn({ name: 'claim_id', type: 'uuid' })
   claimId!: string;
 

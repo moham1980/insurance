@@ -86,9 +86,9 @@ export class RuleEngineService {
     });
   }
 
-  async activateRule(id: string): Promise<Rule> {
+  async activateRule(tenantId: string, id: string): Promise<Rule> {
     return await this.dataSource.transaction(async (manager) => {
-      const rule = await manager.findOne(Rule, { where: { id } });
+      const rule = await manager.findOne(Rule, { where: { id, tenantId } });
       if (!rule) throw new Error('Rule not found');
       rule.status = RuleStatus.ACTIVE;
       rule.activatedAt = new Date();
@@ -111,9 +111,9 @@ export class RuleEngineService {
     });
   }
 
-  async deactivateRule(id: string): Promise<Rule> {
+  async deactivateRule(tenantId: string, id: string): Promise<Rule> {
     return await this.dataSource.transaction(async (manager) => {
-      const rule = await manager.findOne(Rule, { where: { id } });
+      const rule = await manager.findOne(Rule, { where: { id, tenantId } });
       if (!rule) throw new Error('Rule not found');
       rule.status = RuleStatus.INACTIVE;
       rule.deactivatedAt = new Date();
@@ -136,8 +136,8 @@ export class RuleEngineService {
     });
   }
 
-  async validateRule(ruleId: string): Promise<{ valid: boolean; errors: string[] }> {
-    const rule = await this.ruleRepo.findOne({ where: { id: ruleId } });
+  async validateRule(tenantId: string, ruleId: string): Promise<{ valid: boolean; errors: string[] }> {
+    const rule = await this.ruleRepo.findOne({ where: { id: ruleId, tenantId } });
     if (!rule) return { valid: false, errors: ['Rule not found'] };
 
     const errors: string[] = [];
@@ -185,16 +185,17 @@ export class RuleEngineService {
       order: { priority: 'DESC' },
     });
 
-    const output: Record<string, any> = { ...params.input };
+    const output: Record<string, any> = this.deepClone(params.input);
     const matchedRules: Array<{ ruleId: string; ruleName: string; priority: number; version: number }> = [];
     let error: { message: string; ruleId?: string } | null = null;
     let status = ExecutionStatus.SUCCESS;
     const executionDetails: any[] = [];
+    const sideEffects: { type: 'call' | 'emit'; topic: string; payload: any }[] = [];
 
     for (const rule of rules) {
       try {
         const conditionResult = this.evaluateCondition(rule.condition.expression, params.input);
-        
+
         executionDetails.push({
           ruleId: rule.id,
           ruleName: rule.name,
@@ -211,11 +212,16 @@ export class RuleEngineService {
           });
 
           if (rule.action && !params.dryRun) {
-            this.applyAction(rule.action, output, params.input);
+            this.applyAction(rule.action, output, params.input, sideEffects);
           }
 
-          // For condition rules, stop after first match (highest priority)
-          if (rule.type === RuleType.CONDITION) {
+          // CONDITION and VALIDATION rules stop after the first match by default.
+          // CALCULATION rules may chain unless the action explicitly requests a stop.
+          if (
+            rule.type === RuleType.CONDITION ||
+            rule.type === RuleType.VALIDATION ||
+            rule.action?.stopAfterFirstMatch === true
+          ) {
             break;
           }
         }
@@ -252,7 +258,7 @@ export class RuleEngineService {
           eventType: 'RuleEvaluated',
           eventVersion: 1,
           correlationId: uuidv4(),
-          subject: { ruleSetKey: params.ruleSetKey, businessKey: params.businessKey || undefined },
+          subject: { ruleSetKey: params.ruleSetKey, businessKey: params.businessKey || '' },
           payload: {
             executionId: saved.id,
             ruleSetKey: params.ruleSetKey,
@@ -263,6 +269,16 @@ export class RuleEngineService {
             executionTimeMs,
           },
         });
+        for (const sideEffect of sideEffects) {
+          await outbox.publish({
+            topic: sideEffect.topic,
+            eventType: sideEffect.type === 'emit' ? 'RuleEmitted' : 'RuleCalled',
+            eventVersion: 1,
+            correlationId: uuidv4(),
+            subject: { ruleSetKey: params.ruleSetKey, businessKey: params.businessKey || '' },
+            payload: sideEffect.payload,
+          });
+        }
       }
       return saved;
     });
@@ -392,7 +408,7 @@ export class RuleEngineService {
       case 'contains': return typeof varValue === 'string' && varValue.includes(value);
       case 'startsWith': return typeof varValue === 'string' && varValue.startsWith(value);
       case 'endsWith': return typeof varValue === 'string' && varValue.endsWith(value);
-      case 'matches': return typeof varValue === 'string' && new RegExp(value).test(varValue);
+      case 'matches': return typeof varValue === 'string' && this.safeRegexTest(value, varValue);
       default: return false;
     }
   }
@@ -406,7 +422,7 @@ export class RuleEngineService {
       case 'endsWith':
         return typeof args[0] === 'string' && args[0].endsWith(args[1]);
       case 'matches':
-        return typeof args[0] === 'string' && new RegExp(args[1]).test(args[0]);
+        return typeof args[0] === 'string' && this.safeRegexTest(args[1], args[0]);
       case 'in':
         return Array.isArray(args[1]) && args[1].includes(args[0]);
       case 'between':
@@ -492,7 +508,12 @@ export class RuleEngineService {
     return Array.from(variables);
   }
 
-  private applyAction(action: any, output: Record<string, any>, input: Record<string, any>): void {
+  private applyAction(
+    action: any,
+    output: Record<string, any>,
+    input: Record<string, any>,
+    sideEffects: { type: 'call' | 'emit'; topic: string; payload: any }[],
+  ): void {
     switch (action.type) {
       case 'return':
         if (action.value !== undefined) {
@@ -529,9 +550,23 @@ export class RuleEngineService {
         break;
       case 'call':
         this.logger.log(`Action call: ${action.service}.${action.method}`, action.params);
+        sideEffects.push({
+          type: 'call',
+          topic: `insurance.rule_engine.action.called`,
+          payload: {
+            service: action.service,
+            method: action.method,
+            params: action.params,
+          },
+        });
         break;
       case 'emit':
         this.logger.log(`Emit event: ${action.event}`, action.payload);
+        sideEffects.push({
+          type: 'emit',
+          topic: action.event,
+          payload: action.payload,
+        });
         break;
       case 'log':
         this.logger.log(`Rule action log: ${action.message}`);
@@ -550,6 +585,28 @@ export class RuleEngineService {
     const lastKey = keys.pop()!;
     const target = keys.reduce((o, p) => o[p] = o[p] || {}, obj);
     target[lastKey] = value;
+  }
+
+  private deepClone<T>(value: T): T {
+    return JSON.parse(JSON.stringify(value));
+  }
+
+  private safeRegexTest(pattern: string, value: string): boolean {
+    const MAX_PATTERN_LENGTH = 200;
+    if (!pattern || pattern.length > MAX_PATTERN_LENGTH) {
+      throw new Error(`Regex pattern too long or empty (max ${MAX_PATTERN_LENGTH} chars)`);
+    }
+    // Reject patterns with excessive nested quantifiers that are typical ReDoS signatures
+    const dangerous = /(\([^)]*\)[*+?]){2,}|([*+?]){3,}|\([^)]*\)\*\+|\([^)]*\)\+\*/;
+    if (dangerous.test(pattern)) {
+      throw new Error('Regex pattern contains potentially catastrophic constructs');
+    }
+    try {
+      const re = new RegExp(pattern);
+      return re.test(value);
+    } catch (e: any) {
+      throw new Error(`Invalid regex pattern: ${e.message}`);
+    }
   }
 
   async listRules(params: {
@@ -587,22 +644,26 @@ export class RuleEngineService {
     return { items, total };
   }
 
-  async getRule(id: string): Promise<Rule | null> {
-    return this.ruleRepo.findOne({ where: { id } });
+  async getRule(tenantId: string, id: string): Promise<Rule | null> {
+    return this.ruleRepo.findOne({ where: { id, tenantId } });
   }
 
-  async updateRule(id: string, patch: {
-    name?: string;
-    description?: string;
-    condition?: { expression: string; variables: string[] };
-    action?: any;
-    priority?: number;
-    status?: RuleStatus;
-    metadata?: Record<string, any>;
-    tags?: string[];
-  }): Promise<Rule | null> {
+  async updateRule(
+    tenantId: string,
+    id: string,
+    patch: {
+      name?: string;
+      description?: string;
+      condition?: { expression: string; variables: string[] };
+      action?: any;
+      priority?: number;
+      status?: RuleStatus;
+      metadata?: Record<string, any>;
+      tags?: string[];
+    },
+  ): Promise<Rule | null> {
     return await this.dataSource.transaction(async (manager) => {
-      const rule = await manager.findOne(Rule, { where: { id } });
+      const rule = await manager.findOne(Rule, { where: { id, tenantId } });
       if (!rule) return null;
 
       if (patch.name) rule.name = patch.name;
@@ -619,9 +680,9 @@ export class RuleEngineService {
     });
   }
 
-  async deleteRule(id: string): Promise<boolean> {
+  async deleteRule(tenantId: string, id: string): Promise<boolean> {
     return await this.dataSource.transaction(async (manager) => {
-      const result = await manager.delete(Rule, { id });
+      const result = await manager.delete(Rule, { id, tenantId });
       return (result.affected ?? 0) > 0;
     });
   }
@@ -656,8 +717,8 @@ export class RuleEngineService {
     return { items, total };
   }
 
-  async getExecution(id: string): Promise<RuleExecution | null> {
-    return this.executionRepo.findOne({ where: { id } });
+  async getExecution(tenantId: string, id: string): Promise<RuleExecution | null> {
+    return this.executionRepo.findOne({ where: { id, tenantId } });
   }
 
   async getExecutionMetrics(params: {
@@ -774,7 +835,9 @@ export class RuleEngineService {
     priority?: number;
   }): Promise<Rule> {
     return await this.dataSource.transaction(async (manager) => {
-      const template = await manager.findOne(RuleTemplate, { where: { id: params.templateId } });
+      const template = await manager.findOne(RuleTemplate, {
+        where: { id: params.templateId, tenantId: params.tenantId },
+      });
       if (!template) throw new Error('Template not found');
 
       let conditionExpression = template.conditionTemplate;

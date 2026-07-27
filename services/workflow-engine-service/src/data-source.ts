@@ -5,6 +5,7 @@ import { ProcessInstance } from './entities/process-instance.entity';
 import { ProcessToken } from './entities/process-token.entity';
 import { ProcessVariable } from './entities/process-variable.entity';
 import { ProcessHistory } from './entities/process-history.entity';
+import { ProcessTimer } from './entities/process-timer.entity';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -14,6 +15,6 @@ export const AppDataSource = new DataSource({
   password: process.env.DB_PASSWORD || 'postgres',
   database: process.env.DB_DATABASE || process.env.DB_NAME || 'postgres',
   schema: process.env.DB_SCHEMA || 'workflow',
-  entities: [ProcessDefinition, ProcessInstance, ProcessToken, ProcessVariable, ProcessHistory],
+  entities: [ProcessDefinition, ProcessInstance, ProcessToken, ProcessVariable, ProcessHistory, ProcessTimer],
   migrations: [__dirname + '/migrations/*.{js,ts}'],
 });

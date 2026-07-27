@@ -4,6 +4,9 @@ import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 @Index(['updatedAt'])
 @Index(['lastAttachedAt'])
 export class RmClaimDocumentsAttached {
+  @Column({ type: 'uuid', name: 'tenant_id', nullable: true })
+  tenantId?: string | null;
+
   @PrimaryColumn({ name: 'claim_id', type: 'text' })
   claimId: string;
 

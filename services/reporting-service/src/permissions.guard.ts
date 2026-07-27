@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { permissionsForRoles, type PermissionKey } from './permissions';
 import { REQUIRE_PERMISSIONS_KEY } from './permissions.decorator';
@@ -20,6 +20,14 @@ export class PermissionsGuard implements CanActivate {
     const roles = user?.roles as string[] | undefined;
     const perms = permissionsForRoles(roles);
 
-    return required.every((p) => perms.includes(p));
+    const missing = required.filter((p) => !perms.includes(p));
+    if (missing.length > 0) {
+      throw new ForbiddenException({
+        success: false,
+        error: { code: 'FORBIDDEN', message: `Missing permissions: ${missing.join(', ')}` },
+      });
+    }
+
+    return true;
   }
 }

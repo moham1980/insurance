@@ -28,14 +28,41 @@
 
 ## ۳. مدل دامنه و داده
 
+### ۳.۰ انواع پایه و invariants
+
+```typescript
+// Money هرگز با float نگهداری نمی‌شود؛ amount بر حسب minor unit است.
+interface Money {
+  amountMinor: string; // decimal string برای جلوگیری از overflow و خطای اعشاری
+  currency: string;    // ISO 4217 یا کد مصوب داخلی؛ IRR و IRT جدا و explicit
+}
+
+interface IdempotencyRecord {
+  tenantId: string;
+  idempotencyKey: string;
+  operation: string;
+  requestHash: string;
+  responseRef?: string;
+  expiresAt: Date;
+}
+```
+
+Invariants اجباری:
+
+- `Money.currency` در هر تراکنش و journal یکسان یا با FX snapshot معتبر باشد.
+- `amountMinor` با decimal arithmetic محاسبه شود، نه JavaScript/SQL floating point.
+- شناسه‌های خارجی در کنار `sourceSystemId` و `externalId` نگهداری و unique scoped شوند.
+- هر command تراکنشی idempotency key داشته باشد.
+- هر status transition با actor، reason، timestamp و optimistic version ثبت شود.
+
 ### ۳.۱ Organization و قابلیت‌های سازمانی
 
 ```typescript
 // Organization (شخصیت حقوقی و تجاری)
 interface Organization {
-  organizationId: string;       // UUID یا کد ملی/ثبت‌شده
+  organizationId: string;       // شناسه canonical داخلی؛ شناسه ملی/ثبت‌شده در legal identifiers نگهداری می‌شود
   legalType: 'person' | 'company' | 'government';
-  nationalId?: string;          // کد ملی/شناسه ملی
+  nationalIdBlindIndex?: string; // مقدار خام در PII store، نه در این رکورد
   regulatoryCode?: string;      // کد بیمه مرکزی/سنهاب
   country: string;
   status: 'active' | 'suspended' | 'revoked';
@@ -50,7 +77,7 @@ interface OrganizationCapability {
   tenantId: string;
   capability: 'CARRIER' | 'BROKER' | 'MGA' | 'AGENCY' | 'AGGREGATOR' | 'LOSS_ADJUSTER' | 'SERVICE_PROVIDER';
   scope: string[];             // رشته‌های مجاز
-  bindingAuthorityLimit?: Money;
+  bindingAuthorityProfileId?: string; // مرجع profile صلاحیت؛ سقف‌ها در قرارداد توزیع تعیین می‌شوند
   effectiveFrom: Date;
   effectiveTo?: Date;
   status: 'active' | 'suspended';
@@ -61,11 +88,26 @@ interface OrganizationRelationship {
   relationshipId: string;
   sourceOrganizationId: string;    // مثلاً بیمه‌گر
   targetOrganizationId: string;    // مثلاً کارگزار
-  relationshipType: 'carrier_broker' | 'mga_carrier' | 'agency_carrier' | 'sub_agent' | 'referrer';
+  relationshipType: 'carrier_broker' | 'mga_carrier' | 'agency_carrier' | 'referrer' | 'service_provider';
   distributionAgreementId?: string;
   validFrom: Date;
   validTo?: Date;
-  status: 'active' | 'expired' | 'terminated';
+  status: 'draft' | 'active' | 'suspended' | 'expired' | 'terminated';
+}
+
+// رابطه افراد با سازمان و شبکه فروش؛ برای sub-agent و marketer از این مدل استفاده می‌شود
+interface SalesNetworkMembership {
+  membershipId: string;
+  organizationId: string;
+  tenantId: string;
+  partyId: string;
+  parentPartyId?: string;
+  roleType: 'AGENT' | 'SUB_AGENT' | 'MARKETER' | 'BROKER_STAFF' | 'ADJUSTER';
+  carrierOrganizationId?: string;
+  scope: string[];
+  validFrom: Date;
+  validTo?: Date;
+  status: 'pending' | 'active' | 'suspended' | 'terminated';
 }
 ```
 
@@ -134,9 +176,19 @@ interface PartyRoleAssignment {
 // هویت جهانی برای تجربه مشتری واحد
 interface GlobalSubject {
   globalSubjectId: string;
-  primaryIdentifiers: Identifier[];
-  iamSubjectId?: string;        // sub در iam-service
-  consentRecords: ConsentRecord[];
+  iamSubjectId: string;          // sub پایدار از iam-service؛ منبع هویت، نه کپی اطلاعات PII
+  assuranceLevel: 'low' | 'substantial' | 'high';
+  status: 'active' | 'suspended' | 'deleted';
+}
+
+interface IdentityIdentifier {
+  identifierId: string;
+  globalSubjectId: string;
+  type: 'MOBILE' | 'NATIONAL_ID' | 'EMAIL' | 'EXTERNAL_SUBJECT';
+  blindIndex: string;
+  encryptedValueRef?: string;    // مقدار خام فقط در PII store/KMS
+  verifiedAt?: Date;
+  status: 'active' | 'revoked';
 }
 
 interface IdentityLink {
@@ -240,9 +292,9 @@ interface BrokerProductOffering {
 ```typescript
 interface Submission {
   submissionId: string;
-  customerPartyId: string;
+  tenantId: string;
   brokerOrganizationId: string;
-  brokerTenantId: string;
+  customerPartyId: string;
   lineOfBusiness: string;
   exposure: Record<string, any>;
   requestedCoverages: CoverageRequest[];
@@ -254,22 +306,34 @@ interface Submission {
 
 interface QuoteRequest {
   quoteRequestId: string;
+  tenantId: string;
   submissionId: string;
+  distributionAgreementId: string;
+  agreementVersion: number;
   carrierOrganizationId: string;
   productId: string;
+  connectorType: 'internal' | 'rest' | 'soap' | 'kafka' | 'manual';
+  connectorRequestId?: string;
   requestPayload: Record<string, any>;
-  sentAt: Date;
+  idempotencyKey: string;
+  attempt: number;
+  sentAt?: Date;
   slaDeadline: Date;
-  status: 'pending' | 'received' | 'timeout' | 'error';
+  status: 'pending' | 'sent' | 'received' | 'timeout' | 'error' | 'cancelled';
 }
 
 interface QuoteResponse {
   quoteResponseId: string;
+  tenantId: string;
   quoteRequestId: string;
+  receivedAt: Date;
   carrierOrganizationId: string;
   productId: string;
   productVersion: number;
   rateTableVersion: string;
+  agreementVersion: number;
+  sourceSystemId: string;
+  sourceQuoteId?: string;
   premium: Money;
   taxes: Money;
   fees: FeeLine[];
@@ -284,6 +348,9 @@ interface QuoteResponse {
 
 interface Placement {
   placementId: string;
+  tenantId: string;                 // tenant کارگزار تا لحظه bind
+  distributionAgreementId: string;
+  agreementVersion: number;
   submissionId: string;
   selectedQuoteResponseId: string;
   carrierOrganizationId: string;
@@ -302,14 +369,18 @@ interface Policy {
   policyId: string;
   policyNumber: string;
   uniqueCode?: string;              // کد یکتا سنهاب
-  operatingTenantId: string;          // tenant صاحب رکورد
-  issuerOrganizationId: string;       // بیمه‌گر صادرکننده
-  issuerTenantId?: string;          // در federation الزامی
-  distributionOrganizationId: string; // کارگزار/آژانس/قنال
+  tenantId: string;                 // مرز مالکیت داده و امنیت؛ هرگز با issuer یا channel جایگزین نمی‌شود
+  recordOwnerOrganizationId: string;
+  issuerOrganizationId: string;     // بیمه‌گر صادرکننده
+  distributionOrganizationId: string; // کارگزار/آژانس/MGA
+  servicingOrganizationId?: string;
+  authoritativeTenantId: string;    // tenant صادرکننده در حالت federation؛ source of truth Policy
   producerPartyId?: string;         // نماینده/کارگزار فردی
   subAgentPartyId?: string;
   marketerPartyId?: string;
   salesChannelType: 'DIRECT' | 'BROKER' | 'AGENT' | 'MGA' | 'BANCASSURANCE' | 'ONLINE' | 'OFFLINE';
+  sourceSystemId: string;
+  externalPolicyId?: string;
   placementId?: string;
   customerPartyId: string;
   lineOfBusiness: string;
@@ -334,35 +405,68 @@ interface Policy {
 ```typescript
 interface CommissionSplit {
   splitId: string;
-  ledgerEntryId: string;
-  partyId: string;
+  journalEntryId: string;
+  partyId?: string;
   organizationId: string;
   role: 'CARRIER' | 'BROKER' | 'AGENT' | 'SUB_AGENT' | 'MARKETER';
   base: 'premium_gross' | 'premium_net';
   shareBps: number;
   amount: Money;
-  status: 'accrued' | 'paid' | 'clawback';
+  effectiveFrom: Date;
+  status: 'accrued' | 'paid' | 'clawback' | 'voided';
+}
+
+interface LedgerAccount {
+  accountId: string;
+  tenantId: string;
+  organizationId: string;
+  code: string;
+  type: 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE' | 'CONTROL';
+  currency: string;
+  status: 'active' | 'closed';
+}
+
+interface JournalEntry {
+  journalEntryId: string;
+  tenantId: string;
+  organizationId: string;
+  sourceType: 'POLICY' | 'PAYMENT' | 'REFUND' | 'COMMISSION' | 'SETTLEMENT' | 'CLAWBACK';
+  sourceId: string;
+  idempotencyKey: string;
+  postingDate: Date;
+  periodId: string;
+  status: 'posted' | 'reversed';
+  lines: JournalLine[];
+}
+
+interface JournalLine {
+  journalLineId: string;
+  journalEntryId: string;
+  accountId: string;
+  debit: Money;
+  credit: Money;
+  dimensions: Record<string, string>; // carrier, broker, product, policy, branch
 }
 
 interface Payable {
   payableId: string;
-  debtorOrganizationId: string;     // مثلاً کارگزار
-  creditorOrganizationId: string;   // مثلاً بیمه‌گر
+  debtorOrganizationId: string;
+  creditorOrganizationId: string;
   relatedPolicyId?: string;
   type: 'PREMIUM' | 'TAX' | 'LEVY' | 'FEE';
   amount: Money;
   dueDate: Date;
-  status: 'open' | 'paid' | 'overdue' | 'written_off';
+  status: 'open' | 'paid' | 'overdue' | 'written_off' | 'disputed';
 }
 
 interface Receivable {
   receivableId: string;
-  creditorOrganizationId: string;   // طلبکار
-  debtorOrganizationId: string;     // بدهکار
+  creditorOrganizationId: string;
+  debtorOrganizationId: string;
   type: 'COMMISSION' | 'BONUS' | 'SERVICE_FEE' | 'REFUND';
   amount: Money;
   dueDate: Date;
-  status: 'open' | 'paid' | 'clawback' | 'written_off';
+  status: 'open' | 'paid' | 'clawback' | 'written_off' | 'disputed';
 }
 
 interface SettlementBatch {
@@ -374,8 +478,11 @@ interface SettlementBatch {
   totalPremium: Money;
   totalCommission: Money;
   netSettlement: Money;
-  status: 'draft' | 'confirmed' | 'paid' | 'reconciled';
+  reconciliationHash: string;
+  status: 'draft' | 'confirmed' | 'paid' | 'reconciled' | 'disputed';
 }
+
+// اصل حسابداری: مجموع debit و credit هر JournalEntry باید برابر باشد.
 ```
 
 ### ۳.۱۰ خسارت (Claims)
@@ -383,6 +490,7 @@ interface SettlementBatch {
 ```typescript
 interface Claim {
   claimId: string;
+  tenantId: string;
   policyId: string;
   customerPartyId: string;
   brokerOrganizationId?: string;
@@ -398,6 +506,7 @@ interface Claim {
 
 interface ClaimAdvocacyCase {
   caseId: string;
+  tenantId: string;
   claimId: string;
   brokerOrganizationId: string;
   customerPartyId: string;
@@ -439,7 +548,8 @@ V1800000014__create_audit_log.sql
 | QuoteResponse | بیمه‌گر | کارگزار projection خواندنی | snapshot immutable |
 | Placement | کارگزار | بیمه‌گر موافقت صدور | binding authority مشخص |
 | Policy authoritative | بیمه‌گر | کارگزار projection با policyNumber و uniqueCode | منبع حقیقت اصلی بیمه‌گر است |
-| Policy projection | کارگزار | — | مرجع اصلی بیمه‌گر |
+| Policy projection | کارگزار | — | رکورد read-only با `sourceSystemId`, `sourceVersion`, `receivedAt` |
+| Placement authoritative | کارگزار تا مرحله bind؛ پس از issue، رابطه با policy بیمه‌گر immutable می‌شود | بیمه‌گر فقط bind/issue result | هر دو طرف reconciliation دارند |
 | Customer Party | سازمانی که رابطه KYC را دارد | با Identity Link و consent | party در هر tenant جدا است |
 | Claim decision | بیمه‌گر | کارگزار advocacy case | کارگزار نمی‌تواند مبلغ نهایی را عوض کند |
 | Commission / Settlement | هر سازمان دفتر خود را دارد | reconciliation statement مشترک | Double-entry در هر طرف |
@@ -459,7 +569,7 @@ V1800000014__create_audit_log.sql
 | `underwriting-service` | Risk appetite و ارجاع | محدود کردن appetite به `carrierId` و `distributionAgreementId`؛ قوانین referral per agreement |
 | `claims-service` | خسارت | افزودن `ClaimAdvocacyCase`؛ لینک به ارزیاب خسارت از طریق workflow؛ فیلدهای broker |
 | `billing-service` | صورت‌حساب و double-entry ledger | افزودن sub-ledgerهای `ClientMoney`, `PremiumPayable`, `CommissionReceivable`, `Clawback` |
-| `payments-service` | پرداخت | استفاده از `EcosystemPaymentController` بانک (port 8085) با rail selection و escrow accounts (1000000003 insurance) |
+| `payments-service` | پرداخت | استفاده از `EcosystemPaymentController` بانک (port 8085) با rail selection؛ حساب clearing/escrow از طریق `accountRef` محیطی resolve می‌شود و شماره حساب در کد/سند hardcode نمی‌شود |
 | `collections-service` | اقساط و مطالبات | پشتیبانی از اقساط کارگزار/بیمه‌گر و تقسیم درآمد |
 | `regulatory-gateway-service` | سنهاب، بیمه مرکزی | پیاده‌سازی `RealSanhabClient`؛ اعتبارسنجی مجوز کارگزار؛ گزارش per issuer + broker |
 | `notification-service` | اطلاع‌رسانی | قالب white-label per brand؛ sender credential ref به Vault |
@@ -467,8 +577,8 @@ V1800000014__create_audit_log.sql
 | `workflow-service` / `orchestrator-service` | گردش کار | workflowهای multi-party شامل RFQ-to-bind، broker endorsement، broker claim advocacy |
 | `api-gateway` | مسیریابی و BFF | resolve tenant از Host/audience claim؛ تزریق signed context؛ rate limit per partner |
 | `reporting-service` | گزارش‌دهی | reports per organization/tenant؛ TCoR؛ commission reconciliation |
-| `customer-360-service` | دید ۳۶۰ درجه مشتری | aggregation با consent؛ نشان دادن پورتفو across carriers |
-| `copilot-service` / `knowledge-service` | AI | Next Best Action، comparison recommendation، OCR؛ فراخوani از `ecosystem-ai-gateway` (port 8540) |
+| `customer-360-service` | دید ۳۶۰ درجه مشتری | aggregation با consent؛ نشان دادن پورتفو across carriers؛ بدون تبدیل projection به source of truth |
+| `copilot-service` / `knowledge-service` | AI | Next Best Action، comparison recommendation، OCR؛ فراخوانی از `ecosystem-ai-gateway` (port 8540) |
 | `model-switchboard-service` / `ai-governance-service` | مدل و حاکمیت | مدل چندtenant؛ explainability؛ rate limiting per tenant |
 | `fraud-service` / `aml-service` | تقلب/AML | ruleها per agreement و per carrier |
 
@@ -590,14 +700,38 @@ Settlement batch created periodically
 - Policy authoritative در insurer ایجاد می‌شود و projection به broker ارسال می‌شود.
 - Claim در broker ثبت ولی تصمیم نهایی در insurer است.
 
+### ۷.۳ احراز هویت سرویس‌به‌سرویس
+
+توکن مشتری که برای API کارگزار صادر شده، نباید مستقیماً برای API بیمه‌گر ارسال شود. جریان امن به این صورت است:
+
+```text
+Customer JWT (aud = broker-bff)
+       ↓
+Broker BFF authorizes customer and creates a scoped service request
+       ↓
+OAuth2 Client Credentials or RFC 8693 Token Exchange
+       ↓
+Insurer token:
+  aud = insurer-partner-api
+  sub = broker-service-client
+  act = original customer subject (audited)
+  agreementId = active distribution agreement
+  scopes = policy:projection:read / quote:submit
+       ↓
+Insurer validates issuer, audience, certificate, agreement and field ACL
+```
+
+در federation باید از service token محدود، mTLS، certificate rotation، signed request، replay protection و partner-specific scopes استفاده شود. `x-tenant-context` فقط header داخلی امضاشده gateway است و هرگز جایگزین authorization مستقل downstream نیست.
+
 ## ۸. امنیت و انزوا (Security & Isolation)
 
 ### ۸.۱ اصول
 
 - `tenantId` و `organizationId` از token JWT با signature معتبر استخراج می‌شود.
 - `Host` یا `X-Tenant-Id` تنها برای resolve اولیه استفاده می‌شوند؛ اما در downstream اعتبارسنجی نمی‌شوند.
-- Downstream services فقط claim امضاشده `x-tenant-context` یا `x-organization-context` را می‌پذیرند.
-- هر کوئری پایگاه‌داده باید شامل `tenant_id` و `organization_id` باشد (row-level security).
+- Downstream services JWT را مستقل validate و authorize می‌کنند؛ context داخلی signed فقط برای propagation است و جایگزین authorization نمی‌شود.
+- هر query روی جدول tenant-scoped باید tenant filter و در صورت وجود organization scope داشته باشد؛ policyهای PostgreSQL RLS این invariant را در سطح دیتابیس enforce می‌کنند.
+- service accountها نیز باید tenant context محدود داشته باشند؛ bypass کردن RLS فقط برای migration با role جدا، زمان محدود و audit مجاز است.
 - ABAC: سیاست‌هایی مانند «کارگزار فقط بیمه‌نامه‌های توزیع‌کننده خود را ببیند».
 - SoD: صدور و تأیید تسویه توسط افراد متفاوت.
 - Audit log برای هر create/update/delete روی Policy, Claim, Payment, Commission, Agreement.
@@ -610,17 +744,19 @@ Settlement batch created periodically
 Customer logs into Broker Portal
        ↓
 Broker auth-service issues JWT with:
-  - sub = customer globalSubjectId
+  - sub = iamSubjectId
   - tenantId = broker_tenant
   - organizationId = BrokerCo
   - scope = customer:policies:view
-  - audience restricted to BrokerCo APIs
+  - audience = broker-bff
        ↓
-Broker requests Policy projection from InsurerA
+Broker BFF performs authorization and token exchange/service authentication
        ↓
-InsurerA validates token (or service-token) and ACL
+InsurerA receives partner-scoped token with agreementId and field ACL
        ↓
-InsurerA returns only allowed fields
+InsurerA returns only explicitly allowed projection fields
+       ↓
+Broker stores projection with sourceVersion and receivedAt
 ```
 
 ## ۹. تجربه مشتری (Frontend)
@@ -691,7 +827,7 @@ InsurerA returns only allowed fields
 |-------|------------|--------|
 | **IAM / SSO** | `iam-service` با JWKS endpoint و OIDC discovery | تمام سرویس‌ها با `jwks-rsa` یا JWKS client خود توکن را validate می‌کنند. insurance-portal و tabibemaher قبلاً در `SecurityConfig.java` ثبت شده‌اند. |
 | **سنهاب / بیمه مرکزی** | `regulatory-gateway-service` | `RealSanhabClient` واقعی با WSDL، گواهی، کلید؛ استعلام کد یکتا؛ گزارش per issuer+broker. |
-| **پرداخت بانکی** | `payment-service` EcosystemPaymentController port 8085 | `POST /api/v1/ecosystem/payments/initiate` با rails SATNA/PAYA/SHETAB، escrow account 1000000003، idempotency با `X-Idempotency-Key`. Insurance از `ECOSYSTEM` provider استفاده کند. |
+| **پرداخت بانکی** | `payment-service` EcosystemPaymentController port 8085 | `POST /api/v1/ecosystem/payments/initiate` با railهای SATNA/PAYA/SHETAB و idempotency با `X-Idempotency-Key`. Insurance از `ECOSYSTEM` provider استفاده کند؛ حساب clearing/escrow با `accountRef` محیطی مانند `insurance-premium-clearing` resolve شود و شماره حساب hardcode نشود. |
 | **SMS/OTP** | `notification-service` | Kavenegar برای فارسی/ایران، Twilio/SES برای بین‌المللی. sender credential در Vault. |
 | **AI/LLM** | `ecosystem-ai-gateway` port 8540 | endpoints `/consult`, `/rag-compat`, `/chat-compat`, `/workflows` برای Copilot، recommendation، OCR. Insurance از این gateway استفاده کند نه banking AI. |
 | **Kafka / Outbox** | `outbox-relay` + `ecosystem-common` Outbox | برای insurance، outbox-relay و DLQ قبلاً وجود دارد. ecosystem Spring Boot از `OutboxDispatcher` و `IdempotencyGuard` استفاده می‌کند. |
@@ -745,12 +881,90 @@ InsurerA returns only allowed fields
 ### ۱۲.۴ Migration
 
 - فازبندی مهاجرت بر اساس `Organization` جدید.
--zero-downtime: dual-write read-old then read-new.
-- Backfill `issuerOrganizationId` و `distributionOrganizationId` از روی `tenantId` و `producerOrgUnitId` موجود.
-- Reconciliation بعد از migration با مقایسه policy count و premium total.
-- Feature flag برای enable/disable broker capabilities.
+- **Zero-downtime migration**: expand schema، backfill، dual-read، dual-write کنترل‌شده، invariant validation، cutover، سپس حذف legacy؛ بدون rename مخرب `tenantId`.
+- Backfill `issuerOrganizationId` و `distributionOrganizationId` از روی `tenantId` و `producerOrgUnitId` موجود؛ رکوردهای مبهم در quarantine قرار گیرند و حدس زده نشوند.
+- Reconciliation با مقایسه policy count، premium total، status distribution، commission total و hash نمونه رکوردها.
+- Feature flag فقط برای rollout است و نباید جایگزین authorization شود.
+- هر migration دارای rollback plan، backup verification، dry-run و runbook باشد.
 
-## ۱۳. نقشه راه فازها (Vertical Slices)
+## ۱۳. قرارداد رویدادها و API
+
+تمام APIها و eventها باید در repository قراردادها versioned و قابل تست باشند؛ ادعای «Event-First» بدون contract قابل قبول نیست.
+
+### ۱۳.۱ Envelope اجباری رویداد
+
+```typescript
+interface DomainEventEnvelope<T> {
+  eventId: string;
+  eventType: string;
+  schemaVersion: number;
+  occurredAt: string;
+  producer: string;
+  tenantId: string;
+  organizationId: string;
+  correlationId: string;
+  causationId?: string;
+  idempotencyKey: string;
+  dataClassification: 'PUBLIC' | 'INTERNAL' | 'CONFIDENTIAL' | 'PII';
+  subject: { type: string; id: string };
+  data: T;
+}
+```
+
+### ۱۳.۲ رویدادهای اصلی
+
+```text
+SubmissionCreated.v1
+QuoteRequested.v1
+CarrierQuoteReceived.v1
+QuoteExpired.v1
+QuoteSelected.v1
+RiskReferred.v1
+BindRequested.v1
+BindConfirmed.v1
+PolicyIssued.v1
+PolicyProjected.v1
+PremiumCollected.v1
+CommissionAccrued.v1
+CommissionClawedBack.v1
+SettlementStatementIssued.v1
+SettlementReconciled.v1
+ClaimRegistered.v1
+ClaimDecisionReceived.v1
+ConsentGranted.v1
+ConsentRevoked.v1
+```
+
+برای هر event باید schema، owner، compatibility policy، retention، ACL، retry/DLQ، consumer contract و reconciliation procedure ثبت شود. انتشار باید با Outbox و مصرف با idempotency انجام شود.
+
+## ۱۴. کنترل‌های کسب‌وکار، افشا و رتبه‌بندی
+
+- ranking quote نباید فقط بر اساس کمیسیون باشد؛ premium، پوشش، exclusions، SLA، solvency/quality و نیاز مشتری باید قابل توضیح باشند.
+- هر recommendation باید `reasonCodes`، نسخه rule و timestamp داشته باشد.
+- recommendation و AI فقط تصمیم‌یار است؛ بدون policy decision، approval و audit انسانی حق bind/issue ندارد.
+- داده PII نباید به LLM/OCR provider ارسال شود مگر با consent، data minimization، provider allow-list و ثبت audit.
+- conflict of interest و commission disclosure قبل از انتخاب مشتری نمایش داده شود.
+- fee/markup فقط در صورت مجاز بودن طبق مقررات، قرارداد و approval workflow اعمال شود؛ در غیر این صورت به‌صورت `brokerServiceFee` مستقل و شفاف ثبت شود.
+- quote، rate table، product form و commission rule باید immutable version داشته باشند.
+- quote در زمان bind دوباره از نظر expiry، agreement، license، consent، payment authority و binding limit اعتبارسنجی شود.
+
+## ۱۵. معیارهای پذیرش نهایی
+
+| حوزه | معیار پذیرش |
+|------|-------------|
+| Isolation | کاربر/توکن/tenant نتواند داده tenant یا organization دیگر را بخواند یا تغییر دهد؛ با تست منفی واقعی اثبات شود |
+| Identity | یک customer بتواند با consent معتبر projection چند insurer را ببیند و revoke consent فوراً دسترسی آینده را قطع کند |
+| Quote | حداقل یک carrier داخلی، یک connector خارجی و یک مسیر manual با timeout، retry، snapshot و expiry کار کند |
+| Bind | bind/issue/payment/regulatory failureها Saga و compensating action قابل مشاهده داشته باشند |
+| Policy | policy authoritative فقط در insurer ثبت شود و projection idempotent، versioned و قابل reconciliation باشد |
+| Finance | هر تراکنش journal دوطرفه متوازن، immutable و idempotent تولید کند؛ refund و clawback پوشش داده شود |
+| Federation | token exchange یا service token، mTLS، scope، audience، replay protection و audit end-to-end تست شود |
+| Compliance | license، agreement، commission، consent و Sanhab status قبل از عملیات حساس کنترل شود |
+| Frontend | customer، broker/agent و insurer workspace با capability/permission صحیح و brand مستقل کار کنند |
+| Operations | metrics، trace، DLQ، consumer lag، projection freshness و settlement discrepancy alert داشته باشند |
+| Migration | dry-run، backup restore، reconciliation و rollback قبل از cutover موفق باشد |
+
+## ۱۶. نقشه راه فازها (Vertical Slices)
 
 | فاز | محور | خروجی |
 |-----|------|-------|
@@ -762,9 +976,9 @@ InsurerA returns only allowed fields
 | **P5 — Claims Advocacy** | ClaimAdvocacyCase؛ workflow با ارزیاب خسارت؛ projection | پیگیری خسارت توسط کارگزار |
 | **P6 — Regulatory & Reporting** | Sanhab واقعی؛ unique code؛ broker transaction report؛ TCoR/BI | انطباق و گزارش‌دهی |
 | **P7 — Experience & AI** | Channel Workspace؛ Customer Portal white-label؛ Copilot/NBA/OCR | تجربه مشتری و ارزش افزوده |
-| **P8 — Federation** | mTLS/OAuth2 cross-org؛ partner API gateway؛ signed events | استقرار مستقل اما یکپارچه |
+| **P8 — Federation** | mTLS/OAuth2 token exchange؛ partner API gateway؛ signed events؛ projection/reconciliation | استقرار مستقل اما یکپارچه؛ الزامات federation از P0 طراحی می‌شوند و در P8 عملیاتی می‌گردند |
 
-## ۱۴. ریسک‌ها و پیش‌فرض‌ها
+## ۱۷. ریسک‌ها و پیش‌فرض‌ها
 
 ### ریسک‌ها
 
@@ -781,8 +995,20 @@ InsurerA returns only allowed fields
 - Kafka برای event backbone موجود است.
 - Vault/KMS برای نگهداری credential در دسترس خواهد بود.
 - OpenTelemetry/Jaeger/Prometheus/Loki برای observability در دسترس است.
+- قوانین حقوقی، مالیاتی، کارمزد و retention توسط Compliance/Legal تأیید می‌شوند؛ مقادیر این سند جایگزین نظر حقوقی نیستند.
+- contract repository مرجع رسمی OpenAPI/AsyncAPI است و هر تغییر API/event با compatibility check و approval منتشر می‌شود.
 
-## ۱۵. فایل‌های کلیدی برای شروع
+### تصمیم‌های غیرقابل مذاکره پیش از کدنویسی
+
+1. تصویب مدل `Organization/Tenant/Party` و System-of-Record توسط Architecture Board.
+2. تصویب مدل حسابداری و chart of accounts توسط Finance/Accounting.
+3. تصویب DistributionAgreement، commission/fee و disclosure توسط Legal/Compliance.
+4. تعریف connector contract و یک carrier pilot واقعی.
+5. تصویب threat model، token exchange، mTLS و tenant isolation test plan.
+6. ثبت API/event contractها در repository رسمی و ساخت contract-test pipeline.
+7. تعیین owner، SLA، SLO و runbook برای هر bounded context.
+
+## ۱۸. فایل‌های کلیدی برای شروع
 
 - `services/auth-service/src/role-hierarchy.ts`
 - `services/auth-service/src/permissions.ts`

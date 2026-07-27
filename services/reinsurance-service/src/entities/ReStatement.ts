@@ -1,14 +1,17 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
-export type ReStatementStatus = 'draft' | 'issued' | 'settled' | 'canceled';
+export type ReStatementStatus = 'draft' | 'issued' | 'settled' | 'canceled' | 'finalized';
 
 @Entity('re_statements')
-@Index(['treatyId', 'createdAt'])
-@Index(['status', 'createdAt'])
-@Index(['periodStart', 'periodEnd'])
+@Index(['tenantId', 'treatyId', 'createdAt'])
+@Index(['tenantId', 'status', 'createdAt'])
+@Index(['tenantId', 'periodStart', 'periodEnd'])
 export class ReStatement {
   @PrimaryGeneratedColumn('uuid', { name: 'statement_id' })
   statementId!: string;
+
+  @Column({ name: 'tenant_id', type: 'text' })
+  tenantId!: string;
 
   @Column({ name: 'treaty_id', type: 'uuid' })
   treatyId!: string;

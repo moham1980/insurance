@@ -1,5 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
-import { ProcessInstance } from './process-instance.entity';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 
 @Entity('process_variables')
 export class ProcessVariable {
@@ -11,10 +10,6 @@ export class ProcessVariable {
 
   @Column()
   instanceId: string;
-
-  @ManyToOne(() => ProcessInstance, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'instance_id' })
-  instance: ProcessInstance;
 
   @Column()
   name: string;

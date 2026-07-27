@@ -1,5 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
-import { ProcessInstance } from './process-instance.entity';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index } from 'typeorm';
 
 export enum TimerStatus {
   PENDING = 'pending',
@@ -18,10 +17,6 @@ export class ProcessTimer {
   @Column()
   @Index()
   instanceId: string;
-
-  @ManyToOne(() => ProcessInstance, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'instance_id' })
-  instance: ProcessInstance;
 
   @Column()
   nodeId: string;

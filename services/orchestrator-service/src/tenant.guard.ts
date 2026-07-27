@@ -1,23 +1,31 @@
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+﻿import { CanActivate, ExecutionContext, Injectable, ForbiddenException } from '@nestjs/common';
 
 @Injectable()
 export class TenantGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const req = context.switchToHttp().getRequest();
     const user = req.user;
-    if (!user) return true; // If no user (e.g., public endpoint), allow
 
-    // Use tenantId from verified JWT payload
-    const userTenantId = user.tenantId;
-    if (!userTenantId) return true; // If user has no tenantId, allow (system-level user)
-
-    // If request has a tenantId header, verify it matches JWT
-    const headerTenantId = req.headers['x-tenant-id'] || req.headers['X-Tenant-Id'];
-    if (headerTenantId && headerTenantId !== userTenantId) {
-      return false; // Tenant mismatch - reject
+    if (!user) {
+      return true; // public / unguarded endpoint
     }
 
-    // Set tenantId on request for downstream use
+    const userTenantId = user.tenantId;
+    if (!userTenantId) {
+      throw new ForbiddenException({
+        success: false,
+        error: { code: 'FORBIDDEN', message: 'Authenticated principal must have a tenantId' },
+      });
+    }
+
+    const headerTenantId = req.headers['x-tenant-id'] || req.headers['X-Tenant-Id'];
+    if (headerTenantId && headerTenantId !== userTenantId) {
+      throw new ForbiddenException({
+        success: false,
+        error: { code: 'TENANT_MISMATCH', message: 'X-Tenant-Id header does not match the authenticated tenant' },
+      });
+    }
+
     req.tenantId = userTenantId;
     return true;
   }

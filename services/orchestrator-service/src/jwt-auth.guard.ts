@@ -6,7 +6,7 @@ import { JwksClient } from 'jwks-rsa';
 export class JwtAuthGuard implements CanActivate {
   private readonly logger = new Logger(JwtAuthGuard.name);
   private readonly jwtSecret: string;
-  private readonly jwksClient: JwksClient | null;
+  private readonly jwksClient: JwksClient;
   private readonly issuer: string;
   private readonly audience: string;
 

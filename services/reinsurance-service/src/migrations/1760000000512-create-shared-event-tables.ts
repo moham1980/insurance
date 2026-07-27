@@ -9,6 +9,7 @@ export class CreateSharedEventTables1760000000512 implements MigrationInterface 
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS outbox_events (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        tenant_id TEXT NOT NULL DEFAULT 'default',
         occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         topic TEXT NOT NULL,
         event_type TEXT NOT NULL,
@@ -22,12 +23,14 @@ export class CreateSharedEventTables1760000000512 implements MigrationInterface 
       );
     `);
 
+    await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_outbox_events_tenant_status ON outbox_events(tenant_id, status, occurred_at);`);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_outbox_events_status_occurred_at ON outbox_events(status, occurred_at);`);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_outbox_events_correlation_id ON outbox_events(correlation_id);`);
 
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS consumed_events (
         event_id UUID NOT NULL,
+        tenant_id TEXT NOT NULL DEFAULT 'default',
         consumer_name TEXT NOT NULL,
         consumed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         topic TEXT NOT NULL,
@@ -35,6 +38,7 @@ export class CreateSharedEventTables1760000000512 implements MigrationInterface 
       );
     `);
 
+    await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_consumed_events_tenant ON consumed_events(tenant_id);`);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_consumed_events_consumed_at ON consumed_events(consumed_at);`);
 
     await queryRunner.query(`

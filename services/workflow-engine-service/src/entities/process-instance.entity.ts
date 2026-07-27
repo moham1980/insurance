@@ -1,8 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, OneToMany, JoinColumn, Unique, Index } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, Unique, Index } from 'typeorm';
 import { ProcessDefinition } from './process-definition.entity';
-import { ProcessToken } from './process-token.entity';
-import { ProcessVariable } from './process-variable.entity';
-import { ProcessHistory } from './process-history.entity';
 
 export enum ProcessInstanceStatus {
   RUNNING = 'running',
@@ -77,12 +74,4 @@ export class ProcessInstance {
   @Column({ type: 'jsonb', nullable: true })
   metadata: Record<string, any>;
 
-  @OneToMany(() => ProcessToken, token => token.instance, { cascade: true })
-  tokens: ProcessToken[];
-
-  @OneToMany(() => ProcessVariable, variable => variable.instance, { cascade: true })
-  variables: ProcessVariable[];
-
-  @OneToMany(() => ProcessHistory, history => history.instance, { cascade: true })
-  history: ProcessHistory[];
 }

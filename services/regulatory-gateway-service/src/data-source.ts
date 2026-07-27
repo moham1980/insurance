@@ -12,6 +12,9 @@ export const AppDataSource = new DataSource({
   password: process.env.DB_PASSWORD || 'postgres',
   database: process.env.DB_DATABASE || process.env.DB_NAME || 'postgres',
   schema: process.env.DB_SCHEMA || 'regulatory',
+  extra: {
+    options: `-c search_path=${process.env.DB_SCHEMA || 'regulatory'},public`,
+  },
   entities: [SanhabEvent, RegulatoryFailureLog, SanhabSmsInquiry],
   migrations: [__dirname + '/migrations/*.{js,ts}'],
 });

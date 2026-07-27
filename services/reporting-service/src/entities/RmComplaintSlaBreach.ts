@@ -8,6 +8,9 @@ import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 @Index(['claimId'])
 @Index(['policyId'])
 export class RmComplaintSlaBreach {
+  @Column({ type: 'uuid', name: 'tenant_id', nullable: true })
+  tenantId?: string | null;
+
   @PrimaryColumn({ name: 'event_id', type: 'text' })
   eventId!: string;
 

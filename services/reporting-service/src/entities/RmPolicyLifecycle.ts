@@ -3,6 +3,9 @@ import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 @Entity('rm_policy_lifecycle')
 @Index(['updatedAt'])
 export class RmPolicyLifecycle {
+  @Column({ type: 'uuid', name: 'tenant_id', nullable: true })
+  tenantId?: string | null;
+
   @PrimaryColumn({ name: 'policy_id', type: 'uuid' })
   policyId!: string;
 

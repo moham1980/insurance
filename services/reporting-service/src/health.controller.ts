@@ -19,6 +19,7 @@ export class HealthController {
         status: 'degraded', 
         service: 'reporting-service', 
         timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
         components,
         error: err instanceof Error ? err.message : 'DB connection failed'
       };

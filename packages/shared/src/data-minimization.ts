@@ -3,6 +3,7 @@
  * Ensures only necessary data is collected, processed, and stored
  */
 
+import { createHmac } from 'crypto';
 import { DataSensitivity } from './data-inventory';
 
 export interface DataMinimizationRule {
@@ -260,17 +261,13 @@ export class DataMinimizationService {
   }
 
   /**
-   * Hash a value
+   * Hash a value using HMAC-SHA256.
+   * Requires DATA_MINIMIZATION_SECRET to be configured in production.
    */
   private hashValue(value: string): string {
-    // Simple hash for demonstration (use proper crypto in production)
-    let hash = 0;
-    for (let i = 0; i < value.length; i++) {
-      const char = value.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash;
-    }
-    return `HASH_${Math.abs(hash)}`;
+    const secret = process.env.DATA_MINIMIZATION_SECRET || 'dev-only-change-me';
+    const hmac = createHmac('sha256', secret).update(value).digest('hex');
+    return `HASH_${hmac}`;
   }
 
   /**

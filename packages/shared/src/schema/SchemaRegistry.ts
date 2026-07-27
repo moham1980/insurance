@@ -1,4 +1,4 @@
-import { Kafka } from 'kafkajs';
+import { z } from 'zod';
 import { Logger } from '../observability';
 
 export interface SchemaRegistryConfig {
@@ -116,15 +116,59 @@ export class SchemaRegistry {
   }
 
   private validateAgainstSchema(event: any, schema: any): boolean {
-    // Simplified validation - in production use proper JSON Schema validation
-    if (schema.required && Array.isArray(schema.required)) {
-      for (const field of schema.required) {
-        if (event[field] === undefined || event[field] === null) {
-          return false;
+    const zodSchema = this.jsonSchemaToZod(schema);
+    return zodSchema.safeParse(event).success;
+  }
+
+  private jsonSchemaToZod(schema: any): z.ZodTypeAny {
+    if (!schema || typeof schema !== 'object') return z.any();
+
+    if (Array.isArray(schema.enum)) {
+      const [first, ...rest] = schema.enum;
+      if (typeof first === 'string') {
+        return rest.length ? z.enum([first, ...rest.map(String)]) : z.literal(first);
+      }
+      return z.union([first, ...rest].map((v: any) => z.literal(v)) as any);
+    }
+
+    switch (schema.type) {
+      case 'string': {
+        let s = z.string();
+        if (schema.format === 'uuid') s = s.uuid();
+        if (schema.format === 'date-time') s = s.datetime({ offset: true });
+        if (schema.format === 'email') s = s.email();
+        if (schema.minLength !== undefined) s = s.min(schema.minLength);
+        if (schema.maxLength !== undefined) s = s.max(schema.maxLength);
+        return s;
+      }
+      case 'integer':
+      case 'number': {
+        let n = z.number();
+        if (schema.type === 'integer') n = n.int();
+        if (schema.minimum !== undefined) n = n.min(schema.minimum);
+        if (schema.maximum !== undefined) n = n.max(schema.maximum);
+        return n;
+      }
+      case 'boolean':
+        return z.boolean();
+      case 'array': {
+        const itemSchema = schema.items ? this.jsonSchemaToZod(schema.items) : z.any();
+        return z.array(itemSchema);
+      }
+      case 'object':
+      default: {
+        const shape: Record<string, z.ZodTypeAny> = {};
+        for (const [key, prop] of Object.entries(schema.properties || {})) {
+          shape[key] = this.jsonSchemaToZod(prop).optional();
         }
+        const required = Array.isArray(schema.required) ? schema.required : [];
+        const obj = z.object(shape).refine(
+          (val) => required.every((key: string) => val[key] !== undefined && val[key] !== null),
+          { message: `Missing required fields: ${required.join(', ')}` }
+        );
+        return obj;
       }
     }
-    return true;
   }
 
   async getLatestSchema(subject: string): Promise<EventSchema> {
