@@ -30,7 +30,6 @@ export interface ProcessGraph {
 
 @Entity('process_definitions')
 @Unique(['tenantId', 'key', 'version'])
-@Unique(['tenantId', 'key', 'status'])
 export class ProcessDefinition {
   @PrimaryGeneratedColumn('uuid')
   id: string;

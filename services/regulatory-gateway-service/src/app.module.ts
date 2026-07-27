@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SanhabEvent } from './entities/SanhabEvent';
 import { RegulatoryFailureLog } from './entities/RegulatoryFailureLog';
+import { SanhabSmsInquiry } from './entities/SanhabSmsInquiry';
 import { RegulatoryController } from './regulatory.controller';
 import { RegulatoryService } from './regulatory.service';
 import { WarehouseFireInquiryService } from './warehouse-fire/warehouse-fire-inquiry.service';
@@ -23,10 +24,10 @@ import { OutboxEvent } from '@insurance/shared';
       password: process.env.DB_PASSWORD || 'postgres',
       database: process.env.DB_DATABASE || process.env.DB_NAME || 'postgres',
       schema: process.env.DB_SCHEMA || 'regulatory',
-      entities: [SanhabEvent, RegulatoryFailureLog, OutboxEvent],
+      entities: [SanhabEvent, RegulatoryFailureLog, SanhabSmsInquiry, OutboxEvent],
       synchronize: process.env.NODE_ENV !== 'production' && process.env.DB_SYNC === 'true',
     }),
-    TypeOrmModule.forFeature([SanhabEvent, RegulatoryFailureLog, OutboxEvent]),
+    TypeOrmModule.forFeature([SanhabEvent, RegulatoryFailureLog, SanhabSmsInquiry, OutboxEvent]),
   ],
   controllers: [RegulatoryController, HealthController],
   providers: [AbacGuard, TenantGuard, RegulatoryService, WarehouseFireInquiryService, SanhabSmsInquiryService, JwtAuthGuard, PermissionsGuard],

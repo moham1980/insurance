@@ -4,9 +4,19 @@ This document records the runtime truth of workflow engine capabilities as requi
 
 ## Capability Status
 
-| Capability | Status | Evidence | Gap | Target
+| Capability | Status | Evidence | Gap | Target |
 |---|---|---|---|---|
-| BPMN Execution | **REAL** | `executeBpmn` with activity completion | None | Production-ready
-| Saga Coordination | **REAL** | `startSaga` with compensation handlers | None | Production-ready
-| Event-Driven Steps | **REAL** | `handleEvent` for async workflow progression | None | Production-ready
-| State Persistence | **REAL** | Workflow state stored in DB with checkpoints | None | Production-ready
+| Token-Based Workflow Execution | **REAL** | `WorkflowEngineService.executeNode` and `startProcess` | None | Production-ready |
+| Process Definition CRUD | **REAL** | `WorkflowEngineService.createDefinition`, `listDefinitions`, `getDefinition`, `updateDefinition`, `deleteDefinition` | Soft-delete only; no hard delete | Production-ready |
+| State Persistence | **REAL** | `ProcessInstance`, `ProcessToken`, `ProcessVariable`, `ProcessHistory`, `ProcessTimer` entities persisted via TypeORM | None | Production-ready |
+| Tenant Isolation | **REAL** | `tenantId` on all entities, `TenantGuard`, tenant-scoped queries | None | Production-ready |
+| JWT Authentication | **REAL** | `JwtAuthGuard` with JWKS RS256 + HS256 fallback | None | Production-ready |
+| RBAC + ABAC | **REAL** | `PermissionsGuard` + metadata-driven `AbacGuard` | None | Production-ready |
+| Edge Evaluation | **REAL** | `WorkflowEngineService.evaluateEdges` with `expr-eval` | None | Production-ready |
+| API Call Nodes | **REAL** | `executeApiCallNode` with service-to-service JWT + URL allow-list | None | Production-ready |
+| Timer Nodes | **REAL** | `executeTimerNode` + `processPendingTimers` poller via `ProcessTimer` entity | Polling interval; external scheduler optional | Production-ready |
+| Human Task Nodes | **REAL** | `executeHumanTaskNode` emits `HumanTaskCreated` outbox event | Work item service integration not implemented | Phase 2 |
+| Event Wait Nodes | **PARTIAL** | `executeEventWaitNode` waits and resumes on signal | No Kafka consumer subscription yet | Phase 2 |
+| BPMN Execution | **NOT IMPLEMENTED** | No `executeBpmn` method exists | BPMN parser and runner not built | Future |
+| Saga Coordination | **NOT IMPLEMENTED** | No `startSaga` or compensation handlers | Distributed saga orchestrator not built | Future |
+| Event-Driven Steps (Kafka) | **NOT IMPLEMENTED** | No `handleEvent` Kafka consumer | Event wait nodes cannot subscribe to topics yet | Phase 2 |

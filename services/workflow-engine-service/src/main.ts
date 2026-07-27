@@ -7,6 +7,9 @@ import { createLogger, KafkaProducer, OutboxWorker } from '@insurance/shared';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter());
+  const dataSource = app.get(DataSource);
+  const schema = process.env.DB_SCHEMA || 'workflow';
+  await dataSource.query(`SET search_path TO "${schema}", public`);
   const port = parseInt(process.env.PORT || '3033', 10);
 
   const kafkaBrokers = process.env.KAFKA_BROKERS;

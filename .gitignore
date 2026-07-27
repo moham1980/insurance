@@ -143,3 +143,4 @@ Thumbs.db
 *exit.txt
 tsc_output*.txt
 integration-test-results.txt
+**/build-output.txt

@@ -243,4 +243,39 @@ export class RealSanhabClient implements ISanhabClient {
 
   private handleSoapError(error: any): Error {
     if (error.code === 'ECONNREFUSED') {
-      return new Error('Sanhab service is
+      return new Error('Sanhab service is unavailable (connection refused)');
+    }
+    if (error.code === 'ETIMEDOUT') {
+      return new Error('Sanhab service timeout');
+    }
+    if (error.code === 'ENOTFOUND') {
+      return new Error('Sanhab service endpoint not found');
+    }
+    
+    // Return original error if it's already a custom error
+    if (error.message && error.message.includes('Sanhab')) {
+      return error;
+    }
+    
+    return new Error(`Sanhab integration error: ${error.message}`);
+  }
+
+  private generateRequestId(): string {
+    return `REQ-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  /**
+   * Health check for Sanhab connection
+   */
+  async healthCheck(): Promise<{ healthy: boolean; message: string; latencyMs?: number }> {
+    const startTime = Date.now();
+    try {
+      const client = await this.createSoapClient();
+      await this.callSoapMethod(client, 'Ping', { ApiKey: this.apiKey });
+      const latencyMs = Date.now() - startTime;
+      return { healthy: true, message: 'Sanhab service is reachable', latencyMs };
+    } catch (error: any) {
+      return { healthy: false, message: `Sanhab service error: ${error?.message || String(error)}` };
+    }
+  }
+}

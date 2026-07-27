@@ -1,5 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
+import { SanhabSmsInquiry } from '../entities/SanhabSmsInquiry';
+import { RegulatoryService } from '../regulatory.service';
 
 export interface SmsInquiryRequest {
   phoneNumber: string;
@@ -40,9 +44,12 @@ export interface SmsInquiryConfig {
 @Injectable()
 export class SanhabSmsInquiryService {
   private readonly logger = new Logger(SanhabSmsInquiryService.name);
-  private pendingInquiries: Map<string, SmsInquiryRequest> = new Map();
 
-  constructor() {}
+  constructor(
+    @InjectRepository(SanhabSmsInquiry)
+    private readonly inquiryRepo: Repository<SanhabSmsInquiry>,
+    private readonly regulatoryService: RegulatoryService
+  ) {}
 
   getConfiguration(): SmsInquiryConfig {
     return {
@@ -90,7 +97,17 @@ export class SanhabSmsInquiryService {
       };
     }
 
-    this.pendingInquiries.set(inquiryId, request);
+    const entity = this.inquiryRepo.create({
+      inquiryId,
+      phoneNumber: request.phoneNumber,
+      inquiryType: request.inquiryType,
+      nationalId: request.nationalId || null,
+      uniqueCode: request.uniqueCode || null,
+      policyNumber: request.policyNumber || null,
+      vin: request.vin || null,
+      status: 'pending',
+    });
+    await this.inquiryRepo.save(entity);
 
     try {
       const smsSent = await this.sendSms(config, request, inquiryId);
@@ -157,16 +174,24 @@ export class SanhabSmsInquiryService {
     inquiryId: string
   ): Promise<boolean> {
     const message = this.buildSmsMessage(request, inquiryId);
-    this.logger.log(`Sending SMS to ${request.phoneNumber} via ${config.smsProvider}`);
+    return this.sendRawSms(config, request.phoneNumber, message);
+  }
+
+  private async sendRawSms(
+    config: SmsInquiryConfig,
+    phoneNumber: string,
+    message: string
+  ): Promise<boolean> {
+    this.logger.log(`Sending SMS to ${phoneNumber} via ${config.smsProvider}`);
 
     try {
       switch (config.smsProvider) {
         case 'KAVENEGAR':
-          return await this.sendKavenegarSms(config, request.phoneNumber, message);
+          return await this.sendKavenegarSms(config, phoneNumber, message);
         case 'TWILIO':
-          return await this.sendTwilioSms(config, request.phoneNumber, message);
+          return await this.sendTwilioSms(config, phoneNumber, message);
         case 'MELLIPAYAMAK':
-          return await this.sendMelliPayamakSms(config, request.phoneNumber, message);
+          return await this.sendMelliPayamakSms(config, phoneNumber, message);
         default:
           throw new Error(`Unsupported SMS provider: ${config.smsProvider}`);
       }
@@ -196,9 +221,24 @@ export class SanhabSmsInquiryService {
     phoneNumber: string,
     message: string
   ): Promise<boolean> {
-    this.logger.log(`Sending Kavenegar SMS to ${phoneNumber}: ${message}`);
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    return true;
+    const baseUrl = process.env.KAVENEGAR_BASE_URL || 'https://api.kavenegar.com/v1';
+    const url = `${baseUrl}/${config.apiKey}/sms/send.json`;
+    const params = new URLSearchParams({ receptor: phoneNumber, message, sender: config.shortCode });
+
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), config.timeoutMs);
+    try {
+      const response = await fetch(`${url}?${params.toString()}`, {
+        method: 'GET',
+        signal: controller.signal,
+      });
+      clearTimeout(t);
+      return response.ok;
+    } catch (error: any) {
+      clearTimeout(t);
+      this.logger.error(`Kavenegar SMS send failed: ${error.message}`);
+      return false;
+    }
   }
 
   private async sendTwilioSms(
@@ -206,9 +246,30 @@ export class SanhabSmsInquiryService {
     phoneNumber: string,
     message: string
   ): Promise<boolean> {
-    this.logger.log(`Sending Twilio SMS to ${phoneNumber}: ${message}`);
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    return true;
+    const accountSid = process.env.TWILIO_ACCOUNT_SID || '';
+    const authToken = process.env.TWILIO_AUTH_TOKEN || '';
+    const fromNumber = process.env.TWILIO_FROM_NUMBER || config.shortCode;
+    const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
+
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), config.timeoutMs);
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded',
+          authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`,
+        },
+        body: new URLSearchParams({ To: phoneNumber, From: fromNumber, Body: message }).toString(),
+        signal: controller.signal,
+      });
+      clearTimeout(t);
+      return response.ok;
+    } catch (error: any) {
+      clearTimeout(t);
+      this.logger.error(`Twilio SMS send failed: ${error.message}`);
+      return false;
+    }
   }
 
   private async sendMelliPayamakSms(
@@ -216,9 +277,33 @@ export class SanhabSmsInquiryService {
     phoneNumber: string,
     message: string
   ): Promise<boolean> {
-    this.logger.log(`Sending Melli Payamak SMS to ${phoneNumber}: ${message}`);
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    return true;
+    const url = process.env.MELLIPAYAMAK_SEND_URL || 'https://rest.payamak-panel.com/api/Send/SendSMS';
+    const username = process.env.MELLIPAYAMAK_USERNAME || '';
+    const password = process.env.MELLIPAYAMAK_PASSWORD || '';
+
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), config.timeoutMs);
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          username,
+          password,
+          to: phoneNumber,
+          from: config.shortCode,
+          text: message,
+          isflash: 'false',
+        }).toString(),
+        signal: controller.signal,
+      });
+      clearTimeout(t);
+      return response.ok;
+    } catch (error: any) {
+      clearTimeout(t);
+      this.logger.error(`MelliPayamak SMS send failed: ${error.message}`);
+      return false;
+    }
   }
 
   async handleSmsReply(from: string, message: string): Promise<SmsInquiryResponse> {
@@ -235,28 +320,35 @@ export class SanhabSmsInquiryService {
       };
     }
 
-    const pendingInquiry = Array.from(this.pendingInquiries.entries()).find(
-      ([_, req]) => req.phoneNumber === from
-    );
-
-    if (!pendingInquiry) {
+    const inquiry = await this.inquiryRepo.findOne({ where: { inquiryId: parsed.inquiryId, status: 'pending' } });
+    if (!inquiry) {
       return {
         success: false,
-        inquiryId: '',
-        message: 'No pending inquiry found for this phone number',
+        inquiryId: parsed.inquiryId,
+        message: 'No pending inquiry found for this inquiry ID',
         errorCode: 'NO_PENDING_INQUIRY',
       };
     }
 
-    const [inquiryId, request] = pendingInquiry;
-    const result = await this.performSanhabInquiry(request, parsed);
+    const inquiryRequest: SmsInquiryRequest = {
+      phoneNumber: inquiry.phoneNumber,
+      inquiryType: inquiry.inquiryType,
+      nationalId: inquiry.nationalId || undefined,
+      uniqueCode: inquiry.uniqueCode || undefined,
+      policyNumber: inquiry.policyNumber || undefined,
+      vin: inquiry.vin || undefined,
+    };
+
+    const result = await this.performSanhabInquiry(inquiryRequest, parsed);
 
     await this.sendInquiryResult(from, result);
-    this.pendingInquiries.delete(inquiryId);
+    inquiry.status = 'completed';
+    inquiry.resultJson = result as object;
+    await this.inquiryRepo.save(inquiry);
 
     return {
       success: true,
-      inquiryId,
+      inquiryId: inquiry.inquiryId,
       message: 'Inquiry completed and result sent via SMS',
       result,
     };
@@ -279,18 +371,61 @@ export class SanhabSmsInquiryService {
     parsed: { inquiryId: string; data: string }
   ): Promise<SmsInquiryResponse['result']> {
     this.logger.log(`Performing Sanhab inquiry for type: ${request.inquiryType}`);
-    await new Promise((resolve) => setTimeout(resolve, 500));
 
-    return {
-      resultCode: 'OK',
-      policyNumber: 'POL-2024-001',
-      uniqueCode: '12345678',
-      insuredNationalId: request.nationalId || '0123456789',
-      vehicleVin: request.vin || 'VIN1234567890',
-      insurerCode: '001',
-      issueDate: '2024-03-21',
-      expiryDate: '2025-03-21',
-    };
+    const inquiryBody = this.buildSanhabInquiryBody(request, parsed.data);
+    try {
+      const { status, result } = await this.regulatoryService.inquiry({
+        correlationId: parsed.inquiryId,
+        tenantId: undefined,
+        actorUserId: 'sms-gateway',
+        authorization: '',
+        body: inquiryBody,
+      });
+
+      if (status !== 200 || !result?.success) {
+        return {
+          resultCode: 'UPSTREAM_ERROR',
+          errorMessage: result?.error?.message || 'Sanhab inquiry failed',
+        };
+      }
+
+      const responseData = result.data || {};
+      return {
+        resultCode: responseData.resultCode || 'OK',
+        policyNumber: responseData.payload?.policyNumber,
+        uniqueCode: responseData.payload?.uniqueCode,
+        insuredNationalId: responseData.payload?.insuredNationalId,
+        vehicleVin: responseData.payload?.vehicleVin,
+        insurerCode: responseData.payload?.insurerCode,
+        issueDate: responseData.payload?.issueDate,
+        expiryDate: responseData.payload?.expiryDate,
+        errorMessage: responseData.payload?.errorMessage,
+      };
+    } catch (error: any) {
+      this.logger.error(`Sanhab inquiry failed: ${error.message}`);
+      return {
+        resultCode: 'UPSTREAM_ERROR',
+        errorMessage: error.message || 'Sanhab inquiry failed',
+      };
+    }
+  }
+
+  private buildSanhabInquiryBody(
+    request: SmsInquiryRequest,
+    data: string
+  ): { nationalId?: string; uniqueCode?: string; policyNumber?: string; vin?: string } {
+    switch (request.inquiryType) {
+      case 'NATIONAL_ID_UNIQUE_CODE': {
+        const [nationalId, uniqueCode] = data.split(/\s+/);
+        return { nationalId, uniqueCode };
+      }
+      case 'POLICY_NUMBER':
+        return { policyNumber: data.trim() };
+      case 'VIN':
+        return { vin: data.trim() };
+      default:
+        return {};
+    }
   }
 
   private async sendInquiryResult(phoneNumber: string, result: any): Promise<void> {
@@ -298,7 +433,7 @@ export class SanhabSmsInquiryService {
     const message = this.buildResultMessage(result);
 
     try {
-      await this.sendSms(config, { phoneNumber } as SmsInquiryRequest, 'RESULT');
+      await this.sendRawSms(config, phoneNumber, message);
       this.logger.log(`Inquiry result sent to ${phoneNumber}`);
     } catch (error: any) {
       this.logger.error(`Failed to send inquiry result: ${error.message}`);
@@ -314,17 +449,32 @@ export class SanhabSmsInquiryService {
   }
 
   async getPendingInquiry(inquiryId: string): Promise<SmsInquiryRequest | null> {
-    return this.pendingInquiries.get(inquiryId) || null;
+    const entity = await this.inquiryRepo.findOne({ where: { inquiryId, status: 'pending' } });
+    return entity ? this.mapEntityToRequest(entity) : null;
   }
 
   async getPendingInquiriesByPhone(phoneNumber: string): Promise<SmsInquiryRequest[]> {
-    return Array.from(this.pendingInquiries.values()).filter(
-      (req) => req.phoneNumber === phoneNumber
-    );
+    const entities = await this.inquiryRepo.find({ where: { phoneNumber, status: 'pending' } });
+    return entities.map((e) => this.mapEntityToRequest(e));
   }
 
   async cancelInquiry(inquiryId: string): Promise<boolean> {
-    return this.pendingInquiries.delete(inquiryId);
+    const entity = await this.inquiryRepo.findOne({ where: { inquiryId } });
+    if (!entity) return false;
+    entity.status = 'cancelled';
+    await this.inquiryRepo.save(entity);
+    return true;
+  }
+
+  private mapEntityToRequest(entity: SanhabSmsInquiry): SmsInquiryRequest {
+    return {
+      phoneNumber: entity.phoneNumber,
+      inquiryType: entity.inquiryType,
+      nationalId: entity.nationalId || undefined,
+      uniqueCode: entity.uniqueCode || undefined,
+      policyNumber: entity.policyNumber || undefined,
+      vin: entity.vin || undefined,
+    };
   }
 
   async healthCheck(): Promise<{

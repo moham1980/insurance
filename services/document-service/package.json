@@ -8,7 +8,9 @@
     "dev": "bun run src/main.ts",
     "start": "bun run dist/main.js",
     "migrate": "bun run dist/migrate.js",
-    "migrate:build": "bun run build && bun run dist/migrate.js"
+    "migrate:build": "bun run build && bun run dist/migrate.js",
+    "test:unit": "jest --config jest.config.unit.cjs",
+    "test": "jest --config jest.config.unit.cjs"
   },
   "dependencies": {
     "@insurance/shared": "1.0.0",

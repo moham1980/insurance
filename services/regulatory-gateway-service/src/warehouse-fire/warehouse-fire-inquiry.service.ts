@@ -139,7 +139,7 @@ export class WarehouseFireInquiryService {
         throw new Error(`Warehouse fire API returned ${response.status}`);
       }
 
-      const result = await response.json().catch(() => null);
+      const result = (await response.json().catch(() => null)) as any;
       if (!result || typeof result !== 'object') {
         throw new Error('Invalid response from warehouse fire API');
       }
@@ -250,4 +250,51 @@ export class WarehouseFireInquiryService {
   async inquireByWarehouseId(warehouseId: string, inquiryType: string = 'FIRE_HISTORY'): Promise<WarehouseFireInquiryResponse> {
     return this.inquire({
       warehouseId,
-      inquiryTy
+      inquiryType: inquiryType as any,
+    });
+  }
+
+  async healthCheck(): Promise<{
+    healthy: boolean;
+    enabled: boolean;
+    apiUrl: string;
+    message: string;
+  }> {
+    const config = this.getConfig();
+
+    if (!config.enabled) {
+      return {
+        healthy: true,
+        enabled: false,
+        apiUrl: config.apiUrl,
+        message: 'Warehouse fire inquiry is disabled',
+      };
+    }
+
+    if (!config.apiKey) {
+      return {
+        healthy: false,
+        enabled: true,
+        apiUrl: config.apiUrl,
+        message: 'API key not configured',
+      };
+    }
+
+    return {
+      healthy: true,
+      enabled: true,
+      apiUrl: config.apiUrl,
+      message: 'Warehouse fire inquiry is configured and ready',
+    };
+  }
+
+  async getConfiguration(): Promise<WarehouseFireConfig> {
+    return this.getConfig();
+  }
+
+  async updateConfig(updates: Partial<WarehouseFireConfig>): Promise<WarehouseFireConfig> {
+    // In a real implementation, this would persist to database
+    this.logger.log('Warehouse fire config updated', { updates });
+    return { ...this.getConfig(), ...updates };
+  }
+}
