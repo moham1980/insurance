@@ -1,0 +1,646 @@
+openapi: 3.0.3
+info:
+  title: Brokerage P7 AI & Experience API
+  version: 1.0.0
+  description: P7 API contracts for Copilot NBA, document AI OCR/redaction/classification, Customer 360 consent/portfolio, notification credential vault, and model switchboard governance.
+servers:
+  - url: http://localhost:18014
+    description: copilot-service
+  - url: http://localhost:18015
+    description: document-ai-service
+  - url: http://localhost:18021
+    description: customer-360-service
+  - url: http://localhost:18012
+    description: notification-service
+  - url: http://localhost:18018
+    description: model-switchboard-service
+paths:
+  /copilot/nba/{contextType}/{resourceId}/actions:
+    post:
+      summary: Generate next-best-action recommendations
+      parameters:
+        - name: contextType
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [claim, policy, customer, document]
+        - name: resourceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: NBA actions generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NbaActionListResponse'
+  /copilot/nba/{logId}/execute:
+    post:
+      summary: Execute an NBA action
+      parameters:
+        - name: logId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Action executed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NbaActionResponse'
+  /copilot/nba/{logId}/opt-out:
+    post:
+      summary: Opt out of an NBA action
+      parameters:
+        - name: logId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Action opted out
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NbaActionResponse'
+  /document-ai/documents/{documentId}/redact:
+    post:
+      summary: Redact sensitive information from OCR text
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Redaction result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentRedactionResponse'
+  /document-ai/documents/{documentId}/classify:
+    post:
+      summary: Classify document by content and filename
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Classification result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentClassificationResponse'
+  /document-ai/documents/{documentId}/confirm:
+    post:
+      summary: Confirm extracted fields against schema
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Field confirmation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentFieldConfirmationResponse'
+  /customer-360/{customerId}/portfolio:
+    get:
+      summary: Get aggregated customer portfolio summary
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Portfolio summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioSummaryResponse'
+  /customer-360/{customerId}/consents:
+    get:
+      summary: List customer consents
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Consent list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsentListResponse'
+    post:
+      summary: Record a customer consent
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordConsentRequest'
+      responses:
+        '200':
+          description: Consent recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsentResponse'
+  /customer-360/{customerId}/consents/{consentId}/revoke:
+    post:
+      summary: Revoke a customer consent
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: consentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Consent revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsentResponse'
+  /notifications/credentials:
+    get:
+      summary: List stored notification provider credentials
+      responses:
+        '200':
+          description: Credential list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CredentialListResponse'
+    post:
+      summary: Store a notification provider credential
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetCredentialRequest'
+      responses:
+        '200':
+          description: Credential stored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CredentialResponse'
+  /notifications/credentials/{credentialId}/rotate:
+    post:
+      summary: Rotate a notification provider credential
+      parameters:
+        - name: credentialId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RotateCredentialRequest'
+      responses:
+        '200':
+          description: Credential rotated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CredentialResponse'
+  /model-switchboard/governance/report:
+    get:
+      summary: Get AI model governance report
+      parameters:
+        - name: tenantId
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Governance report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelGovernanceReportResponse'
+  /model-switchboard/governance/validate:
+    post:
+      summary: Validate a model against governance rules
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModelGovernanceValidateRequest'
+      responses:
+        '200':
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelGovernanceValidateResponse'
+components:
+  schemas:
+    SuccessResponse:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+        correlationId:
+          type: string
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+    NbaAction:
+      type: object
+      required: [action, description]
+      properties:
+        logId:
+          type: string
+        action:
+          type: string
+        description:
+          type: string
+        channel:
+          type: string
+        urgency:
+          type: string
+          enum: [low, medium, high]
+        confidence:
+          type: number
+        status:
+          type: string
+          enum: [offered, executed, opted_out]
+    NbaActionListResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/NbaAction'
+    NbaActionResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/NbaAction'
+    RedactedSpan:
+      type: object
+      properties:
+        type:
+          type: string
+        start:
+          type: integer
+        end:
+          type: integer
+        replacement:
+          type: string
+    DocumentRedactionResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                redactedText:
+                  type: string
+                spans:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/RedactedSpan'
+                redacted:
+                  type: boolean
+    DocumentClassificationResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                documentType:
+                  type: string
+                confidence:
+                  type: number
+                source:
+                  type: string
+    DocumentFieldConfirmationResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                fields:
+                  type: object
+                confirmation:
+                  type: object
+                  properties:
+                    confirmationStatus:
+                      type: string
+                    confidence:
+                      type: number
+                    missingFields:
+                      type: array
+                      items:
+                        type: string
+    PortfolioSummaryResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                totalPolicies:
+                  type: integer
+                activePolicies:
+                  type: integer
+                totalPremium:
+                  type: number
+                totalCoverage:
+                  type: number
+                totalClaims:
+                  type: integer
+                openClaims:
+                  type: integer
+                totalClaimAmount:
+                  type: number
+                paidClaims:
+                  type: number
+                outstandingClaims:
+                  type: number
+                netPosition:
+                  type: number
+                riskMetrics:
+                  type: object
+                  properties:
+                    overallRiskScore:
+                      type: number
+                    riskCategory:
+                      type: string
+                    amlStatus:
+                      type: string
+                    kycStatus:
+                      type: string
+    Consent:
+      type: object
+      required: [consentId, customerId, purpose, status]
+      properties:
+        consentId:
+          type: string
+        customerId:
+          type: string
+        purpose:
+          type: string
+        status:
+          type: string
+          enum: [granted, denied, revoked, expired]
+        grantedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        version:
+          type: string
+        source:
+          type: string
+        channel:
+          type: string
+    RecordConsentRequest:
+      type: object
+      required: [purpose]
+      properties:
+        purpose:
+          type: string
+        status:
+          type: string
+          enum: [granted, denied]
+        expiresAt:
+          type: string
+          format: date-time
+        source:
+          type: string
+        channel:
+          type: string
+        version:
+          type: string
+    ConsentResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/Consent'
+    ConsentListResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Consent'
+    Credential:
+      type: object
+      required: [credentialId, tenantId, provider, credentialType]
+      properties:
+        credentialId:
+          type: string
+        tenantId:
+          type: string
+        provider:
+          type: string
+        credentialType:
+          type: string
+        maskedValue:
+          type: string
+        isActive:
+          type: boolean
+        expiresAt:
+          type: string
+          format: date-time
+    SetCredentialRequest:
+      type: object
+      required: [provider, credentialType, value]
+      properties:
+        provider:
+          type: string
+        credentialType:
+          type: string
+        value:
+          type: string
+        extra:
+          type: object
+        expiresAt:
+          type: string
+          format: date-time
+    RotateCredentialRequest:
+      type: object
+      required: [provider, credentialType, value]
+      properties:
+        provider:
+          type: string
+        credentialType:
+          type: string
+        value:
+          type: string
+        extra:
+          type: object
+        expiresAt:
+          type: string
+          format: date-time
+    CredentialResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/Credential'
+    CredentialListResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Credential'
+    ModelCard:
+      type: object
+      properties:
+        id:
+          type: string
+        modelId:
+          type: string
+        modelName:
+          type: string
+        status:
+          type: string
+        biasRiskLevel:
+          type: string
+        approvedBy:
+          type: string
+        approvedAt:
+          type: string
+          format: date-time
+    ModelGovernanceReport:
+      type: object
+      properties:
+        total:
+          type: integer
+        modelCards:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModelCard'
+        invocationsSummary:
+          type: object
+          properties:
+            total:
+              type: integer
+            failed:
+              type: integer
+            rejected:
+              type: integer
+    ModelGovernanceReportResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/ModelGovernanceReport'
+    ModelGovernanceValidateRequest:
+      type: object
+      required: [modelKey]
+      properties:
+        modelKey:
+          type: string
+        tenantId:
+          type: string
+    ModelGovernanceValidateResponse:
+      allOf:
+        - $ref: '#/components/schemas/SuccessResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                allowed:
+                  type: boolean
+                reason:
+                  type: string
+                riskLevel:
+                  type: string
+                cardStatus:
+                  type: string

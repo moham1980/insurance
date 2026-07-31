@@ -4,6 +4,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { HttpModule } from '@nestjs/axios';
 import { CustomerPortalService } from './customer-portal.service';
 import { CustomerPortalController } from './customer-portal.controller';
+import { PolicyNotificationConsumer } from './policy-notification.consumer';
 import { CustomerSession } from './entities/CustomerSession';
 import { HealthController } from './health.controller';
 
@@ -32,6 +33,6 @@ import { OutboxEvent } from '@insurance/shared';
     HttpModule,
   ],
   controllers: [CustomerPortalController, HealthController],
-  providers: [TenantGuard, AbacGuard, PermissionsGuard, CustomerPortalService],
+  providers: [TenantGuard, AbacGuard, PermissionsGuard, CustomerPortalService, PolicyNotificationConsumer],
 })
 export class AppModule {}

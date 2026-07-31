@@ -1,4 +1,4 @@
-import { ISanhabClient, SanhabInquiryResponse, SanhabInquiryResultCode } from './sanhab-client.interface';
+import { ISanhabClient, SanhabInquiryResponse, SanhabInquiryResultCode, SanhabSubmissionRequest, SanhabSubmissionResponse } from './sanhab-client.interface';
 
 /**
  * Mock Sanhab Client for development/testing.
@@ -111,6 +111,56 @@ export class MockSanhabClient implements ISanhabClient {
       resultCode: 'OK',
       policyNumber: 'PN-' + params.vin.substring(0, 10),
       uniqueCode: 'UC-' + params.vin.substring(0, 10),
+      vehicleVin: params.vin,
+      insurerCode: '123',
+      issueDate: '2024-01-01',
+      expiryDate: '2025-01-01',
+    };
+  }
+
+  async submitPolicy(params: SanhabSubmissionRequest): Promise<SanhabSubmissionResponse> {
+    await this.delay(500);
+
+    const uc = params.uniqueCode || `UC-${params.policyNumber}`;
+    const pn = params.policyNumber;
+
+    if (pn === '404' || pn.includes('404')) {
+      return {
+        resultCode: 'NOT_FOUND',
+        errorMessage: 'Policy not found in Sanhab database',
+      };
+    }
+
+    if (uc.includes('MISMATCH')) {
+      return {
+        resultCode: 'MISMATCH',
+        errorMessage: 'National ID does not match policy holder',
+        policyNumber: pn,
+        uniqueCode: uc,
+      };
+    }
+
+    if (uc.includes('PENDING')) {
+      return {
+        resultCode: 'PENDING_SYNC',
+        errorMessage: 'Policy pending synchronization with Sanhab',
+        policyNumber: pn,
+        uniqueCode: uc,
+      };
+    }
+
+    if (uc.includes('UPSTREAM')) {
+      return {
+        resultCode: 'UPSTREAM_ERROR',
+        errorMessage: 'Sanhab service temporarily unavailable',
+      };
+    }
+
+    return {
+      resultCode: 'OK',
+      policyNumber: pn,
+      uniqueCode: uc,
+      insuredNationalId: params.nationalId,
       vehicleVin: params.vin,
       insurerCode: '123',
       issueDate: '2024-01-01',

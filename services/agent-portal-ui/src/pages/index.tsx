@@ -1,11 +1,15 @@
 import { GetServerSideProps } from 'next';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { LogIn, Shield, DollarSign, FileText, LogOut, Briefcase, Target } from 'lucide-react';
+import { LogIn, Shield, DollarSign, FileText, LogOut, Briefcase, Target, ClipboardList, Gavel, RefreshCw, UserCheck } from 'lucide-react';
 import { agentPortalAPI } from '../lib/api';
 import EnhancedDashboard from '../components/EnhancedDashboard';
 import PortfolioPage from './portfolio';
 import LeadsPage from './leads';
+import ClaimsPage from './claims';
+import AdvocacyPage from './advocacy';
+import AdjusterReferralsPage from './adjuster-referrals';
+import RecoveryPage from './recovery';
 
 function getCookie(name: string): string | null {
   if (typeof document === 'undefined') return null;
@@ -109,6 +113,42 @@ export default function AgentPortal() {
                 سرنخ‌ها
               </button>
               <button
+                onClick={() => setCurrentPage('claims')}
+                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium ${
+                  currentPage === 'claims' ? 'bg-primary-100 text-primary-700' : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <ClipboardList className="h-5 w-5 ml-2" />
+                خسارت‌ها
+              </button>
+              <button
+                onClick={() => setCurrentPage('advocacy')}
+                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium ${
+                  currentPage === 'advocacy' ? 'bg-primary-100 text-primary-700' : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <Gavel className="h-5 w-5 ml-2" />
+                وکالت
+              </button>
+              <button
+                onClick={() => setCurrentPage('adjuster-referrals')}
+                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium ${
+                  currentPage === 'adjuster-referrals' ? 'bg-primary-100 text-primary-700' : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <UserCheck className="h-5 w-5 ml-2" />
+                کارشناسان
+              </button>
+              <button
+                onClick={() => setCurrentPage('recovery')}
+                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium ${
+                  currentPage === 'recovery' ? 'bg-primary-100 text-primary-700' : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <RefreshCw className="h-5 w-5 ml-2" />
+                استرداد
+              </button>
+              <button
                 onClick={handleLogout}
                 className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-red-600 hover:bg-red-50"
               >
@@ -126,6 +166,10 @@ export default function AgentPortal() {
         {currentPage === 'commissions' && <CommissionsPage />}
         {currentPage === 'portfolio' && <PortfolioPage />}
         {currentPage === 'leads' && <LeadsPage />}
+        {currentPage === 'claims' && <ClaimsPage />}
+        {currentPage === 'advocacy' && <AdvocacyPage />}
+        {currentPage === 'adjuster-referrals' && <AdjusterReferralsPage />}
+        {currentPage === 'recovery' && <RecoveryPage />}
       </main>
     </div>
   );

@@ -85,9 +85,11 @@ export class ModelSwitchboardController {
     @Body() body: {
       tenantId: string;
       modelType: ModelType;
+      capability?: string;
       businessKey?: string;
       input: Record<string, any>;
       metadata?: Record<string, any>;
+      skipGovernance?: boolean;
     },
   ) {
     const correlationId = headers['x-correlation-id'] || `ms-${Date.now()}`;
@@ -129,6 +131,9 @@ export class ModelSwitchboardController {
       costBudgetPerDay?: number;
       routingStrategy?: RoutingStrategy;
       metadata?: Record<string, any>;
+      abTestEnabled?: boolean;
+      abTestModelId?: string;
+      abTestSplitPercent?: number;
     },
   ) {
     const correlationId = headers['x-correlation-id'] || `ms-${Date.now()}`;
@@ -175,6 +180,9 @@ export class ModelSwitchboardController {
       routingStrategy: RoutingStrategy;
       metadata: Record<string, any>;
       isActive: boolean;
+      abTestEnabled: boolean;
+      abTestModelId: string;
+      abTestSplitPercent: number;
     }>,
   ) {
     const result = await this.service.updateRoutePolicy(id, { ...body, updatedBy: req?.user?.userId || req?.user?.sub || 'system' });
@@ -309,11 +317,51 @@ export class ModelSwitchboardController {
     return { success: true, data: result };
   }
 
+  // ── Governance ──────────────────────────────────────────────────────
+
+  @Post('governance/validate')
+  @RequirePermissions('switchboard:view')
+  async validateModel(
+    @Headers() headers: Record<string, any>,
+    @Body() body: { modelKey: string; tenantId?: string },
+  ) {
+    const correlationId = headers['x-correlation-id'] || `ms-${Date.now()}`;
+    const result = await this.service.governanceCheck({ tenantId: body.tenantId || '*', modelKey: body.modelKey });
+    return { success: true, data: result, correlationId };
+  }
+
+  @Get('governance/report')
+  @RequirePermissions('switchboard:view_usage')
+  async governanceReport(
+    @Query() query: any,
+  ) {
+    const result = await this.service.getGovernanceReport({
+      tenantId: query.tenantId,
+      limit: query.limit ? Math.min(parseInt(query.limit, 10), 200) : undefined,
+      offset: query.offset ? parseInt(query.offset, 10) : undefined,
+    });
+    return { success: true, data: result };
+  }
+
   // ── Health ──────────────────────────────────────────────────────────
 
   @Get('health')
   async health() {
     const modelsHealth = await this.service.getModelsHealth();
     return { success: true, data: { service: 'model-switchboard-service', models: modelsHealth, timestamp: new Date().toISOString() } };
+  }
+
+  @Get('circuit-breaker/:modelKey')
+  @RequirePermissions('switchboard:view')
+  async getCircuitBreakerState(@Param('modelKey') modelKey: string) {
+    const stats = this.service.getCircuitBreakerStats(modelKey);
+    return { success: true, data: { modelKey, ...stats } };
+  }
+
+  @Get('ab-test/:policyId/report')
+  @RequirePermissions('switchboard:view')
+  async getAbTestReport(@Param('policyId') policyId: string) {
+    const report = await this.service.getAbTestReport(policyId);
+    return { success: true, data: report };
   }
 }

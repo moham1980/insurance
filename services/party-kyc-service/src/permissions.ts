@@ -1,14 +1,30 @@
-export type PermissionKey = 'party:create' | 'party:view' | 'party:list' | 'kyc:review' | 'kyc:submit' | 'kyc:verify' | 'kyc:screen' | 'kyc:escalate' | 'kyc:list' | 'kyc:view';
+export type PermissionKey =
+  | 'party:create'
+  | 'party:view'
+  | 'party:list'
+  | 'party:manage'
+  | 'party:update'
+  | 'party:role:manage'
+  | 'broker:license:manage'
+  | 'kyc:review'
+  | 'kyc:submit'
+  | 'kyc:verify'
+  | 'kyc:screen'
+  | 'kyc:escalate'
+  | 'kyc:list'
+  | 'kyc:view';
 
 const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
-  insurer_admin: ['party:create', 'party:view', 'party:list', 'kyc:review', 'kyc:submit', 'kyc:verify', 'kyc:screen', 'kyc:escalate', 'kyc:list', 'kyc:view'],
+  insurer_admin: ['party:create', 'party:view', 'party:list', 'party:manage', 'party:update', 'party:role:manage', 'broker:license:manage', 'kyc:review', 'kyc:submit', 'kyc:verify', 'kyc:screen', 'kyc:escalate', 'kyc:list', 'kyc:view'],
   compliance_aml: ['party:view', 'party:list', 'kyc:review', 'kyc:verify', 'kyc:screen', 'kyc:list', 'kyc:view'],
   risk_manager: ['party:view', 'party:list', 'kyc:verify', 'kyc:screen', 'kyc:escalate', 'kyc:list', 'kyc:view'],
-  head_office_ops: ['party:create', 'party:view', 'party:list', 'kyc:submit', 'kyc:verify', 'kyc:list', 'kyc:view'],
-  branch_manager: ['party:create', 'party:view', 'party:list', 'kyc:submit', 'kyc:verify', 'kyc:list', 'kyc:view'],
+  head_office_ops: ['party:create', 'party:view', 'party:list', 'party:manage', 'party:update', 'party:role:manage', 'broker:license:manage', 'kyc:submit', 'kyc:verify', 'kyc:list', 'kyc:view'],
+  branch_manager: ['party:create', 'party:view', 'party:list', 'party:manage', 'party:update', 'party:role:manage', 'broker:license:manage', 'kyc:submit', 'kyc:verify', 'kyc:list', 'kyc:view'],
   branch_staff: ['party:create', 'party:view', 'party:list', 'kyc:submit'],
   call_center: ['party:create', 'party:view', 'kyc:submit'],
-  auditor: ['party:view', 'party:list', 'kyc:list', 'kyc:view'],
+  auditor: ['party:view', 'party:list', 'broker:license:manage', 'kyc:list', 'kyc:view'],
+  broker_admin: ['party:create', 'party:view', 'party:list', 'party:update', 'party:role:manage', 'broker:license:manage', 'kyc:review', 'kyc:submit', 'kyc:verify', 'kyc:screen', 'kyc:escalate', 'kyc:list', 'kyc:view'],
+  broker_staff: ['party:create', 'party:view', 'party:list', 'kyc:submit', 'kyc:list', 'kyc:view'],
 };
 
 export function permissionsForRoles(roles: string[] | undefined | null): PermissionKey[] {

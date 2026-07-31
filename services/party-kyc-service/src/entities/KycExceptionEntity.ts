@@ -3,6 +3,8 @@ import { Entity, PrimaryColumn, Column, CreateDateColumn, Index } from 'typeorm'
 @Entity('kyc_exception')
 @Index(['tenantId', 'partyId'])
 @Index(['tenantId', 'status'])
+@Index(['tenantId', 'organizationId'])
+@Index(['tenantId', 'status', 'organizationId'])
 export class KycExceptionEntity {
   @PrimaryColumn({ type: 'uuid', name: 'exception_id' })
   exceptionId!: string;
@@ -12,6 +14,9 @@ export class KycExceptionEntity {
 
   @Column({ type: 'uuid', name: 'party_id' })
   partyId!: string;
+
+  @Column({ name: 'organization_id', type: 'uuid', nullable: true })
+  organizationId!: string | null;
 
   @Column({ name: 'kyc_review_id' })
   kycReviewId!: string;
@@ -33,6 +38,9 @@ export class KycExceptionEntity {
 
   @Column({ name: 'assigned_to', type: 'varchar', nullable: true })
   assignedTo!: string | null;
+
+  @Column({ name: 'escalated_to_organization_id', type: 'uuid', nullable: true })
+  escalatedToOrganizationId!: string | null;
 
   @Column({ type: 'varchar', default: 'pending' })
   status!: 'pending' | 'in_progress' | 'resolved' | 'escalated';

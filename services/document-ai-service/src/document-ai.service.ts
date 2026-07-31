@@ -1,22 +1,26 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { DocumentEntity } from './entities/DocumentEntity';
 import { DocumentAiJob } from './entities/DocumentAiJob';
 import { DocumentAiAudit } from './entities/DocumentAiAudit';
 import { DocumentAiUsageDaily } from './entities/DocumentAiUsageDaily';
 import { DocumentAiEvalCase } from './entities/DocumentAiEvalCase';
 import { DocumentAiEvalRun } from './entities/DocumentAiEvalRun';
 import { DocumentAiEvalResult } from './entities/DocumentAiEvalResult';
+import { OcrRedactionService, RedactedTextResult, DocumentClassification, FieldConfirmation } from './ocr/ocr-redaction.service';
 
 @Injectable()
 export class DocumentAiService {
   constructor(
+    @InjectRepository(DocumentEntity) private readonly documentRepo: Repository<DocumentEntity>,
     @InjectRepository(DocumentAiJob) private readonly jobRepo: Repository<DocumentAiJob>,
     @InjectRepository(DocumentAiAudit) private readonly auditRepo: Repository<DocumentAiAudit>,
     @InjectRepository(DocumentAiUsageDaily) private readonly usageRepo: Repository<DocumentAiUsageDaily>,
     @InjectRepository(DocumentAiEvalCase) private readonly evalCaseRepo: Repository<DocumentAiEvalCase>,
     @InjectRepository(DocumentAiEvalRun) private readonly evalRunRepo: Repository<DocumentAiEvalRun>,
-    @InjectRepository(DocumentAiEvalResult) private readonly evalResultRepo: Repository<DocumentAiEvalResult>
+    @InjectRepository(DocumentAiEvalResult) private readonly evalResultRepo: Repository<DocumentAiEvalResult>,
+    private readonly ocrRedaction: OcrRedactionService
   ) {}
 
   async listJobs(params: {
@@ -174,5 +178,110 @@ export class DocumentAiService {
     qb.orderBy('x.created_at', 'DESC').limit(params.limit).offset(params.offset);
     const [rows, total] = await qb.getManyAndCount();
     return { rows, total };
+  }
+
+  async getDocument(documentId: string): Promise<DocumentEntity | null> {
+    return this.documentRepo.findOne({ where: { documentId } });
+  }
+
+  async redactDocument(params: {
+    documentId: string;
+    tenantId?: string;
+    actorUserId?: string;
+    correlationId?: string;
+  }): Promise<{ document: DocumentEntity; redaction: RedactedTextResult }> {
+    const doc = await this.documentRepo.findOne({ where: { documentId: params.documentId } });
+    if (!doc) throw new NotFoundException('Document not found');
+
+    const text = doc.extractedText || '';
+    const redaction = this.ocrRedaction.redactText(text);
+
+    doc.redactedText = redaction.redactedText;
+    doc.redactedSpans = redaction.spans as any;
+    doc.updatedAt = new Date();
+    const saved = await this.documentRepo.save(doc);
+
+    await this.auditRepo.save(this.auditRepo.create({
+      documentId: doc.documentId,
+      claimId: doc.claimId || null,
+      correlationId: params.correlationId || null,
+      tenantId: params.tenantId || null,
+      actorUserId: params.actorUserId || null,
+      action: 'redact',
+      decision: 'extracted',
+      input: { documentId: params.documentId },
+      output: { redacted: redaction.redacted, spanCount: redaction.spans.length },
+      confidence: redaction.redacted ? '0.85' : '0.95',
+    }));
+
+    return { document: saved, redaction };
+  }
+
+  async classifyDocument(params: {
+    documentId: string;
+    tenantId?: string;
+    actorUserId?: string;
+    correlationId?: string;
+  }): Promise<{ document: DocumentEntity; classification: DocumentClassification }> {
+    const doc = await this.documentRepo.findOne({ where: { documentId: params.documentId } });
+    if (!doc) throw new NotFoundException('Document not found');
+
+    const text = doc.extractedText || '';
+    const classification = this.ocrRedaction.classifyDocument(text, doc.fileName);
+
+    doc.documentType = classification.documentType;
+    doc.classificationConfidence = classification.confidence;
+    doc.updatedAt = new Date();
+    const saved = await this.documentRepo.save(doc);
+
+    await this.auditRepo.save(this.auditRepo.create({
+      documentId: doc.documentId,
+      claimId: doc.claimId || null,
+      correlationId: params.correlationId || null,
+      tenantId: params.tenantId || null,
+      actorUserId: params.actorUserId || null,
+      action: 'classify',
+      decision: 'extracted',
+      input: { documentId: params.documentId, fileName: doc.fileName },
+      output: classification,
+      confidence: String(classification.confidence),
+    }));
+
+    return { document: saved, classification };
+  }
+
+  async confirmDocumentFields(params: {
+    documentId: string;
+    tenantId?: string;
+    actorUserId?: string;
+    correlationId?: string;
+  }): Promise<{ document: DocumentEntity; fields: Record<string, any>; confirmation: FieldConfirmation }> {
+    const doc = await this.documentRepo.findOne({ where: { documentId: params.documentId } });
+    if (!doc) throw new NotFoundException('Document not found');
+
+    const text = doc.extractedText || '';
+    const documentType = doc.documentType || 'unknown';
+    const fields = this.ocrRedaction.extractFields(text, documentType);
+    const confirmation = this.ocrRedaction.confirmFields(documentType, fields);
+
+    doc.extractedFields = fields as any;
+    doc.confirmationStatus = confirmation.confirmationStatus;
+    doc.updatedAt = new Date();
+    const saved = await this.documentRepo.save(doc);
+
+    await this.auditRepo.save(this.auditRepo.create({
+      documentId: doc.documentId,
+      claimId: doc.claimId || null,
+      correlationId: params.correlationId || null,
+      tenantId: params.tenantId || null,
+      actorUserId: params.actorUserId || null,
+      action: 'confirm_fields',
+      decision: confirmation.confirmationStatus === 'complete' ? 'extracted' : 'needs_review',
+      input: { documentId: params.documentId, documentType },
+      output: { fields, confirmation },
+      confidence: String(confirmation.confidence),
+    }));
+
+    return { document: saved, fields, confirmation };
   }
 }

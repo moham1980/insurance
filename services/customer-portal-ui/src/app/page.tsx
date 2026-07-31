@@ -3,9 +3,12 @@
 import { useState } from 'react'
 import { Shield, Lock, Phone } from 'lucide-react'
 
+const TENANT_ID = process.env.NEXT_PUBLIC_TENANT_ID || 'default-tenant'
+
 export default function Home() {
   const [phoneNumber, setPhoneNumber] = useState('')
   const [otpCode, setOtpCode] = useState('')
+  const [sessionId, setSessionId] = useState('')
   const [step, setStep] = useState<'phone' | 'otp'>('phone')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -19,7 +22,7 @@ export default function Home() {
       const response = await fetch('/api/portal/otp/initiate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber }),
+        body: JSON.stringify({ tenantId: TENANT_ID, phoneNumber }),
       })
 
       const data = await response.json()
@@ -29,6 +32,9 @@ export default function Home() {
         return
       }
 
+      if (data.data?.sessionId) {
+        setSessionId(data.data.sessionId)
+      }
       setStep('otp')
     } catch (err) {
       setError('خطا در ارتباط با سرور')
@@ -46,7 +52,7 @@ export default function Home() {
       const response = await fetch('/api/portal/otp/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber, otpCode }),
+        body: JSON.stringify({ sessionId, otp: otpCode }),
       })
 
       const data = await response.json()
@@ -56,13 +62,7 @@ export default function Home() {
         return
       }
 
-      // Store JWT token as httpOnly cookie via API route
-      if (data.data?.token) {
-        await fetch('/api/auth/set-cookie', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: data.data.token, user: data.data?.user }),
-        })
+      if (data.success || data.data?.token) {
         window.location.href = '/dashboard'
       }
     } catch (err) {

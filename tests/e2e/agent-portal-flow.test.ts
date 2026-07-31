@@ -94,8 +94,8 @@ describe('E2E: Agent Portal Flow', () => {
     correlationId = `test-ap-05-${Date.now()}`;
     apiClient.setCorrelationId(correlationId);
 
-    const response = await apiClient.get('/agent-portal/policies', {
-      params: { agentId, partnerId, limit: 10 },
+    const response = await apiClient.get(`/agent-portal/agent/${agentId}/policies`, {
+      params: { partnerId, limit: 10 },
     });
     if (response.success === true) {
       expect(Array.isArray(response.data)).toBe(true);
@@ -106,8 +106,8 @@ describe('E2E: Agent Portal Flow', () => {
     correlationId = `test-ap-06-${Date.now()}`;
     apiClient.setCorrelationId(correlationId);
 
-    const response = await apiClient.get('/agent-portal/claims', {
-      params: { agentId, partnerId, limit: 10 },
+    const response = await apiClient.get(`/agent-portal/agent/${agentId}/claims`, {
+      params: { partnerId, limit: 10 },
     });
     if (response.success === true) {
       expect(Array.isArray(response.data)).toBe(true);

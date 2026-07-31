@@ -13,7 +13,7 @@ async function migrate() {
     schema: process.env.DB_SCHEMA || 'billing',
     synchronize: false,
     logging: true,
-    migrations: [Init1700000001400],
+    migrations: [__dirname + '/migrations/*.js'],
     migrationsRun: false,
     migrationsTableName: 'migrations',
   });

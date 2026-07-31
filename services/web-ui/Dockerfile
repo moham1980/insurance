@@ -25,7 +25,7 @@ ENV PATH=/app/node_modules/.bin:$PATH
 COPY services/web-ui/package.json ./services/web-ui/
 WORKDIR /app/services/web-ui
 
-RUN for i in 1 2 3; do NODE_TLS_REJECT_UNAUTHORIZED=0 bun install --network-concurrency=8 && break || sleep 10; done --no-frozen-lockfile
+RUN for i in 1 2 3; do NODE_TLS_REJECT_UNAUTHORIZED=0 bun install --network-concurrency=8 --no-frozen-lockfile && break || sleep 10; done
 
 COPY services/web-ui ./
 

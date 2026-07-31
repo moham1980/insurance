@@ -8,6 +8,7 @@ import { InstallmentPlan } from './entities/InstallmentPlan';
 import { Installment } from './entities/Installment';
 import { CollectionsController } from './collections.controller';
 import { CollectionsService } from './collections.service';
+import { ReceivableService } from './receivable.service';
 import { HealthController } from './health.controller';
 
 import { AbacGuard } from './abac.guard';
@@ -28,6 +29,6 @@ import { TenantGuard } from './tenant.guard';
     TypeOrmModule.forFeature([InstallmentPlan, Installment, OutboxEvent, ConsumedEvent, DeadLetterEvent]),
   ],
   controllers: [CollectionsController, HealthController],
-  providers: [TenantGuard, AbacGuard, CollectionsService, JwtAuthGuard, PermissionsGuard, Reflector],
+  providers: [TenantGuard, AbacGuard, CollectionsService, ReceivableService, JwtAuthGuard, PermissionsGuard, Reflector],
 })
 export class AppModule {}

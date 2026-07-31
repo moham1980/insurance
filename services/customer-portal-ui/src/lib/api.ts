@@ -1,6 +1,6 @@
 import axios, { AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3030'
 
 const api = axios.create({
   baseURL: `${API_BASE_URL}/customer-portal`,
@@ -36,23 +36,23 @@ api.interceptors.response.use(
 )
 
 export const authApi = {
-  initiateOtp: async (phoneNumber: string) => {
-    const response = await api.post('/otp/initiate', { phoneNumber })
+  initiateOtp: async (tenantId: string, phoneNumber: string) => {
+    const response = await api.post('/otp/initiate', { tenantId, phoneNumber })
     return response.data
   },
 
-  verifyOtp: async (phoneNumber: string, otpCode: string) => {
-    const response = await api.post('/otp/verify', { phoneNumber, otpCode })
+  verifyOtp: async (sessionId: string, otp: string) => {
+    const response = await api.post('/otp/verify', { sessionId, otp })
     return response.data
   },
 
-  getSession: async () => {
-    const response = await api.get('/session')
+  getSession: async (sessionId: string) => {
+    const response = await api.get(`/session/${sessionId}`)
     return response.data
   },
 
-  revokeSession: async () => {
-    const response = await api.post('/session/revoke')
+  revokeSession: async (sessionId: string) => {
+    const response = await api.post(`/session/${sessionId}/revoke`)
     return response.data
   },
 }
@@ -78,6 +78,36 @@ export const policiesApi = {
     return response.data
   },
 
+  listEndorsements: async (policyId: string) => {
+    const response = await api.get(`/policies/${policyId}/endorsements`)
+    return response.data
+  },
+
+  getEndorsementById: async (policyId: string, endorsementId: string) => {
+    const response = await api.get(`/policies/${policyId}/endorsements/${endorsementId}`)
+    return response.data
+  },
+
+  trackEndorsement: async (policyId: string, endorsementId: string) => {
+    const response = await api.get(`/policies/${policyId}/endorsements/${endorsementId}/track`)
+    return response.data
+  },
+
+  getRenewalQuotes: async (policyId: string) => {
+    const response = await api.get(`/policies/${policyId}/renewal/quotes`)
+    return response.data
+  },
+
+  compareRenewalQuotes: async (policyId: string, productIds?: string[], effectiveDate?: string) => {
+    const response = await api.post(`/policies/${policyId}/renewal/compare-quotes`, { productIds, effectiveDate })
+    return response.data
+  },
+
+  acceptRenewalQuote: async (policyId: string, quoteId: string) => {
+    const response = await api.post(`/policies/${policyId}/renewal/quotes/${quoteId}/accept`)
+    return response.data
+  },
+
   scheduleRenewal: async (policyId: string, data: {
     newStartDate: string
     newEndDate: string
@@ -86,7 +116,11 @@ export const policiesApi = {
     notes?: string
   }) => {
     const response = await api.post(`/policies/${policyId}/renewal`, {
+      newStartDate: data.newStartDate,
       newEndDate: data.newEndDate,
+      newPremium: data.newPremium,
+      type: data.type,
+      notes: data.notes,
     })
     return response.data
   },
@@ -104,7 +138,37 @@ export const claimsApi = {
   },
 
   submitFnol: async (data: any) => {
-    const response = await api.post('/fnol', data)
+    const response = await api.post('/claims/fnol', data)
+    return response.data
+  },
+
+  getAdvocacyCases: async (claimId: string) => {
+    const response = await api.get(`/claims/${claimId}/advocacy`)
+    return response.data
+  },
+
+  openAdvocacyCase: async (claimId: string, data: { description: string; priority?: string }) => {
+    const response = await api.post(`/claims/${claimId}/advocacy`, data)
+    return response.data
+  },
+
+  getAdvocacyCommunications: async (claimId: string, caseId: string) => {
+    const response = await api.get(`/claims/${claimId}/advocacy/${caseId}/communications`)
+    return response.data
+  },
+
+  addAdvocacyCommunication: async (claimId: string, caseId: string, data: { message: string; type?: string }) => {
+    const response = await api.post(`/claims/${claimId}/advocacy/${caseId}/communications`, data)
+    return response.data
+  },
+
+  getAdjusterCommunications: async (claimId: string) => {
+    const response = await api.get(`/claims/${claimId}/adjuster-communications`)
+    return response.data
+  },
+
+  sendAdjusterMessage: async (claimId: string, data: { message: string; attachments?: string[] }) => {
+    const response = await api.post(`/claims/${claimId}/adjuster-communications`, data)
     return response.data
   },
 }
@@ -134,6 +198,54 @@ export const complaintsApi = {
 
   create: async (data: any) => {
     const response = await api.post('/complaints', data)
+    return response.data
+  },
+}
+
+const CUSTOMER_360_BASE_URL = process.env.NEXT_PUBLIC_CUSTOMER_360_URL || 'http://localhost:3010'
+
+const customer360Client = axios.create({
+  baseURL: `${CUSTOMER_360_BASE_URL}/customer-360`,
+  headers: { 'Content-Type': 'application/json' },
+})
+
+customer360Client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  const tokenMatch = typeof document !== 'undefined' ? document.cookie.match(new RegExp('(^| )auth-token=([^;]+)')) : null
+  const token = tokenMatch ? decodeURIComponent(tokenMatch[2]) : null
+  if (token) {
+    config.headers.set('Authorization', `Bearer ${token}`)
+  }
+  return config
+})
+
+export const customer360Api = {
+  getProfile: async (customerId: string) => {
+    const response = await customer360Client.get(`/${customerId}`)
+    return response.data
+  },
+
+  getPortfolio: async (customerId: string) => {
+    const response = await customer360Client.get(`/${customerId}/portfolio`)
+    return response.data
+  },
+
+  listConsents: async (customerId: string) => {
+    const response = await customer360Client.get(`/${customerId}/consents`)
+    return response.data
+  },
+
+  recordConsent: async (customerId: string, data: { purpose: string; status?: 'granted' | 'denied'; expiresAt?: string }) => {
+    const response = await customer360Client.post(`/${customerId}/consents`, data)
+    return response.data
+  },
+
+  revokeConsent: async (customerId: string, consentId: string, reason?: string) => {
+    const response = await customer360Client.post(`/${customerId}/consents/${consentId}/revoke`, { reason })
+    return response.data
+  },
+
+  checkConsent: async (customerId: string, purpose: string) => {
+    const response = await customer360Client.get(`/${customerId}/consents/check`, { params: { purpose } })
     return response.data
   },
 }

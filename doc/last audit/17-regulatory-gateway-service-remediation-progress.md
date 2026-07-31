@@ -56,4 +56,9 @@
 | 2 | 2026-07-27 | Wave B: RealSanhabClient https.Agent/mTLS, warehouse-fire real HTTP call, SanhabSmsInquiry DB persistence + real SMS providers, webhook HMAC | Done |
 | 3 | 2026-07-27 | Wave C: Redis-backed circuit breaker, listEvents DTO mapping, health checks for Sanhab/Kafka, search_path in TypeORM config and main.ts | Done |
 | 4 | 2026-07-27 | TypeScript compilation verification (`npx tsc --noEmit`) | Pass |
+| 5 | 2026-07-27 | Extra: Fixed RealSanhabClient endpoint override (`endpoint` now configurable via `SANHAB_SERVICE_ENDPOINT` instead of hard-coded WSDL URL) | Done |
+| 6 | 2026-07-27 | Extra: Added append-only enforcement for `regulatory_failure_log` via DB trigger (P1 audit item 4.3) | Done |
+| 7 | 2026-07-27 | Re-verified build after fixes (`npx tsc --noEmit`) | Pass |
+| 8 | 2026-07-27 | Fix: Added missing `tenant_id` column/index to `outbox_events` migration to align with `OutboxEvent` entity | Done |
+| 9 | 2026-07-27 | Final typecheck (`npx tsc --noEmit`) | Pass |
 

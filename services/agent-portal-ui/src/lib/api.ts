@@ -1,6 +1,6 @@
 // API Client for Agent Portal UI
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3032';
 // Enforce HTTPS in production
 if (process.env.NODE_ENV === 'production' && API_BASE_URL.startsWith('http://') && !API_BASE_URL.includes('localhost')) {
   console.warn('WARNING: NEXT_PUBLIC_API_URL should use HTTPS in production');
@@ -129,13 +129,21 @@ class AgentPortalAPI {
     throw new Error('Login failed');
   }
 
+  async createSession(tenantId: string, agentId: string, jwtToken: string): Promise<any> {
+    const response = await this.request<{ success: boolean; data: any }>('/agent-portal/session', {
+      method: 'POST',
+      body: JSON.stringify({ tenantId, agentId, jwtToken }),
+    });
+    return response.data;
+  }
+
   async getDashboardStats(): Promise<DashboardStats> {
     if (!this.agentId || !this.partnerId) {
       throw new Error('Not authenticated');
     }
 
     const response = await this.request<{ success: boolean; data: DashboardStats }>(
-      `/agent-portal/dashboard/stats?agentId=${this.agentId}&partnerId=${this.partnerId}`
+      `/agent-portal/agent/${this.agentId}/dashboard?partnerId=${this.partnerId}`
     );
 
     return response.data;
@@ -152,7 +160,7 @@ class AgentPortalAPI {
     if (filters?.toDate) params.append('toDate', filters.toDate);
 
     const response = await this.request<{ success: boolean; data: AgentPolicy[] }>(
-      `/agent-portal/policies?agentId=${this.agentId}&partnerId=${this.partnerId}&${params.toString()}`
+      `/agent-portal/agent/${this.agentId}/policies?partnerId=${this.partnerId}&${params.toString()}`
     );
 
     return response.data;
@@ -169,7 +177,7 @@ class AgentPortalAPI {
     if (filters?.toDate) params.append('toDate', filters.toDate);
 
     const response = await this.request<{ success: boolean; data: AgentCommission[] }>(
-      `/agent-portal/commissions?agentId=${this.agentId}&partnerId=${this.partnerId}&${params.toString()}`
+      `/agent-portal/agent/${this.agentId}/commissions?partnerId=${this.partnerId}&${params.toString()}`
     );
 
     return response.data;
@@ -208,6 +216,194 @@ class AgentPortalAPI {
       `/agent-portal/dashboard/policy-portfolio?agentId=${this.agentId}&partnerId=${this.partnerId}`
     );
 
+    return response.data;
+  }
+
+  // ── Claims & Advocacy ────────────────────────────────────────────────
+
+  async getClaims(filters?: { status?: string; limit?: number; offset?: number }): Promise<any[]> {
+    if (!this.agentId || !this.partnerId) throw new Error('Not authenticated');
+    const params = new URLSearchParams();
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.limit) params.append('limit', String(filters.limit));
+    if (filters?.offset) params.append('offset', String(filters.offset));
+    const response = await this.request<{ success: boolean; data: any[] }>(
+      `/agent-portal/agent/${this.agentId}/claims?partnerId=${this.partnerId}&${params.toString()}`
+    );
+    return response.data;
+  }
+
+  async getClaimDetails(claimId: string): Promise<any> {
+    if (!this.agentId || !this.partnerId) throw new Error('Not authenticated');
+    const response = await this.request<{ success: boolean; data: any }>(
+      `/agent-portal/agent/${this.agentId}/claims/${claimId}/status?partnerId=${this.partnerId}`
+    );
+    return response.data;
+  }
+
+  async getClaimAdvocacy(claimId: string): Promise<any> {
+    if (!this.agentId || !this.partnerId) throw new Error('Not authenticated');
+    const response = await this.request<{ success: boolean; data: any }>(
+      `/agent-portal/claims/${claimId}/advocacy?agentId=${this.agentId}&partnerId=${this.partnerId}`
+    );
+    return response.data;
+  }
+
+  async closeAdvocacyCase(caseId: string, reason: string): Promise<any> {
+    if (!this.agentId || !this.partnerId) throw new Error('Not authenticated');
+    const response = await this.request<{ success: boolean; data: any }>(
+      `/agent-portal/advocacy-cases/${caseId}/close`,
+      { method: 'POST', body: JSON.stringify({ reason }) }
+    );
+    return response.data;
+  }
+
+  async listAdvocacyTasks(caseId: string, status?: string): Promise<any[]> {
+    if (!this.agentId || !this.partnerId) throw new Error('Not authenticated');
+    const params = new URLSearchParams();
+    if (status) params.append('status', status);
+    const response = await this.request<{ success: boolean; data: any[] }>(
+      `/agent-portal/advocacy-cases/${caseId}/tasks?${params.toString()}`
+    );
+    return response.data;
+  }
+
+  async updateAdvocacyTaskStatus(caseId: string, taskId: string, status: string): Promise<any> {
+    if (!this.agentId || !this.partnerId) throw new Error('Not authenticated');
+    const response = await this.request<{ success: boolean; data: any }>(
+      `/agent-portal/advocacy-cases/${caseId}/tasks/${taskId}`,
+      { method: 'PATCH', body: JSON.stringify({ status }) }
+    );
+    return response.data;
+  }
+
+  // ── Adjuster Referrals ───────────────────────────────────────────────
+
+  async createAdjusterReferral(claimId: string, body: any): Promise<any> {
+    if (!this.agentId || !this.partnerId) throw new Error('Not authenticated');
+    const response = await this.request<{ success: boolean; data: any }>(
+      `/agent-portal/claims/${claimId}/adjuster-referrals`,
+      { method: 'POST', body: JSON.stringify(body) }
+    );
+    return response.data;
+  }
+
+  async acceptAdjusterReferral(referralId: string): Promise<any> {
+    if (!this.agentId || !this.partnerId) throw new Error('Not authenticated');
+    const response = await this.request<{ success: boolean; data: any }>(
+      `/agent-portal/adjuster-referrals/${referralId}/accept`,
+      { method: 'POST' }
+    );
+    return response.data;
+  }
+
+  async rejectAdjusterReferral(referralId: string, reason: string): Promise<any> {
+    if (!this.agentId || !this.partnerId) throw new Error('Not authenticated');
+    const response = await this.request<{ success: boolean; data: any }>(
+      `/agent-portal/adjuster-referrals/${referralId}/reject`,
+      { method: 'POST', body: JSON.stringify({ reason }) }
+    );
+    return response.data;
+  }
+
+  async submitAdjusterReport(referralId: string, body: any): Promise<any> {
+    if (!this.agentId || !this.partnerId) throw new Error('Not authenticated');
+    const response = await this.request<{ success: boolean; data: any }>(
+      `/agent-portal/adjuster-referrals/${referralId}/submit-report`,
+      { method: 'POST', body: JSON.stringify(body) }
+    );
+    return response.data;
+  }
+
+  // ── Recovery Tracking ────────────────────────────────────────────────
+
+  async createRecoveryCase(claimId: string, body: any): Promise<any> {
+    if (!this.agentId || !this.partnerId) throw new Error('Not authenticated');
+    const response = await this.request<{ success: boolean; data: any }>(
+      `/agent-portal/claims/${claimId}/recovery`,
+      { method: 'POST', body: JSON.stringify(body) }
+    );
+    return response.data;
+  }
+
+  async getRecoveryCase(recoveryId: string): Promise<any> {
+    if (!this.agentId || !this.partnerId) throw new Error('Not authenticated');
+    const response = await this.request<{ success: boolean; data: any }>(
+      `/agent-portal/recovery/${recoveryId}`
+    );
+    return response.data;
+  }
+
+  async listRecoveryCases(claimId?: string): Promise<any[]> {
+    if (!this.agentId || !this.partnerId) throw new Error('Not authenticated');
+    if (!claimId) throw new Error('claimId is required');
+    const response = await this.request<{ success: boolean; data: any[] }>(
+      `/agent-portal/claims/${claimId}/recovery`
+    );
+    return response.data;
+  }
+
+  async updateRecoveryStatus(recoveryId: string, status: string): Promise<any> {
+    if (!this.agentId || !this.partnerId) throw new Error('Not authenticated');
+    const response = await this.request<{ success: boolean; data: any }>(
+      `/agent-portal/recovery/${recoveryId}/status`,
+      { method: 'PATCH', body: JSON.stringify({ status }) }
+    );
+    return response.data;
+  }
+
+  // ── Customer Detail ──────────────────────────────────────────────────
+
+  async getCustomerDetail(customerId: string): Promise<any> {
+    if (!this.agentId || !this.partnerId) throw new Error('Not authenticated');
+    const response = await this.request<{ success: boolean; data: any }>(
+      `/agent-portal/agent/${this.agentId}/customers/${customerId}?partnerId=${this.partnerId}`
+    );
+    return response.data;
+  }
+
+  async getCommissionDetail(commissionId: string): Promise<any> {
+    if (!this.agentId || !this.partnerId) throw new Error('Not authenticated');
+    const response = await this.request<{ success: boolean; data: any }>(
+      `/agent-portal/agent/${this.agentId}/commissions/${commissionId}?partnerId=${this.partnerId}`
+    );
+    return response.data;
+  }
+
+  // ── Leads ────────────────────────────────────────────────────────────
+
+  async generateNbaActions(params: { contextType: string; resourceId: string }): Promise<any> {
+    const response = await this.request<{ success: boolean; data: any }>(
+      `/copilot/nba/${encodeURIComponent(params.contextType)}/${encodeURIComponent(params.resourceId)}/actions`,
+      { method: 'POST' },
+    );
+    return response.data;
+  }
+
+  async listNbaActions(params: { contextType: string; resourceId: string; limit?: number; offset?: number }): Promise<any> {
+    const query = new URLSearchParams();
+    query.set('contextType', params.contextType);
+    query.set('resourceId', params.resourceId);
+    if (params.limit) query.set('limit', String(params.limit));
+    if (params.offset) query.set('offset', String(params.offset));
+    const response = await this.request<{ success: boolean; data: any[]; pagination?: any }>(
+      `/copilot/nba/actions?${query.toString()}`,
+    );
+    return response.data;
+  }
+
+  async executeNbaAction(logId: string): Promise<any> {
+    const response = await this.request<{ success: boolean; data: any }>(`/copilot/nba/${encodeURIComponent(logId)}/execute`, {
+      method: 'POST',
+    });
+    return response.data;
+  }
+
+  async optOutNbaAction(logId: string, reason?: string): Promise<any> {
+    const response = await this.request<{ success: boolean; data: any }>(`/copilot/nba/${encodeURIComponent(logId)}/opt-out`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
     return response.data;
   }
 

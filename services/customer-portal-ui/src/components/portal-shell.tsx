@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, FileText, ShieldAlert, CreditCard, User } from 'lucide-react';
+import { Home, FileText, ShieldAlert, CreditCard, User, Gavel, MessageSquare, FileSearch, RefreshCw } from 'lucide-react';
 import { cn } from '@insurance/ui-utils';
 import { ThemeToggle, SkipLink, BottomNav } from '@insurance/design-system';
+import { useBrandTheme } from '@/config/brand-provider';
 
 const navItems = [
   { href: '/', label: 'خانه', icon: Home },
@@ -14,9 +15,17 @@ const navItems = [
   { href: '/profile', label: 'پروفایل', icon: User },
 ];
 
+const secondaryNavItems = [
+  { href: '/advocacy', label: 'وکالت', icon: Gavel },
+  { href: '/adjuster-communication', label: 'ارتباط با کارشناس', icon: MessageSquare },
+  { href: '/endorsement-tracking', label: 'پیگیری الحاقیه', icon: FileSearch },
+  { href: '/renewal-comparison', label: 'مقایسه تمدید', icon: RefreshCw },
+];
+
 export function PortalShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const safePathname = pathname || '/';
+  const brand = useBrandTheme();
 
   const bottomNavItems = navItems.map((item) => ({
     href: item.href,
@@ -33,10 +42,34 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-10 border-b border-border-default bg-bg-raised/80 backdrop-blur">
         <div className="mx-auto flex max-w-lg items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-brand-primary" />
-            <span className="text-base font-bold text-text-primary">بیمه پلاس</span>
+            {brand.headerLogoUrl ? (
+              <img src={brand.headerLogoUrl} alt={brand.displayNameFa} className="h-8 w-auto rounded-lg" />
+            ) : (
+              <div className="h-8 w-8 rounded-lg bg-brand-primary" />
+            )}
+            <span className="text-base font-bold text-text-primary">{brand.displayNameFa}</span>
           </div>
           <ThemeToggle size="sm" />
+        </div>
+        {/* Secondary nav */}
+        <div className="mx-auto flex max-w-lg gap-1 overflow-x-auto px-4 pb-2">
+          {secondaryNavItems.map((item) => {
+            const Icon = item.icon;
+            const active = safePathname.startsWith(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  'flex items-center gap-1 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
+                  active ? 'bg-brand-primary/10 text-brand-primary' : 'text-text-secondary hover:bg-bg-base'
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {item.label}
+              </Link>
+            );
+          })}
         </div>
       </header>
 

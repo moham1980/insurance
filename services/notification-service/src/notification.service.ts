@@ -10,6 +10,7 @@ import { SmsTemplate, SmsTemplateType } from './entities/SmsTemplate';
 import { ISmsProvider } from './sms-providers/sms-provider.interface';
 import { IEmailProvider } from './email-providers/email-provider.interface';
 import { RedisService } from './redis.service';
+import { PushChannel, PushSubscription, PushNotificationPayload } from './push-channel';
 
 interface CreateNotificationParams {
   tenantId: string;
@@ -41,6 +42,7 @@ export class NotificationService {
     @Inject('EMAIL_PROVIDER') private emailProvider: IEmailProvider,
     @Inject('SMS_FALLBACK_PROVIDER') private fallbackSmsProvider: ISmsProvider | undefined,
     private readonly redisService: RedisService,
+    private readonly pushChannel: PushChannel,
   ) {}
 
   private otpKey(tenantId: string, reference: string): string {
@@ -102,6 +104,37 @@ export class NotificationService {
     }, delayMs);
   }
 
+  async sendPushNotification(params: {
+    tenantId: string;
+    userId?: string;
+    correlationId?: string;
+    subscription: PushSubscription;
+    title: string;
+    body: string;
+    type?: NotificationType;
+    metadata?: Record<string, any>;
+  }): Promise<NotificationLog> {
+    const log = await this.dataSource.transaction(async (manager) => {
+      return this.createNotificationLog(manager, {
+        tenantId: params.tenantId,
+        userId: params.userId,
+        correlationId: params.correlationId,
+        channel: NotificationChannel.PUSH,
+        type: params.type || NotificationType.POLICY_ISSUED,
+        recipient: params.subscription.endpoint,
+        message: params.body,
+        metadata: {
+          ...params.metadata,
+          subscription: params.subscription,
+          title: params.title,
+          body: params.body,
+        },
+      });
+    });
+    this.scheduleProcess(log.id);
+    return log;
+  }
+
   async sendNotification(params: CreateNotificationParams): Promise<NotificationLog> {
     const log = await this.dataSource.transaction(async (manager) => {
       return this.createNotificationLog(manager, params);
@@ -136,15 +169,41 @@ export class NotificationService {
     return { reference: log.id, logId: log.id };
   }
 
+  private otpAttemptsKey(tenantId: string, reference: string): string {
+    return `otp_attempts:${tenantId}:${reference}`;
+  }
+
+  private readonly otpMaxAttempts = parseInt(process.env.OTP_MAX_ATTEMPTS || '5', 10);
+  private readonly otpLockoutSeconds = parseInt(process.env.OTP_LOCKOUT_SECONDS || '900', 10);
+
   async verifyOtp(reference: string, code: string, tenantId: string): Promise<{ valid: boolean }> {
+    const attemptsKey = this.otpAttemptsKey(tenantId, reference);
+
+    // Check if locked out due to too many failed attempts
+    const attemptsStr = await this.redisService.get(attemptsKey);
+    if (attemptsStr && parseInt(attemptsStr, 10) >= this.otpMaxAttempts) {
+      throw new ForbiddenException(
+        `OTP verification locked out due to too many failed attempts. Try again after ${this.otpLockoutSeconds}s.`,
+      );
+    }
+
     const stored = await this.redisService.get(this.otpKey(tenantId, reference));
     if (!stored) {
       throw new BadRequestException('OTP not found or expired');
     }
     if (stored !== code) {
-      throw new BadRequestException('Invalid OTP');
+      const count = await this.redisService.incr(attemptsKey);
+      if (count === 1) {
+        await this.redisService.expire(attemptsKey, this.otpLockoutSeconds);
+      }
+      const remaining = this.otpMaxAttempts - count;
+      throw new BadRequestException(
+        `Invalid OTP. ${remaining > 0 ? `${remaining} attempt(s) remaining.` : 'Account locked.'}`,
+      );
     }
+    // Success — clean up OTP and attempt counter
     await this.redisService.del(this.otpKey(tenantId, reference));
+    await this.redisService.del(attemptsKey);
     return { valid: true };
   }
 
@@ -220,6 +279,25 @@ export class NotificationService {
           const html = log.metadata?.html;
           result = await this.emailProvider.sendEmail(log.recipient, subject, body, { html });
         }
+      } else if (log.channel === NotificationChannel.PUSH) {
+        const subscription: PushSubscription | undefined = log.metadata?.subscription;
+        if (!subscription) {
+          throw new Error('Push subscription not found in notification metadata');
+        }
+        const payload: PushNotificationPayload = {
+          title: log.metadata?.title || log.message.substring(0, 100),
+          body: log.metadata?.body || log.message,
+          icon: log.metadata?.icon,
+          badge: log.metadata?.badge,
+          image: log.metadata?.image,
+          data: log.metadata?.data,
+          actions: log.metadata?.actions,
+          tag: log.metadata?.tag,
+          requireInteraction: log.metadata?.requireInteraction,
+          silent: log.metadata?.silent,
+        };
+        const pushResult = await this.pushChannel.sendPush(subscription, payload);
+        result = pushResult;
       } else {
         throw new Error(`Unsupported channel: ${log.channel}`);
       }
@@ -229,14 +307,22 @@ export class NotificationService {
         log.sentAt = new Date();
         log.metadata = { ...log.metadata, messageId: result.messageId };
       } else {
-        log.status = NotificationStatus.FAILED;
         log.errorMessage = result.error || 'Unknown error';
         log.retryCount += 1;
+        if (log.retryCount < this.maxRetries) {
+          log.status = NotificationStatus.RETRYING;
+        } else {
+          log.status = NotificationStatus.FAILED;
+        }
       }
     } catch (error: any) {
-      log.status = NotificationStatus.FAILED;
       log.errorMessage = error.message || 'Unknown error';
       log.retryCount += 1;
+      if (log.retryCount < this.maxRetries) {
+        log.status = NotificationStatus.RETRYING;
+      } else {
+        log.status = NotificationStatus.FAILED;
+      }
     }
 
     await this.dataSource.transaction(async (manager) => {
@@ -257,6 +343,12 @@ export class NotificationService {
         },
       });
     });
+
+    if (log.status === NotificationStatus.RETRYING) {
+      const delay = this.retryDelayMs * Math.pow(2, log.retryCount);
+      this.logger.log(`Auto-retrying notification ${logId} after ${delay}ms (attempt ${log.retryCount + 1}/${this.maxRetries})`);
+      this.scheduleProcess(logId, delay);
+    }
   }
 
   async getNotification(id: string, tenantId: string): Promise<NotificationLog | null> {

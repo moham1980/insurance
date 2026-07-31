@@ -1,8 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
+import { DataSource } from 'typeorm';
 import { firstValueFrom, timeout as rxTimeout, catchError, of } from 'rxjs';
-import { Customer360Profile, ProfileMetadata } from './models/Customer360Profile';
+import { Customer360Profile, ProfileMetadata, PortfolioSummary, ConsentRecord } from './models/Customer360Profile';
+import { ConsentDbStore } from './consent/consent-db.store';
+import { ConsentCheckService } from './consent/consent-check.service';
+import { OutboxPublisher } from '@insurance/shared';
+import { randomUUID } from 'node:crypto';
 
 /**
  * Customer 360 Service
@@ -15,6 +20,9 @@ export class Customer360Service {
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
+    private readonly consentDbStore: ConsentDbStore,
+    private readonly consentCheck: ConsentCheckService,
+    private readonly dataSource: DataSource,
   ) {}
 
   /**
@@ -24,6 +32,10 @@ export class Customer360Service {
 
   async getCustomer360Profile(customerId: string, authToken?: string): Promise<Customer360Profile> {
     this.logger.log(`Fetching Customer 360 profile for customer ${customerId}`);
+
+    // P7-13: Enforce consent check before aggregation
+    await this.consentCheck.assertConsent(customerId, ConsentCheckService.PURPOSE_CUSTOMER_360);
+
     const authHeaders: Record<string, string> = authToken ? { Authorization: authToken } : {};
 
     // Fetch data from all services in parallel with allSettled for partial failure handling
@@ -39,7 +51,7 @@ export class Customer360Service {
       this.getRelationships(customerId, authHeaders),
       this.getRiskProfile(customerId, authHeaders),
       this.getPreferences(customerId, authHeaders),
-      this.getConsent(customerId, authHeaders),
+      this.getConsent(customerId),
     ]);
 
     const profile = results[0].status === 'fulfilled' ? results[0].value : {};
@@ -367,45 +379,166 @@ export class Customer360Service {
   }
 
   /**
-   * Get customer consents
-   * Integration with consent management service
+   * Get customer consents from local consent store
    */
-  private async getConsent(customerId: string, authHeaders: Record<string, string> = {}): Promise<any[]> {
-    try {
-      // In a real implementation, this would call the consent management service API
-      const consentServiceUrl = process.env.CONSENT_SERVICE_URL || 'http://localhost:18010';
-      
-      // Simulate API call to consent service
-      // const response = await axios.get(`${consentServiceUrl}/consents/${customerId}`);
-      // const consents = response.data;
-      
-      // For now, return simulated consent data
-      const consents = [
-        {
-          consentId: 'consent-001',
-          customerId,
-          consentType: 'data_processing',
-          status: 'active',
-          grantedAt: new Date('2024-01-01'),
-          expiresAt: new Date('2025-01-01'),
-          purposes: ['marketing', 'analytics', 'fraud_detection'],
-        },
-        {
-          consentId: 'consent-002',
-          customerId,
-          consentType: 'data_sharing',
-          status: 'active',
-          grantedAt: new Date('2024-01-15'),
-          expiresAt: new Date('2025-01-15'),
-          purposes: ['third_party', 'affiliates'],
-        },
-      ];
-      
-      return consents;
-    } catch (error) {
-      console.error('Error fetching consents from consent management service:', error);
-      return [];
+  private async getConsent(customerId: string): Promise<ConsentRecord[]> {
+    return this.consentDbStore.list(customerId);
+  }
+
+  /**
+   * Portfolio aggregator for a customer
+   */
+  async getPortfolioSummary(customerId: string, authToken?: string): Promise<PortfolioSummary> {
+    const profile = await this.getCustomer360Profile(customerId, authToken);
+    const activePolicies = profile.policies.filter((p) => p.status === 'active');
+    const vehicles: any[] = [];
+    const properties: any[] = [];
+    let lifeSumAssured = 0;
+
+    for (const policy of profile.policies) {
+      if (policy.coverageDetails?.vehicle) vehicles.push(policy.coverageDetails.vehicle);
+      if (policy.coverageDetails?.property) properties.push(policy.coverageDetails.property);
+      if (policy.coverageDetails?.life?.sumAssured) lifeSumAssured += policy.coverageDetails.life.sumAssured;
     }
+
+    const totalPremium = profile.policies.reduce((sum, p) => sum + (Number(p.premiumAmount) || 0), 0);
+    const totalCoverage = profile.policies.reduce((sum, p) => {
+      const vehicle = p.coverageDetails?.vehicle ? 0 : 0;
+      const property = p.coverageDetails?.property?.area ? (p.coverageDetails.property.area as number) * 1000000 : 0;
+      const life = p.coverageDetails?.life?.sumAssured || 0;
+      return sum + property + life;
+    }, 0);
+
+    const totalClaims = profile.claims.length;
+    const openClaims = profile.claims.filter((c) => ['reported', 'investigating', 'assessing'].includes(c.status)).length;
+    const totalClaimAmount = profile.claims.reduce((sum, c) => sum + (Number(c.estimatedAmount) || 0), 0);
+    const paidClaims = profile.claims.reduce((sum, c) => sum + (Number(c.paidAmount) || 0), 0);
+    const totalPayments = profile.payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+
+    const netPosition = totalPremium - paidClaims - totalPayments;
+
+    const overallRiskScore = profile.riskProfile?.overallRiskScore ?? 50;
+    const riskCategory = profile.riskProfile?.riskCategory ?? 'medium';
+
+    return {
+      customerId,
+      totalPolicies: profile.policies.length,
+      activePolicies: activePolicies.length,
+      totalPremium,
+      totalCoverage,
+      totalClaims,
+      openClaims,
+      totalClaimAmount,
+      paidClaims,
+      outstandingClaims: Math.max(0, totalClaimAmount - paidClaims),
+      totalPayments,
+      netPosition,
+      assets: { vehicles, properties, lifeSumAssured },
+      riskMetrics: {
+        overallRiskScore,
+        riskCategory,
+        amlStatus: profile.amlStatus?.status ?? 'unknown',
+        kycStatus: profile.kycStatus?.status ?? 'unknown',
+      },
+    };
+  }
+
+  async listConsents(customerId: string): Promise<ConsentRecord[]> {
+    return this.consentDbStore.list(customerId);
+  }
+
+  async recordConsent(params: {
+    customerId: string;
+    purpose: string;
+    status?: 'granted' | 'denied';
+    expiresAt?: Date;
+    source?: string;
+    channel?: string;
+    actorUserId?: string;
+    tenantId?: string;
+    version?: string;
+  }): Promise<ConsentRecord> {
+    const now = new Date();
+    const record: Omit<ConsentRecord, 'consentId' | 'createdAt' | 'updatedAt'> = {
+      customerId: params.customerId,
+      purpose: params.purpose,
+      status: params.status ?? 'granted',
+      grantedAt: params.status === 'denied' ? undefined : now,
+      expiresAt: params.expiresAt,
+      version: params.version ?? '1.0',
+      source: params.source ?? 'customer_portal',
+      channel: params.channel ?? 'web',
+      actorUserId: params.actorUserId,
+      tenantId: params.tenantId,
+    };
+    const saved = await this.consentDbStore.add(record);
+
+    // Publish ConsentGranted event via Outbox (transactional with consent write)
+    if (saved.status === 'granted') {
+      await this.dataSource.transaction(async (manager) => {
+        const outbox = new OutboxPublisher(manager);
+        await outbox.publish({
+          topic: 'insurance.customer.consent.granted',
+          eventType: 'ConsentGranted',
+          eventVersion: 1,
+          correlationId: randomUUID(),
+          tenantId: params.tenantId || 'unknown',
+          subject: { customerId: params.customerId, consentId: saved.consentId },
+          payload: {
+            customerId: params.customerId,
+            consentId: saved.consentId,
+            purpose: params.purpose,
+            status: saved.status,
+            grantedAt: saved.grantedAt,
+            expiresAt: saved.expiresAt,
+            source: saved.source,
+            channel: saved.channel,
+            version: saved.version,
+          },
+          producer: 'customer-360-service',
+          dataClassification: 'PII',
+        });
+      });
+      this.logger.log(`ConsentGranted event published for customer ${params.customerId}, purpose ${params.purpose}`);
+    }
+
+    return saved;
+  }
+
+  async revokeConsent(customerId: string, consentId: string, reason?: string): Promise<ConsentRecord | null> {
+    const revoked = await this.consentDbStore.revoke(customerId, consentId, reason);
+
+    if (revoked) {
+      // Publish ConsentRevoked event via Outbox (transactional)
+      await this.dataSource.transaction(async (manager) => {
+        const outbox = new OutboxPublisher(manager);
+        await outbox.publish({
+          topic: 'insurance.customer.consent.revoked',
+          eventType: 'ConsentRevoked',
+          eventVersion: 1,
+          correlationId: randomUUID(),
+          tenantId: revoked.tenantId || 'unknown',
+          subject: { customerId, consentId: revoked.consentId },
+          payload: {
+            customerId,
+            consentId: revoked.consentId,
+            purpose: revoked.purpose,
+            revokedAt: revoked.revokedAt,
+            revocationReason: revoked.revocationReason,
+            previousStatus: revoked.status,
+          },
+          producer: 'customer-360-service',
+          dataClassification: 'PII',
+        });
+      });
+      this.logger.log(`ConsentRevoked event published for customer ${customerId}, consent ${consentId}`);
+    }
+
+    return revoked;
+  }
+
+  async checkConsent(customerId: string, purpose: string): Promise<{ purpose: string; granted: boolean; consent: ConsentRecord | null }> {
+    return this.consentDbStore.check(customerId, purpose);
   }
 
   /**

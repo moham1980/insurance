@@ -1,6 +1,7 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, EntityManager } from 'typeorm';
+import { AsyncLocalStorage } from 'async_hooks';
 import { v4 as uuidv4 } from 'uuid';
 import { KafkaProducer, OutboxPublisher, createEventEnvelope, createLogger, Logger } from '@insurance/shared';
 import { SagaInstance } from './entities/SagaInstance';
@@ -11,17 +12,38 @@ import { WorkItem, WorkItemPriority, WorkItemStatus } from './entities/WorkItem'
 export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
   private logger: Logger;
   private kafkaProducer?: KafkaProducer;
+  private readonly txStore = new AsyncLocalStorage<EntityManager>();
 
   constructor(
     private readonly dataSource: DataSource,
-    @InjectRepository(SagaInstance) private readonly sagaRepo: Repository<SagaInstance>,
-    @InjectRepository(SagaStep) private readonly sagaStepRepo: Repository<SagaStep>,
-    @InjectRepository(WorkItem) private readonly workItemRepo: Repository<WorkItem>
+    @InjectRepository(SagaInstance) private readonly sagaRepoDefault: Repository<SagaInstance>,
+    @InjectRepository(SagaStep) private readonly sagaStepRepoDefault: Repository<SagaStep>,
+    @InjectRepository(WorkItem) private readonly workItemRepoDefault: Repository<WorkItem>
   ) {
     this.logger = createLogger({
       serviceName: 'orchestrator-service',
       prettyPrint: process.env.NODE_ENV !== 'production',
     });
+  }
+
+  private getManager(): EntityManager {
+    return this.txStore.getStore() ?? this.dataSource.manager;
+  }
+
+  get sagaRepo(): Repository<SagaInstance> {
+    return this.getManager().getRepository(SagaInstance);
+  }
+
+  get sagaStepRepo(): Repository<SagaStep> {
+    return this.getManager().getRepository(SagaStep);
+  }
+
+  get workItemRepo(): Repository<WorkItem> {
+    return this.getManager().getRepository(WorkItem);
+  }
+
+  async runWithManager<T>(manager: EntityManager, fn: () => Promise<T>): Promise<T> {
+    return this.txStore.run(manager, fn);
   }
 
   async onFraudScoreComputed(params: {
@@ -457,17 +479,26 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
     });
 
     // Use Outbox pattern for reliable event publishing within a transaction
+    const publishPayload = {
+      topic,
+      eventType: envelope.eventType,
+      eventVersion: envelope.eventVersion,
+      correlationId,
+      tenantId,
+      subject: Object.fromEntries(Object.entries(envelope.subject).filter(([, v]) => v !== undefined)) as Record<string, string>,
+      payload: envelope,
+    };
+
+    const activeManager = this.txStore.getStore();
+    if (activeManager) {
+      const outboxPublisher = new OutboxPublisher(activeManager);
+      await outboxPublisher.publish(publishPayload);
+      return;
+    }
+
     await this.dataSource.transaction(async (manager) => {
       const outboxPublisher = new OutboxPublisher(manager);
-      await outboxPublisher.publish({
-        topic,
-        eventType: envelope.eventType,
-        eventVersion: envelope.eventVersion,
-        correlationId,
-        tenantId,
-        subject: Object.fromEntries(Object.entries(envelope.subject).filter(([, v]) => v !== undefined)) as Record<string, string>,
-        payload: envelope,
-      });
+      await outboxPublisher.publish(publishPayload);
     });
   }
 
@@ -1060,7 +1091,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
       .createQueryBuilder('s')
       .where('s.saga_type = :sagaType', { sagaType: params.sagaType })
       .andWhere('s.tenant_id = :tenantId', { tenantId: params.tenantId })
-      .andWhere("COALESCE(s.context->>'dedupeKey','') = :dedupeKey", { dedupeKey: params.dedupeKey })
+      .andWhere('s.context @> :dedupeJson::jsonb', { dedupeJson: JSON.stringify({ dedupeKey: params.dedupeKey }) })
       .andWhere('s.status IN (:...statuses)', { statuses: ['started', 'waiting', 'compensating'] })
       .orderBy('s.created_at', 'DESC')
       .getOne();
@@ -1123,7 +1154,11 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
       });
       await this.sagaRepo.save(saga);
 
-      // Create work items for each saga step
+      // Create work item for the current step only
+      saga.status = 'waiting';
+      saga.currentStep = 'UNDERWRITING_REVIEW';
+      await this.sagaRepo.save(saga);
+
       const underwritingItem = await this.createWorkItem({
         sagaId: saga.sagaId,
         tenantId: saga.tenantId,
@@ -1134,32 +1169,6 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
         context: { policyId: saga.policyId, correlationId: params.correlationId },
         priority: WorkItemPriority.high,
       });
-
-      await this.createWorkItem({
-        sagaId: saga.sagaId,
-        tenantId: saga.tenantId,
-        stepName: 'SANHAB_FOLLOWUP',
-        workItemType: 'sanhab_followup',
-        policyId: saga.policyId || undefined,
-        claimId: saga.claimId || undefined,
-        context: { policyId: saga.policyId, correlationId: params.correlationId },
-        priority: WorkItemPriority.medium,
-      });
-
-      await this.createWorkItem({
-        sagaId: saga.sagaId,
-        tenantId: saga.tenantId,
-        stepName: 'OVERRIDE_REVIEW',
-        workItemType: 'override_review',
-        policyId: saga.policyId || undefined,
-        claimId: saga.claimId || undefined,
-        context: { policyId: saga.policyId, correlationId: params.correlationId },
-        priority: WorkItemPriority.medium,
-      });
-
-      saga.status = 'waiting';
-      saga.currentStep = 'UNDERWRITING_REVIEW';
-      await this.sagaRepo.save(saga);
 
       await this.publishSagaEvent('insurance.saga.policy_issuance.started', {
         sagaId: saga.sagaId,
@@ -1337,7 +1346,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
   }
 
   async getSaga(tenantId: string, sagaId: string): Promise<SagaInstance | null> {
-    return this.sagaRepo.findOne({ where: { sagaId, tenantId } });
+    return this.sagaRepo.findOne({ where: { sagaId, tenantId }, relations: ['workItems', 'steps'] });
   }
 
   async listWorkItems(params: {
@@ -1465,6 +1474,48 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
             await this.handlePaymentNotifyStep(saga);
           } else if (workItem.stepName === 'PAYMENT_NOTIFY') {
             await this.completeSaga(saga, true);
+          } else if (workItem.stepName === 'UNDERWRITING_REVIEW') {
+            saga.currentStep = 'SANHAB_FOLLOWUP';
+            const nextItem = await this.createWorkItem({
+              sagaId: saga.sagaId,
+              tenantId: saga.tenantId,
+              stepName: 'SANHAB_FOLLOWUP',
+              workItemType: 'sanhab_followup',
+              policyId: saga.policyId || undefined,
+              claimId: saga.claimId || undefined,
+              context: { policyId: saga.policyId, correlationId: params.correlationId, previousWorkItemId: workItem.workItemId },
+              priority: WorkItemPriority.medium,
+            });
+            await this.publishSagaEvent('insurance.saga.sanhab_followup.required', {
+              sagaId: saga.sagaId,
+              tenantId: saga.tenantId,
+              workItemId: nextItem.workItemId,
+              policyId: saga.policyId,
+              claimId: saga.claimId,
+              correlationId: params.correlationId,
+            });
+          } else if (workItem.stepName === 'SANHAB_FOLLOWUP') {
+            saga.currentStep = 'OVERRIDE_REVIEW';
+            const nextItem = await this.createWorkItem({
+              sagaId: saga.sagaId,
+              tenantId: saga.tenantId,
+              stepName: 'OVERRIDE_REVIEW',
+              workItemType: 'override_review',
+              policyId: saga.policyId || undefined,
+              claimId: saga.claimId || undefined,
+              context: { policyId: saga.policyId, correlationId: params.correlationId, previousWorkItemId: workItem.workItemId },
+              priority: WorkItemPriority.medium,
+            });
+            await this.publishSagaEvent('insurance.saga.override_review.required', {
+              sagaId: saga.sagaId,
+              tenantId: saga.tenantId,
+              workItemId: nextItem.workItemId,
+              policyId: saga.policyId,
+              claimId: saga.claimId,
+              correlationId: params.correlationId,
+            });
+          } else if (workItem.stepName === 'OVERRIDE_REVIEW') {
+            await this.completeSaga(saga, true);
           }
         }
       }
@@ -1522,7 +1573,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
   private async executeCompensation(saga: SagaInstance): Promise<void> {
     const steps = await this.sagaStepRepo.find({
-      where: { sagaId: saga.sagaId },
+      where: { sagaId: saga.sagaId, tenantId: saga.tenantId },
       order: { stepOrder: 'DESC' },
     });
 
@@ -1666,7 +1717,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
     }
 
     const failedSteps = await this.sagaStepRepo.find({
-      where: { sagaId, status: 'compensation_failed' as any },
+      where: { sagaId, tenantId, status: 'compensation_failed' as any },
     });
 
     if (failedSteps.length === 0) {
@@ -1707,7 +1758,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
       throw err;
     }
 
-    const steps = await this.sagaStepRepo.find({ where: { sagaId } });
+    const steps = await this.sagaStepRepo.find({ where: { sagaId, tenantId } });
     const completedCount = steps.filter((s) => s.status === 'compensated').length;
     const failedCount = steps.filter((s) => s.status === 'compensation_failed').length;
     const pendingCount = steps.filter((s) => s.status === 'completed' || s.status === 'compensating').length;

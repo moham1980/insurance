@@ -1,17 +1,21 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
-export type CommissionContractStatus = 'draft' | 'active' | 'retired';
+export type CommissionContractStatus = 'draft' | 'active' | 'retired' | 'expired' | 'terminated';
 export type CommissionBase = 'premium_gross' | 'premium_net';
 
 @Entity('commission_contracts')
 @Index(['orgUnitId', 'status', 'effectiveFrom'])
 @Index(['status', 'effectiveFrom'])
+@Index(['distributionAgreementId'])
 export class CommissionContract {
   @PrimaryGeneratedColumn('uuid', { name: 'contract_id' })
   contractId!: string;
 
   @Column({ name: 'org_unit_id', type: 'uuid' })
   orgUnitId!: string;
+
+  @Column({ name: 'distribution_agreement_id', type: 'uuid', nullable: true })
+  distributionAgreementId!: string | null;
 
   @Column({ name: 'status', type: 'text', default: 'draft' })
   status!: CommissionContractStatus;
@@ -27,6 +31,15 @@ export class CommissionContract {
 
   @Column({ name: 'fixed_fee_amount', type: 'numeric', nullable: true })
   fixedFeeAmount!: string | null;
+
+  @Column({ name: 'split_percent_bps', type: 'int', nullable: true })
+  splitPercentBps!: number | null;
+
+  @Column({ name: 'cap_amount_minor', type: 'numeric', nullable: true })
+  capAmountMinor!: string | null;
+
+  @Column({ name: 'floor_amount_minor', type: 'numeric', nullable: true })
+  floorAmountMinor!: string | null;
 
   @Column({ name: 'currency', type: 'text', default: 'IRR' })
   currency!: string;

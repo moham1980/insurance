@@ -1,6 +1,6 @@
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 
-export type ProductVersionStatus = 'draft' | 'active' | 'archived';
+export type ProductVersionStatus = 'draft' | 'active' | 'superseded' | 'retired' | 'archived';
 
 @Entity({ name: 'product_versions' })
 @Index(['tenantId'])
@@ -43,12 +43,33 @@ export class ProductVersion {
   @Column({ name: 'snapshot', type: 'jsonb', nullable: true })
   snapshot!: any | null;
 
+  @Column({ name: 'effective_from', type: 'timestamptz', nullable: true })
+  effectiveFrom!: Date | null;
+
+  @Column({ name: 'effective_to', type: 'timestamptz', nullable: true })
+  effectiveTo!: Date | null;
+
   @Column({ name: 'effective_date', type: 'timestamptz', nullable: true })
   effectiveDate!: Date | null;
 
   @Column({ name: 'published_at', type: 'timestamptz', nullable: true })
   publishedAt!: Date | null;
 
+  @Column({ name: 'form_schema', type: 'jsonb', nullable: true })
+  formSchema!: Record<string, any> | null;
+
+  @Column({ name: 'required_documents', type: 'jsonb', nullable: true })
+  requiredDocuments!: Record<string, any>[] | null;
+
+  @Column({ name: 'approved_by', type: 'varchar', length: 128, nullable: true })
+  approvedBy!: string | null;
+
+  @Column({ name: 'approved_at', type: 'timestamptz', nullable: true })
+  approvedAt!: Date | null;
+
   @Column({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
+
+  @Column({ name: 'updated_at', type: 'timestamptz', nullable: true })
+  updatedAt!: Date | null;
 }

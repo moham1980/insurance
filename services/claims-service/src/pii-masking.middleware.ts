@@ -42,7 +42,7 @@ export class PiiMaskingMiddleware implements NestMiddleware {
         }
         return originalJson(body);
       };
-    } else {
+    } else if (typeof res.send === 'function') {
       const originalSend = res.send.bind(res);
       res.send = function (body: any) {
         if (body && typeof body === 'object' && !Buffer.isBuffer(body)) {

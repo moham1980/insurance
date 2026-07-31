@@ -3,6 +3,7 @@ import { isUUID } from 'class-validator';
 import { UnderwritingService } from './underwriting.service';
 import { EcosystemJwtGuard } from './ecosystem-jwt.guard';
 import { PermissionsGuard } from './permissions.guard';
+import { AbacGuard } from './abac.guard';
 import { RequirePermissions } from './permissions.decorator';
 import { auditLogger } from './audit.logger';
 import { TenantGuard } from './tenant.guard';
@@ -10,6 +11,7 @@ import {
   CreateUnderwritingRequestDto,
   DecideDto,
   EscalateDto,
+  AppealDto,
   AssessRiskDto,
   CreateAppetiteRuleDto,
   EvaluateAppetiteDto,
@@ -35,7 +37,7 @@ export class UnderwritingController {
   }
 
   @Post('/underwriting/requests')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard, AbacGuard)
   @RequirePermissions('underwriting:create')
   async create(@Req() req: any, @Headers() headers: Record<string, any>, @Body() body: CreateUnderwritingRequestDto) {
     const correlationId = this.getCorrelationId(headers);
@@ -79,6 +81,8 @@ export class UnderwritingController {
       tenantId: tenantId!,
       actorUserId: actor?.userId ?? null,
       authorization,
+      brokerOrganizationId: body.brokerOrganizationId,
+      carrierOrganizationId: body.carrierOrganizationId,
     });
 
     auditLogger.info('underwriting.request.create.success', {
@@ -94,7 +98,7 @@ export class UnderwritingController {
   }
 
   @Get('/underwriting/requests/:underwritingRequestId')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard, AbacGuard)
   @RequirePermissions('underwriting:view')
   async get(@Req() req: any, @Headers() headers: Record<string, any>, @Param('underwritingRequestId') underwritingRequestId: string) {
     const correlationId = this.getCorrelationId(headers);
@@ -136,7 +140,7 @@ export class UnderwritingController {
   }
 
   @Get('/underwriting/requests')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard, AbacGuard)
   @RequirePermissions('underwriting:list')
   async list(
     @Req() req: any,
@@ -161,6 +165,7 @@ export class UnderwritingController {
       tenantId: tenantId!,
       status: query.status,
       policyId: query.policyId,
+      brokerOrganizationId: query.brokerOrganizationId || actor?.organizationId,
       limit: lim,
       offset: off,
     });
@@ -178,7 +183,7 @@ export class UnderwritingController {
   }
 
   @Post('/underwriting/requests/:underwritingRequestId/decide')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard, AbacGuard)
   @RequirePermissions('underwriting:decide')
   async decide(
     @Req() req: any,
@@ -221,7 +226,7 @@ export class UnderwritingController {
       return { success: false, error: { code: 'VALIDATION_ERROR', message: 'decision is required' }, correlationId };
     }
 
-    if (!['approved', 'rejected', 'escalated'].includes(String(body.decision))) {
+    if (!['approved', 'rejected', 'escalated', 'conditionally_approved'].includes(String(body.decision))) {
       auditLogger.warn('underwriting.request.decide.validation_failed', {
         correlationId,
         tenantId,
@@ -229,7 +234,7 @@ export class UnderwritingController {
         action: 'underwriting:decide',
         underwritingRequestId,
       });
-      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'decision must be approved|rejected|escalated' }, correlationId };
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'decision must be approved|rejected|escalated|conditionally_approved' }, correlationId };
     }
 
     const decidedBy = body.decidedBy || actor?.userId;
@@ -251,6 +256,7 @@ export class UnderwritingController {
         decidedBy,
         notes: body.notes,
         result: body.result && typeof body.result === 'object' ? body.result : undefined,
+        conditions: body.conditions && typeof body.conditions === 'object' ? body.conditions : undefined,
         correlationId,
         tenantId: tenantId!,
         actorUserId: actor?.userId ?? null,
@@ -323,7 +329,7 @@ export class UnderwritingController {
 
   // SLA Enforcement Endpoints
   @Get('/underwriting/sla/breaches')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard, AbacGuard)
   @RequirePermissions('underwriting:list')
   async getSlaBreaches(
     @Req() req: any,
@@ -365,7 +371,7 @@ export class UnderwritingController {
   }
 
   @Post('/underwriting/requests/:underwritingRequestId/escalate')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard, AbacGuard)
   @RequirePermissions('underwriting:decide')
   async escalateOverdueReview(
     @Req() req: any,
@@ -421,7 +427,7 @@ export class UnderwritingController {
   }
 
   @Get('/underwriting/sla/metrics')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard, AbacGuard)
   @RequirePermissions('underwriting:list')
   async getSlaMetrics(
     @Req() req: any,
@@ -443,13 +449,15 @@ export class UnderwritingController {
       tenantId: tenantId!,
       fromDate: query.from,
       toDate: query.to,
+      carrierOrganizationId: query.carrierOrganizationId,
+      brokerOrganizationId: query.brokerOrganizationId,
     });
 
     return { success: true, data: metrics, correlationId };
   }
 
   @Post('/underwriting/requests/:id/assess-risk')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard, AbacGuard)
   @RequirePermissions('underwriting:create')
   async assessRisk(
     @Param('id') id: string,
@@ -490,7 +498,7 @@ export class UnderwritingController {
   }
 
   @Get('/underwriting/risk-matrix')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard, AbacGuard)
   @RequirePermissions('underwriting:view')
   async getRiskMatrix(@Req() req: any, @Headers() headers: Record<string, any>) {
     const correlationId = this.getCorrelationId(headers);
@@ -510,7 +518,7 @@ export class UnderwritingController {
 
   // Appetite Matrix Endpoints
   @Post('/underwriting/appetite-rules')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard, AbacGuard)
   @RequirePermissions('underwriting:create')
   async createAppetiteRule(@Req() req: any, @Headers() headers: Record<string, any>, @Body() body: CreateAppetiteRuleDto) {
     const correlationId = this.getCorrelationId(headers);
@@ -535,7 +543,7 @@ export class UnderwritingController {
   }
 
   @Post('/underwriting/appetite-rules/evaluate')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard, AbacGuard)
   @RequirePermissions('underwriting:view')
   async evaluateAppetite(@Req() req: any, @Headers() headers: Record<string, any>, @Body() body: EvaluateAppetiteDto) {
     const correlationId = this.getCorrelationId(headers);
@@ -552,7 +560,7 @@ export class UnderwritingController {
   }
 
   @Get('/underwriting/appetite-rules')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard, AbacGuard)
   @RequirePermissions('underwriting:view')
   async listAppetiteRules(
     @Req() req: any,
@@ -575,7 +583,7 @@ export class UnderwritingController {
   }
 
   @Patch('/underwriting/appetite-rules/:id')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard, AbacGuard)
   @RequirePermissions('underwriting:create')
   async updateAppetiteRule(@Req() req: any, @Headers() headers: Record<string, any>, @Param('id') id: string, @Body() body: UpdateAppetiteRuleDto) {
     const correlationId = this.getCorrelationId(headers);
@@ -591,7 +599,7 @@ export class UnderwritingController {
   }
 
   @Post('/underwriting/appetite-rules/:id/delete')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard, AbacGuard)
   @RequirePermissions('underwriting:create')
   async deleteAppetiteRule(@Req() req: any, @Headers() headers: Record<string, any>, @Param('id') id: string) {
     const correlationId = this.getCorrelationId(headers);
@@ -599,5 +607,80 @@ export class UnderwritingController {
     const ok = await this.underwritingService.deleteAppetiteRule({ id, tenantId: tenantId!, correlationId });
     if (!ok) return { success: false, error: { code: 'NOT_FOUND', message: 'Appetite rule not found' }, correlationId };
     return { success: true, data: { id, deleted: true }, correlationId };
+  }
+
+  @Post('/underwriting/requests/:underwritingRequestId/appeal')
+  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard, AbacGuard)
+  @RequirePermissions('underwriting:appeal')
+  async appealDecision(
+    @Req() req: any,
+    @Headers() headers: Record<string, any>,
+    @Param('underwritingRequestId') underwritingRequestId: string,
+    @Body() body: AppealDto
+  ) {
+    const correlationId = this.getCorrelationId(headers);
+    const tenantId = req?.user?.tenantId as string | undefined;
+    const actor = req?.user as any;
+
+    if (!this.isUuid(underwritingRequestId)) {
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'underwritingRequestId must be a UUID' }, correlationId };
+    }
+
+    auditLogger.info('underwriting.appeal.request', {
+      correlationId,
+      tenantId,
+      actorUserId: actor?.userId,
+      action: 'underwriting:appeal',
+      underwritingRequestId,
+    });
+
+    if (!body?.reason || typeof body.reason !== 'string') {
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'reason is required' }, correlationId };
+    }
+
+    try {
+      const r = await this.underwritingService.appealDecision({
+        underwritingRequestId,
+        reason: body.reason,
+        additionalData: body.additionalData,
+        correlationId,
+        tenantId: tenantId!,
+        actorUserId: actor?.userId ?? null,
+      });
+
+      if (!r) {
+        auditLogger.warn('underwriting.appeal.not_found', {
+          correlationId,
+          tenantId,
+          actorUserId: actor?.userId,
+          action: 'underwriting:appeal',
+          underwritingRequestId,
+        });
+        return { success: false, error: { code: 'NOT_FOUND', message: 'Underwriting request not found' }, correlationId };
+      }
+
+      auditLogger.info('underwriting.appeal.success', {
+        correlationId,
+        tenantId,
+        actorUserId: actor?.userId,
+        action: 'underwriting:appeal',
+        underwritingRequestId,
+      });
+
+      return { success: true, data: r, correlationId };
+    } catch (e: any) {
+      if (e?.code === 'INVALID_STATE') {
+        return { success: false, error: { code: 'INVALID_STATE', message: e.message }, correlationId };
+      }
+      const err = e instanceof Error ? e : new Error(String(e));
+      auditLogger.error('underwriting.appeal.failed', err, {
+        correlationId,
+        tenantId,
+        actorUserId: actor?.userId,
+        action: 'underwriting:appeal',
+        underwritingRequestId,
+      });
+      return { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to appeal underwriting decision' }, correlationId };
+    }
   }
 }

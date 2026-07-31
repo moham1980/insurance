@@ -177,6 +177,11 @@ export class PolicyController {
       tenantId,
       correlationId,
       producerOrgUnitId: body?.producerOrgUnitId ?? null,
+      submissionId: body?.submissionId ?? null,
+      placementId: body?.placementId ?? null,
+      distributionOrganizationId: body?.distributionOrganizationId ?? actor?.organizationId ?? null,
+      issuerOrganizationId: body?.issuerOrganizationId ?? null,
+      productId: body?.productId ?? null,
     });
 
     auditLogger.info('policy.quote.success', { correlationId, tenantId, actorUserId: actor?.userId, action: 'policy:quote', policyId: policy.policyId });
@@ -214,6 +219,10 @@ export class PolicyController {
       const policy = await this.policyService.convertQuoteToPolicy({
         quote: body.quote,
         producerOrgUnitId: body?.producerOrgUnitId ?? null,
+        submissionId: body?.submissionId ?? null,
+        placementId: body?.placementId ?? null,
+        distributionOrganizationId: body?.distributionOrganizationId ?? actor?.organizationId ?? null,
+        issuerOrganizationId: body?.issuerOrganizationId ?? null,
         actorUserId: actor?.userId,
         tenantId,
         correlationId,
@@ -644,6 +653,8 @@ export class PolicyController {
       const policy = await this.policyService.issue({
         policyId,
         paymentId: body.paymentId,
+        brokerLicenseId: body.brokerLicenseId,
+        issuerOrganizationId: actor?.organizationId,
         correlationId,
         tenantId,
         actorUserId: actor?.userId,
@@ -673,6 +684,14 @@ export class PolicyController {
       if (e?.code === 'INVALID_STATE') {
         auditLogger.warn('policy.issue.invalid_state', { correlationId, tenantId, actorUserId: actor?.userId, action: 'policy:issue', policyId });
         return this.fail({ code: 'INVALID_STATE', message: e.message, correlationId });
+      }
+      if (e?.code === 'BROKER_LICENSE_INVALID') {
+        auditLogger.warn('policy.issue.broker_license_invalid', { correlationId, tenantId, actorUserId: actor?.userId, action: 'policy:issue', policyId, details: e?.details });
+        return this.fail({ code: 'BROKER_LICENSE_INVALID', message: e.message, correlationId, details: e?.details });
+      }
+      if (e?.code === 'DISTRIBUTION_AGREEMENT_INVALID') {
+        auditLogger.warn('policy.issue.distribution_agreement_invalid', { correlationId, tenantId, actorUserId: actor?.userId, action: 'policy:issue', policyId, details: e?.details });
+        return this.fail({ code: 'DISTRIBUTION_AGREEMENT_INVALID', message: e.message, correlationId, details: e?.details });
       }
       const err = e instanceof Error ? e : new Error(String(e));
       auditLogger.error('policy.issue.failed', err, { correlationId, tenantId, actorUserId: actor?.userId, action: 'policy:issue', policyId });
@@ -820,7 +839,7 @@ export class PolicyController {
 
     auditLogger.info('policy.endorse.request', { correlationId, tenantId, actorUserId: actor?.userId, action: 'policy:endorse', policyId });
 
-    const validTypes = ['coverage_change', 'premium_change', 'beneficiary_change', 'address_change', 'vehicle_change', 'other'];
+    const validTypes = ['coverage_change', 'premium_change', 'beneficiary_change', 'address_change', 'vehicle_change', 'broker_change', 'other'];
     if (!body?.endorsementType || !validTypes.includes(body.endorsementType)) {
       auditLogger.warn('policy.endorse.validation_failed', { correlationId, tenantId, actorUserId: actor?.userId, action: 'policy:endorse', policyId });
       return this.fail({ code: 'VALIDATION_ERROR', message: `endorsementType is required and must be one of: ${validTypes.join(', ')}`, correlationId });
@@ -852,6 +871,14 @@ export class PolicyController {
       if (e?.code === 'INVALID_STATE') {
         auditLogger.warn('policy.endorse.invalid_state', { correlationId, tenantId, actorUserId: actor?.userId, action: 'policy:endorse', policyId });
         return this.fail({ code: 'INVALID_STATE', message: e.message, correlationId });
+      }
+      if (e?.code === 'BROKER_LICENSE_INVALID') {
+        auditLogger.warn('policy.endorse.broker_license_invalid', { correlationId, tenantId, actorUserId: actor?.userId, action: 'policy:endorse', policyId, details: e?.details });
+        return this.fail({ code: 'BROKER_LICENSE_INVALID', message: e.message, correlationId, details: e?.details });
+      }
+      if (e?.code === 'DISTRIBUTION_AGREEMENT_INVALID') {
+        auditLogger.warn('policy.endorse.distribution_agreement_invalid', { correlationId, tenantId, actorUserId: actor?.userId, action: 'policy:endorse', policyId, details: e?.details });
+        return this.fail({ code: 'DISTRIBUTION_AGREEMENT_INVALID', message: e.message, correlationId, details: e?.details });
       }
       const err = e instanceof Error ? e : new Error(String(e));
       auditLogger.error('policy.endorse.failed', err, { correlationId, tenantId, actorUserId: actor?.userId, action: 'policy:endorse', policyId });
@@ -920,6 +947,29 @@ export class PolicyController {
     return this.ok({ data: policy, correlationId });
   }
 
+  @Post('/policies/:policyId/lapse')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('policy:cancel')
+  async lapse(@Req() req: any, @Headers() headers: Record<string, any>, @Param('policyId') policyId: string, @Body() body: any) {
+    const correlationId = this.getCorrelationId(headers);
+    const tenantId = req?.user?.tenantId as string | undefined;
+    const actor = req?.user as any;
+
+    if (!this.isUuid(policyId)) {
+      return this.fail({ code: 'VALIDATION_ERROR', message: 'policyId must be a UUID', correlationId });
+    }
+
+    auditLogger.info('policy.lapse.request', { correlationId, tenantId, actorUserId: actor?.userId, action: 'policy:cancel', policyId });
+
+    const policy = await this.policyService.lapse({ policyId, reason: body?.reason, actorUserId: actor?.userId, tenantId, correlationId });
+    if (!policy) {
+      auditLogger.warn('policy.lapse.not_found', { correlationId, tenantId, actorUserId: actor?.userId, action: 'policy:cancel', policyId });
+      return this.fail({ code: 'NOT_FOUND', message: 'Policy not found', correlationId });
+    }
+
+    return this.ok({ data: policy, correlationId });
+  }
+
   @Post('/policies/:policyId/renew')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions('policy:renew')
@@ -934,7 +984,7 @@ export class PolicyController {
 
     auditLogger.info('policy.renew.request', { correlationId, tenantId, actorUserId: actor?.userId, action: 'policy:renew', policyId });
 
-    const policy = await this.policyService.renew({ policyId, newEndDate: body?.newEndDate, newPremium: body?.newPremium, actorUserId: actor?.userId, tenantId, correlationId });
+    const policy = await this.policyService.renew({ policyId, newEndDate: body?.newEndDate, newPremium: body?.newPremium, newCommissionSplit: body?.newCommissionSplit, actorUserId: actor?.userId, tenantId, correlationId });
     if (!policy) {
       auditLogger.warn('policy.renew.not_found', { correlationId, tenantId, actorUserId: actor?.userId, action: 'policy:renew', policyId });
       return this.fail({ code: 'NOT_FOUND', message: 'Policy not found', correlationId });
@@ -974,6 +1024,10 @@ export class PolicyController {
     @Headers() headers: Record<string, any>,
     @Query('partyId') partyId?: string,
     @Query('uniqueCode') uniqueCode?: string,
+    @Query('distributionOrganizationId') distributionOrganizationId?: string,
+    @Query('issuerOrganizationId') issuerOrganizationId?: string,
+    @Query('salesChannelType') salesChannelType?: string,
+    @Query('status') status?: string,
     @Query('limit') limit: string = '50',
     @Query('offset') offset: string = '0'
   ) {
@@ -989,6 +1043,10 @@ export class PolicyController {
       partyId,
       uniqueCode,
       tenantId,
+      distributionOrganizationId,
+      issuerOrganizationId,
+      salesChannelType,
+      status,
       limit: lim,
       offset: off,
     });
@@ -1205,5 +1263,66 @@ export class PolicyController {
     });
 
     return this.ok({ data: result, correlationId });
+  }
+
+  @Post('/policies/:policyId/sanhab-result')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('policy:set_unique_code')
+  async recordSanhabResult(
+    @Req() req: any,
+    @Headers() headers: Record<string, any>,
+    @Param('policyId') policyId: string,
+    @Body() body: any,
+  ) {
+    const correlationId = this.getCorrelationId(headers);
+    const tenantId = req?.user?.tenantId as string | undefined;
+    const actor = req?.user as any;
+    const authorization = (headers['authorization'] || headers['Authorization']) as string | undefined;
+
+    if (!this.isUuid(policyId)) {
+      return this.fail({ code: 'VALIDATION_ERROR', message: 'policyId must be a UUID', correlationId });
+    }
+
+    auditLogger.info('policy.sanhab_result.request', {
+      correlationId,
+      tenantId,
+      actorUserId: actor?.userId,
+      action: 'policy:set_unique_code',
+      policyId,
+      sanhabStatus: body?.sanhabStatus,
+    });
+
+    const allowedStatuses = ['pending', 'confirmed', 'rejected'];
+    if (!body?.sanhabStatus || !allowedStatuses.includes(body.sanhabStatus)) {
+      return this.fail({ code: 'VALIDATION_ERROR', message: 'sanhabStatus is required (pending|confirmed|rejected)', correlationId });
+    }
+
+    try {
+      const policy = await this.policyService.recordSanhabResult({
+        policyId,
+        sanhabStatus: body.sanhabStatus,
+        sanhabSubmissionId: body.sanhabSubmissionId,
+        sanhabResponse: body.sanhabResponse,
+        uniqueCode: body.uniqueCode,
+        actorUserId: actor?.userId,
+        tenantId,
+        correlationId,
+        authorization,
+      });
+      if (!policy) {
+        return this.fail({ code: 'NOT_FOUND', message: 'Policy not found', correlationId });
+      }
+      return this.ok({ data: policy, correlationId });
+    } catch (e: any) {
+      if (e?.code === 'INVALID_STATE') {
+        return this.fail({ code: 'INVALID_STATE', message: e.message, correlationId });
+      }
+      if (e?.code === 'QUALITY_GATE_FAILED') {
+        return this.fail({ code: 'QUALITY_GATE_FAILED', message: e.message, correlationId });
+      }
+      const err = e instanceof Error ? e : new Error(String(e));
+      auditLogger.error('policy.sanhab_result.failed', err, { correlationId, tenantId, actorUserId: actor?.userId, action: 'policy:set_unique_code', policyId });
+      return this.fail({ code: 'INTERNAL_ERROR', message: 'Failed to record Sanhab result', correlationId });
+    }
   }
 }

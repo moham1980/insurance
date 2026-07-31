@@ -3,11 +3,15 @@ import { describe, test, expect } from '@jest/globals';
 describe('Unit: Claims Service', () => {
   describe('State Machine', () => {
     const validTransitions: Record<string, string[]> = {
-      registered: ['assessed', 'rejected'],
+      reported: ['registered'],
+      registered: ['acknowledged', 'assessed', 'rejected'],
+      acknowledged: ['submit_to_carrier', 'assessed', 'rejected'],
+      submit_to_carrier: ['assessed', 'rejected'],
       assessed: ['approved', 'rejected'],
-      approved: ['paid', 'closed'],
+      approved: ['paid', 'appealed', 'closed'],
       paid: ['closed'],
-      rejected: ['closed'],
+      rejected: ['appealed', 'closed'],
+      appealed: ['assessed'],
       closed: [],
     };
 

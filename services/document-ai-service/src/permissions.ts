@@ -9,7 +9,11 @@ export type PermissionKey =
   | 'document_ai:eval:cases:manage'
   | 'document_ai:eval:runs:list'
   | 'document_ai:eval:runs:start'
-  | 'document_ai:eval:runs:view';
+  | 'document_ai:eval:runs:view'
+  | 'document_ai:ocr:redact'
+  | 'document_ai:ocr:classify'
+  | 'document_ai:ocr:confirm'
+  | 'document_ai:ocr:extract';
 
 const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
   insurer_admin: [
@@ -24,6 +28,10 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     'document_ai:eval:runs:list',
     'document_ai:eval:runs:start',
     'document_ai:eval:runs:view',
+    'document_ai:ocr:redact',
+    'document_ai:ocr:classify',
+    'document_ai:ocr:confirm',
+    'document_ai:ocr:extract',
   ],
   head_office_ops: [
     'document_ai:jobs:list',
@@ -34,8 +42,12 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     'document_ai:eval:runs:list',
     'document_ai:eval:runs:start',
     'document_ai:eval:runs:view',
+    'document_ai:ocr:redact',
+    'document_ai:ocr:classify',
+    'document_ai:ocr:confirm',
+    'document_ai:ocr:extract',
   ],
-  claims_handler: ['document_ai:jobs:list', 'document_ai:jobs:view', 'document_ai:audit:list'],
+  claims_handler: ['document_ai:jobs:list', 'document_ai:jobs:view', 'document_ai:audit:list', 'document_ai:ocr:confirm'],
   auditor: [
     'document_ai:jobs:list',
     'document_ai:jobs:view',
@@ -44,6 +56,7 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     'document_ai:eval:cases:list',
     'document_ai:eval:runs:list',
     'document_ai:eval:runs:view',
+    'document_ai:ocr:confirm',
   ],
   compliance_aml: ['document_ai:audit:list', 'document_ai:usage:view'],
 };

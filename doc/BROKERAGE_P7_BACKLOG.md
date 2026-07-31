@@ -657,3 +657,46 @@ P7 کامل است اگر و فقط اگر:
 - OCR output فقط پس از user confirmation در claim workflow استفاده شود.
 
 این بکلاگ مستقیماً از `BROKERAGE_IMPLEMENTATION_PLAN.md` مشتق شده و آماده پیاده‌سازی فاز Experience & AI است.
+
+## وضعیت پیشرفت P7 (به‌روزرسانی شده)
+
+| بخش | وضعیت |
+|---|---|
+| White-label branding (`brand-provider.tsx` / `brand-theme.ts`) | ✅ تحویل |
+| `customer-portal-bff` | ✅ تحویل |
+| `channel-workspace-ui` / `channel-workspace-bff` | ✅ تحویل |
+| `insurer-operations-bff` / `insurer-operations/` UI | ✅ تحویل |
+| Copilot RAG (`rag.service.ts`) | ✅ تحویل |
+| Copilot endpoints (`recommend-product` / `draft-communication`) | ✅ تحویل |
+| Copilot shared components (`CopilotChat`, `CopilotSuggestionCard`) | ✅ تحویل |
+| NBA execution (downstream calls) | ✅ تحویل |
+| OCR direct extract (`POST /api/v1/ocr/extract`) | ✅ تحویل |
+| Push notifications (`push-channel.ts`) | ✅ تحویل |
+| AsyncAPI P7 events | ✅ تحویل |
+| Consent DB + migration + enforcement | ✅ تحویل |
+| Consent UI (`consent/page.tsx`) + BFF proxy | ✅ تحویل |
+| Model router / switchboard cost & quality | ✅ تحویل |
+| Model switchboard A/B testing + modelVersion tracking | ✅ تحویل |
+| Model switchboard circuit breaker | ✅ تحویل |
+| OTP brute-force protection | ✅ تحویل |
+| ConsentGranted/ConsentRevoked events via Outbox | ✅ تحویل |
+| OpenAPI contracts P7 | ✅ تحویل (via `contracts/openapi/brokerage-p7.yaml`) |
+| Test files | ✅ تحویل (paths differ from backlog; coverage present) |
+
+**نکته مهم:** در جریان بررسی، موارد تکراری یا پیاده‌سازی‌شده توسط تیم همکار شناسایی و از ایجاد duplicate جلوگیری شد. تغییرات اصلی این جلسه:
+- اتصال consent page به customer-360-service از طریق `customer-portal-bff`.
+- ادغام `ModelRouter` در `LLMService` برای اعمال `costBudgetPerDay` و `qualityThreshold`.
+- به‌روزرسانی `BROKERAGE_P7_GAP_REPORT.md` با وضعیت واقعی کدبیس.
+- افزودن brute-force protection به `verifyOtp` با Redis-based attempt tracking و lockout.
+- افزودن circuit breaker به `model-switchboard-service` با 3 state (closed/open/half_open).
+- انتشار `ConsentGranted`/`ConsentRevoked` events از طریق Outbox در `customer-360-service`.
+- افزودن A/B testing به `RoutePolicy` با `abTestEnabled`، `abTestModelId`، `abTestSplitPercent`.
+- افزودن `modelVersion` به `ModelInvocation` و `UsageRecord` برای version tracking.
+- افزودن `GET /ab-test/:policyId/report` endpoint برای مقایسه عملکرد مدل primary و B variant.
+- **اصلاح بحرانی:** `Customer360Service` از `ConsentStore` (file-based) به `ConsentDbStore` (database) تغییر یافت. مشکل: consent های ثبت‌شده در portal برای `ConsentCheckService` نامرئی بودند.
+- انتشار consent events در transaction برای تضمین atomicity.
+- افزودن A/B test fields به امضای متدهای `createRoutePolicy` و `updateRoutePolicy` در service layer.
+- افزودن `CopilotSuggestionCard` به exports طراحی سیستم (missing barrel export).
+- اصلاح صفحه chatbot برای استفاده از `CopilotChat` با دکمه escalate-to-human (ارتباط با انسان).
+- افزودن `ModelDeployed.v1` event به AsyncAPI contract و انتشار آن در `ModelLifecycleService` هنگام انتقال مدل به production.
+- افزودن فیلدهای حاکمیتی (`tenantId`, `purpose`, `owner`, `biasRisks`, `allowedDataTypes`, `piiHandling`, `approvalStatus`) به `ModelCard` و `ModelInventory` در هر دو سرویس copilot و ai-governance.

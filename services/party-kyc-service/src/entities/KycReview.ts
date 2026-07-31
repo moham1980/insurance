@@ -3,6 +3,8 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, Versio
 export type KycRiskLevel = 'low' | 'medium' | 'high' | 'critical';
 export type KycScreeningStatus = 'not_started' | 'in_progress' | 'passed' | 'failed' | 'manual_review';
 export type KycDocumentStatus = 'not_submitted' | 'submitted' | 'verified' | 'rejected';
+export type KycType = 'standard' | 'broker';
+export type BrokerCheckStatus = 'not_started' | 'in_progress' | 'passed' | 'failed' | 'manual_review';
 export type KycWorkflowStage =
   | 'data_collection'
   | 'document_verification'
@@ -95,6 +97,32 @@ export class KycReview {
   // SLA
   @Column({ name: 'due_date', type: 'timestamptz', nullable: true })
   dueDate!: Date | null;
+
+  // KYC Type (standard vs broker)
+  @Column({ name: 'kyc_type', type: 'text', default: 'standard' })
+  kycType!: KycType;
+
+  // Broker-specific checks
+  @Column({ name: 'license_check_status', type: 'text', default: 'not_started' })
+  licenseCheckStatus!: BrokerCheckStatus;
+
+  @Column({ name: 'license_verified_at', type: 'timestamptz', nullable: true })
+  licenseVerifiedAt!: Date | null;
+
+  @Column({ name: 'license_id', type: 'uuid', nullable: true })
+  licenseId!: string | null;
+
+  @Column({ name: 'background_check_status', type: 'text', default: 'not_started' })
+  backgroundCheckStatus!: BrokerCheckStatus;
+
+  @Column({ name: 'background_checked_at', type: 'timestamptz', nullable: true })
+  backgroundCheckedAt!: Date | null;
+
+  @Column({ name: 'financial_check_status', type: 'text', default: 'not_started' })
+  financialCheckStatus!: BrokerCheckStatus;
+
+  @Column({ name: 'financial_checked_at', type: 'timestamptz', nullable: true })
+  financialCheckedAt!: Date | null;
 
   @VersionColumn({ name: 'version', default: 0 })
   version!: number;

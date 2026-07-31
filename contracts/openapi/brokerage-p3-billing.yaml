@@ -1,0 +1,369 @@
+openapi: '3.0.3'
+info:
+  title: Insurance Billing Service P3 API
+  version: '1.0.0'
+  description: OpenAPI contract for P3 commission, ledger posting, clawback, and settlement endpoints.
+servers:
+  - url: http://localhost:8080/billing
+    description: Local dev gateway
+security:
+  - BearerAuth: []
+paths:
+  /brokerage/policies/{policyId}/post:
+    post:
+      summary: Post policy issuance to ledger
+      operationId: postPolicy
+      tags: [Ledger Posting]
+      parameters:
+        - name: policyId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PostPolicyRequest' }
+      responses:
+        '200':
+          description: Journal entry created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      journalEntryId: { type: string, format: uuid }
+                      totalDebit: { type: number }
+                      totalCredit: { type: number }
+                      currency: { type: string }
+  /brokerage/commissions/calculate:
+    post:
+      summary: Calculate and accrue commission splits
+      operationId: calculateCommission
+      tags: [Commission]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CalculateCommissionRequest' }
+      responses:
+        '200':
+          description: Commission splits created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      splits:
+                        type: array
+                        items: { $ref: '#/components/schemas/CommissionSplit' }
+  /brokerage/commissions/post:
+    post:
+      summary: Post accrued commission splits to ledger
+      operationId: postCommission
+      tags: [Commission]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sourceType: { type: string }
+                sourceId: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Commission posted to ledger
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      journalEntryId: { type: string, format: uuid }
+                      postedSplitIds:
+                        type: array
+                        items: { type: string, format: uuid }
+  /brokerage/commissions/clawback:
+    post:
+      summary: Calculate and apply commission clawback
+      operationId: clawbackCommission
+      tags: [Commission]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [policyId]
+              properties:
+                policyId: { type: string, format: uuid }
+                reason: { type: string }
+      responses:
+        '200':
+          description: Clawback applied
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      clawbackAmount: { type: number }
+                      currency: { type: string }
+                      journalEntryId: { type: string, format: uuid }
+                      reversedSplitIds:
+                        type: array
+                        items: { type: string, format: uuid }
+  /brokerage/journal-entries/{journalEntryId}:
+    get:
+      summary: Get journal entry by ID
+      operationId: getJournalEntry
+      tags: [Ledger]
+      parameters:
+        - name: journalEntryId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Journal entry with lines
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { $ref: '#/components/schemas/JournalEntry' }
+  /brokerage/journal-entries/{journalEntryId}/reverse:
+    post:
+      summary: Reverse a journal entry
+      operationId: reverseJournalEntry
+      tags: [Ledger]
+      parameters:
+        - name: journalEntryId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string }
+      responses:
+        '200':
+          description: Reversal journal entry created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      reversalJournalEntryId: { type: string, format: uuid }
+  /brokerage/settlements/batches:
+    post:
+      summary: Create settlement batch
+      operationId: createSettlementBatch
+      tags: [Settlement]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateSettlementBatchRequest' }
+      responses:
+        '200':
+          description: Settlement batch created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { $ref: '#/components/schemas/SettlementBatch' }
+  /brokerage/settlements/batches/{batchId}/confirm:
+    post:
+      summary: Confirm and pay settlement batch
+      operationId: confirmAndPaySettlement
+      tags: [Settlement]
+      parameters:
+        - name: batchId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fromAccountId, toAccountId]
+              properties:
+                fromAccountId: { type: string }
+                toAccountId: { type: string }
+      responses:
+        '200':
+          description: Settlement confirmed and payment initiated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { $ref: '#/components/schemas/SettlementBatch' }
+        '502':
+          description: Payment failed after retries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: false }
+                  error:
+                    type: object
+                    properties:
+                      code: { type: string, example: PAYMENT_FAILED }
+                      message: { type: string }
+  /brokerage/settlements/batches/{batchId}/verify:
+    post:
+      summary: Verify settlement payment status
+      operationId: verifySettlementPayment
+      tags: [Settlement]
+      parameters:
+        - name: batchId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Settlement payment verified
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { $ref: '#/components/schemas/SettlementBatch' }
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    PostPolicyRequest:
+      type: object
+      required: [organizationId, premiumAmount, totalPayable, currency, brokerOrganizationId, periodId, effectiveFrom]
+      properties:
+        organizationId: { type: string, format: uuid }
+        premiumAmount: { type: number }
+        taxesAmount: { type: number }
+        totalPayable: { type: number }
+        currency: { type: string, default: IRR }
+        brokerOrganizationId: { type: string, format: uuid }
+        periodId: { type: string, format: uuid }
+        effectiveFrom: { type: string, format: date-time }
+    CalculateCommissionRequest:
+      type: object
+      required: [brokerOrganizationId, sourceType, sourceId, premiumGross, currency, effectiveFrom]
+      properties:
+        brokerOrganizationId: { type: string, format: uuid }
+        sourceType: { type: string, enum: [POLICY, ENDORSEMENT, RENEWAL] }
+        sourceId: { type: string, format: uuid }
+        premiumGross: { type: number }
+        premiumNet: { type: number }
+        currency: { type: string, default: IRR }
+        effectiveFrom: { type: string, format: date-time }
+        distributionAgreementSnapshot: { type: object }
+    CommissionSplit:
+      type: object
+      properties:
+        splitId: { type: string, format: uuid }
+        sourceType: { type: string }
+        sourceId: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        partyId: { type: string, format: uuid }
+        role: { type: string, enum: [CARRIER, BROKER, AGENT, SUB_AGENT, MARKETER] }
+        base: { type: string, enum: [premium_gross, premium_net] }
+        shareBps: { type: integer }
+        amount: { type: number }
+        currency: { type: string }
+        status: { type: string, enum: [accrued, paid, clawback, voided] }
+        effectiveFrom: { type: string, format: date-time }
+        journalEntryId: { type: string, format: uuid, nullable: true }
+    JournalEntry:
+      type: object
+      properties:
+        journalEntryId: { type: string, format: uuid }
+        sourceType: { type: string, enum: [POLICY, PAYMENT, REFUND, COMMISSION, SETTLEMENT, CLAWBACK] }
+        sourceId: { type: string, format: uuid }
+        idempotencyKey: { type: string }
+        status: { type: string, enum: [posted, reversed] }
+        reversalOfJournalEntryId: { type: string, format: uuid, nullable: true }
+        totalDebit: { type: number }
+        totalCredit: { type: number }
+        currency: { type: string }
+        lines:
+          type: array
+          items: { $ref: '#/components/schemas/JournalLine' }
+        createdAt: { type: string, format: date-time }
+    JournalLine:
+      type: object
+      properties:
+        journalLineId: { type: string, format: uuid }
+        journalEntryId: { type: string, format: uuid }
+        accountCode: { type: string }
+        accountName: { type: string }
+        accountType: { type: string, enum: [ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE, CONTROL] }
+        debitAmount: { type: number }
+        creditAmount: { type: number }
+        currency: { type: string }
+        dimensions: { type: object, nullable: true }
+    CreateSettlementBatchRequest:
+      type: object
+      required: [fromOrganizationId, toOrganizationId, periodStart, periodEnd]
+      properties:
+        fromOrganizationId: { type: string, format: uuid }
+        toOrganizationId: { type: string, format: uuid }
+        periodStart: { type: string, format: date-time }
+        periodEnd: { type: string, format: date-time }
+        approvedByPartyId: { type: string, format: uuid }
+    SettlementBatch:
+      type: object
+      properties:
+        batchId: { type: string, format: uuid }
+        fromOrganizationId: { type: string, format: uuid }
+        toOrganizationId: { type: string, format: uuid }
+        periodStart: { type: string, format: date-time }
+        periodEnd: { type: string, format: date-time }
+        totalPremiumAmount: { type: number }
+        totalPremiumCurrency: { type: string }
+        totalCommissionAmount: { type: number }
+        totalCommissionCurrency: { type: string }
+        netSettlementAmount: { type: number }
+        netSettlementCurrency: { type: string }
+        reconciliationHash: { type: string }
+        status: { type: string, enum: [draft, confirmed, paid, reconciled, disputed, retry_pending, manual_review] }
+        paymentId: { type: string, nullable: true }
+        approvedByPartyId: { type: string, format: uuid, nullable: true }
+        metadata: { type: object, nullable: true }
+        createdAt: { type: string, format: date-time }

@@ -309,6 +309,17 @@ export class SanhabSmsInquiryService {
   async handleSmsReply(from: string, message: string): Promise<SmsInquiryResponse> {
     this.logger.log(`Received SMS reply from ${from}: ${message}`);
 
+    // Validate sender phone number format
+    const phoneRegex = /^09[0-9]{9}$/;
+    if (!phoneRegex.test(from)) {
+      return {
+        success: false,
+        inquiryId: '',
+        message: 'Invalid sender phone number format',
+        errorCode: 'INVALID_SENDER_PHONE',
+      };
+    }
+
     const parsed = this.parseSmsReply(message);
 
     if (!parsed) {
@@ -327,6 +338,17 @@ export class SanhabSmsInquiryService {
         inquiryId: parsed.inquiryId,
         message: 'No pending inquiry found for this inquiry ID',
         errorCode: 'NO_PENDING_INQUIRY',
+      };
+    }
+
+    // Verify that the reply comes from the same phone number that initiated the inquiry
+    if (inquiry.phoneNumber !== from) {
+      this.logger.warn(`SMS reply sender mismatch: inquiry was initiated from ${inquiry.phoneNumber} but reply came from ${from}`);
+      return {
+        success: false,
+        inquiryId: parsed.inquiryId,
+        message: 'Sender phone number does not match the inquiry initiator',
+        errorCode: 'SENDER_MISMATCH',
       };
     }
 

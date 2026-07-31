@@ -6,6 +6,7 @@ export type ConsentAction = 'grant' | 'revoke' | 'expire';
 @Entity('consent_records')
 @Index(['tenantId', 'partyId', 'createdAt'])
 @Index(['tenantId', 'consentType', 'status'])
+@Index(['tenantId', 'partyId', 'targetOrganizationId', 'status'])
 export class ConsentRecord {
   @PrimaryGeneratedColumn('uuid', { name: 'consent_record_id' })
   consentRecordId!: string;
@@ -48,6 +49,12 @@ export class ConsentRecord {
 
   @Column({ name: 'valid_to', type: 'timestamptz', nullable: true })
   validTo!: Date | null;
+
+  @Column({ name: 'target_organization_id', type: 'uuid', nullable: true })
+  targetOrganizationId!: string | null;
+
+  @Column({ name: 'source_organization_id', type: 'uuid', nullable: true })
+  sourceOrganizationId!: string | null;
 
   @Column({ name: 'version', type: 'int', default: 1 })
   version!: number;

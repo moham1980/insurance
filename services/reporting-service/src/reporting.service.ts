@@ -75,6 +75,7 @@ export class ReportingService {
   async listClaimPayments(params: {
     claimId?: string;
     policyId?: string;
+    brokerOrganizationId?: string;
     limit: number;
     offset: number;
   }): Promise<{ rows: RmClaimPayment[]; total: number }> {
@@ -82,6 +83,7 @@ export class ReportingService {
     this.applyTenantFilter(qb, 'c');
     if (params.claimId) qb.andWhere('c.claim_id = :claimId', { claimId: params.claimId });
     if (params.policyId) qb.andWhere('c.policy_id = :policyId', { policyId: params.policyId });
+    if (params.brokerOrganizationId) qb.andWhere('c.broker_organization_id = :brokerOrgId', { brokerOrgId: params.brokerOrganizationId });
     qb.orderBy('c.updated_at', 'DESC').limit(params.limit).offset(params.offset);
     const [rows, total] = await qb.getManyAndCount();
     return { rows, total };
@@ -488,6 +490,7 @@ export class ReportingService {
     holderPartyId?: string;
     insuredPartyId?: string;
     lineOfBusiness?: string;
+    brokerOrganizationId?: string;
     limit: number;
     offset: number;
   }): Promise<{ rows: RmPolicy[]; total: number }> {
@@ -499,6 +502,7 @@ export class ReportingService {
     if (params.holderPartyId) qb.andWhere('p.holder_party_id = :holderPartyId', { holderPartyId: params.holderPartyId });
     if (params.insuredPartyId) qb.andWhere('p.insured_party_id = :insuredPartyId', { insuredPartyId: params.insuredPartyId });
     if (params.lineOfBusiness) qb.andWhere('p.line_of_business = :lineOfBusiness', { lineOfBusiness: params.lineOfBusiness });
+    if (params.brokerOrganizationId) qb.andWhere('p.broker_organization_id = :brokerOrgId', { brokerOrgId: params.brokerOrganizationId });
     qb.orderBy('p.created_at', 'DESC').limit(params.limit).offset(params.offset);
     const [rows, total] = await qb.getManyAndCount();
     return { rows, total };
@@ -516,6 +520,7 @@ export class ReportingService {
     status?: string;
     paymentType?: string;
     partyId?: string;
+    brokerOrganizationId?: string;
     limit: number;
     offset: number;
   }): Promise<{ rows: RmPayment[]; total: number }> {
@@ -528,6 +533,7 @@ export class ReportingService {
     if (params.status) qb.andWhere('p.status = :status', { status: params.status });
     if (params.paymentType) qb.andWhere('p.payment_type = :paymentType', { paymentType: params.paymentType });
     if (params.partyId) qb.andWhere('p.party_id = :partyId', { partyId: params.partyId });
+    if (params.brokerOrganizationId) qb.andWhere('p.broker_organization_id = :brokerOrgId', { brokerOrgId: params.brokerOrganizationId });
     qb.orderBy('p.created_at', 'DESC').limit(params.limit).offset(params.offset);
     const [rows, total] = await qb.getManyAndCount();
     return { rows, total };
@@ -566,6 +572,7 @@ export class ReportingService {
     status?: string;
     riskLevel?: string;
     transactionType?: string;
+    brokerOrganizationId?: string;
     limit: number;
     offset: number;
   }): Promise<{ rows: RmAml[]; total: number }> {
@@ -576,6 +583,7 @@ export class ReportingService {
     if (params.status) qb.andWhere('a.status = :status', { status: params.status });
     if (params.riskLevel) qb.andWhere('a.risk_level = :riskLevel', { riskLevel: params.riskLevel });
     if (params.transactionType) qb.andWhere('a.transaction_type = :transactionType', { transactionType: params.transactionType });
+    if (params.brokerOrganizationId) qb.andWhere('a.broker_organization_id = :brokerOrgId', { brokerOrgId: params.brokerOrganizationId });
     qb.orderBy('a.created_at', 'DESC').limit(params.limit).offset(params.offset);
     const [rows, total] = await qb.getManyAndCount();
     return { rows, total };
@@ -591,6 +599,7 @@ export class ReportingService {
     status?: string;
     riskLevel?: string;
     underwriterId?: string;
+    brokerOrganizationId?: string;
     limit: number;
     offset: number;
   }): Promise<{ rows: RmUnderwriting[]; total: number }> {
@@ -601,6 +610,7 @@ export class ReportingService {
     if (params.status) qb.andWhere('u.status = :status', { status: params.status });
     if (params.riskLevel) qb.andWhere('u.risk_level = :riskLevel', { riskLevel: params.riskLevel });
     if (params.underwriterId) qb.andWhere('u.underwriter_id = :underwriterId', { underwriterId: params.underwriterId });
+    if (params.brokerOrganizationId) qb.andWhere('u.broker_organization_id = :brokerOrgId', { brokerOrgId: params.brokerOrganizationId });
     qb.orderBy('u.created_at', 'DESC').limit(params.limit).offset(params.offset);
     const [rows, total] = await qb.getManyAndCount();
     return { rows, total };
@@ -1150,6 +1160,80 @@ export class ReportingService {
     };
   }
 
+  async getBrokerKPIs(params: {
+    brokerOrganizationId: string;
+    startDate: Date;
+    endDate: Date;
+  }): Promise<{
+    brokerGwp: number;
+    brokerPolicyCount: number;
+    brokerNewPolicies: number;
+    brokerRenewedPolicies: number;
+    brokerCancelledPolicies: number;
+    brokerPersistencyRate: number;
+    brokerRetentionRate: number;
+    brokerLossRatio: number;
+    brokerCommissionToPremiumRatio: number;
+    brokerTotalCommission: number;
+    brokerAveragePremium: number;
+    period: { startDate: string; endDate: string };
+  }> {
+    const policies = await this.applyTenantFilter(this.policyRepo.createQueryBuilder('p'), 'p')
+      .where('p.broker_organization_id = :brokerOrgId', { brokerOrgId: params.brokerOrganizationId })
+      .andWhere('p.issued_at >= :startDate', { startDate: params.startDate })
+      .andWhere('p.issued_at <= :endDate', { endDate: params.endDate })
+      .getMany();
+
+    const brokerGwp = policies.reduce((sum, p) => sum + Number(p.premiumAmount || 0), 0);
+    const brokerPolicyCount = policies.length;
+    const brokerNewPolicies = policies.filter(p => !p.renewalParentId && p.renewalCount === 0).length;
+    const brokerRenewedPolicies = policies.filter(p => p.renewedAt !== null).length;
+    const brokerCancelledPolicies = policies.filter(p => p.cancelledAt !== null).length;
+    const brokerPersistencyRate = brokerPolicyCount > 0
+      ? (brokerPolicyCount - brokerCancelledPolicies) / brokerPolicyCount
+      : 0;
+    const brokerRetentionRate = brokerPolicyCount > 0
+      ? brokerRenewedPolicies / brokerPolicyCount
+      : 0;
+    const brokerAveragePremium = brokerPolicyCount > 0
+      ? brokerGwp / brokerPolicyCount
+      : 0;
+
+    const claims = await this.applyTenantFilter(this.rmClaimPaymentRepo.createQueryBuilder('c'), 'c')
+      .where('c.claim_paid_at >= :startDate', { startDate: params.startDate })
+      .andWhere('c.claim_paid_at <= :endDate', { endDate: params.endDate })
+      .getMany();
+
+    const brokerPolicyIds = new Set(policies.map(p => p.policyId));
+    const brokerClaims = claims.filter(c => c.policyId && brokerPolicyIds.has(c.policyId));
+    const brokerClaimsPaid = brokerClaims.reduce((sum, c) => sum + Number(c.approvedAmount || 0), 0);
+    const brokerLossRatio = brokerGwp > 0 ? brokerClaimsPaid / brokerGwp : 0;
+
+    const commissionPayments = await this.applyTenantFilter(this.paymentRepo.createQueryBuilder('p'), 'p')
+      .where('p.broker_organization_id = :brokerOrgId', { brokerOrgId: params.brokerOrganizationId })
+      .andWhere('p.paid_at >= :startDate', { startDate: params.startDate })
+      .andWhere('p.paid_at <= :endDate', { endDate: params.endDate })
+      .andWhere('p.payment_type = :type', { type: 'commission' })
+      .getMany();
+    const brokerTotalCommission = commissionPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const brokerCommissionToPremiumRatio = brokerGwp > 0 ? brokerTotalCommission / brokerGwp : 0;
+
+    return {
+      brokerGwp,
+      brokerPolicyCount,
+      brokerNewPolicies,
+      brokerRenewedPolicies,
+      brokerCancelledPolicies,
+      brokerPersistencyRate,
+      brokerRetentionRate,
+      brokerLossRatio,
+      brokerCommissionToPremiumRatio,
+      brokerTotalCommission,
+      brokerAveragePremium,
+      period: { startDate: params.startDate.toISOString(), endDate: params.endDate.toISOString() },
+    };
+  }
+
   async getSTPKPIs(params: {
     startDate: Date;
     endDate: Date;
@@ -1256,6 +1340,301 @@ export class ReportingService {
       fraudYield,
       stp,
       period: { startDate: params.startDate.toISOString(), endDate: params.endDate.toISOString() },
+    };
+  }
+
+  async getBrokerDashboard(params: {
+    brokerOrganizationId: string;
+    startDate: Date;
+    endDate: Date;
+  }): Promise<{
+    kpis: Awaited<ReturnType<ReportingService['getBrokerKPIs']>>;
+    recentPolicies: any[];
+    recentClaims: any[];
+    commissionSummary: { totalCommission: number; pendingCommission: number; paidCommission: number };
+    collectionSummary: { totalPremium: number; collectedAmount: number; outstandingAmount: number; overdueCount: number };
+    period: { startDate: string; endDate: string };
+  }> {
+    const kpis = await this.getBrokerKPIs(params);
+
+    const recentPolicies = await this.applyTenantFilter(this.policyRepo.createQueryBuilder('p'), 'p')
+      .where('p.broker_organization_id = :brokerOrgId', { brokerOrgId: params.brokerOrganizationId })
+      .andWhere('p.issued_at >= :startDate', { startDate: params.startDate })
+      .andWhere('p.issued_at <= :endDate', { endDate: params.endDate })
+      .orderBy('p.issued_at', 'DESC')
+      .limit(10)
+      .getMany();
+
+    const brokerPolicyIds = new Set(recentPolicies.map(p => p.policyId));
+
+    const recentClaims = await this.applyTenantFilter(this.rmClaimPaymentRepo.createQueryBuilder('c'), 'c')
+      .where('c.claim_paid_at >= :startDate', { startDate: params.startDate })
+      .andWhere('c.claim_paid_at <= :endDate', { endDate: params.endDate })
+      .orderBy('c.claim_paid_at', 'DESC')
+      .limit(10)
+      .getMany()
+      .then(claims => claims.filter(c => c.policyId && brokerPolicyIds.has(c.policyId)));
+
+    const commissionPayments = await this.applyTenantFilter(this.paymentRepo.createQueryBuilder('p'), 'p')
+      .where('p.broker_organization_id = :brokerOrgId', { brokerOrgId: params.brokerOrganizationId })
+      .andWhere('p.payment_type = :type', { type: 'commission' })
+      .andWhere('p.created_at >= :startDate', { startDate: params.startDate })
+      .andWhere('p.created_at <= :endDate', { endDate: params.endDate })
+      .getMany();
+
+    const totalCommission = commissionPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const paidCommission = commissionPayments.filter(p => p.status === 'paid' || p.paidAt).reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const pendingCommission = totalCommission - paidCommission;
+
+    const allBrokerPolicies = await this.applyTenantFilter(this.policyRepo.createQueryBuilder('p'), 'p')
+      .where('p.broker_organization_id = :brokerOrgId', { brokerOrgId: params.brokerOrganizationId })
+      .andWhere('p.issued_at >= :startDate', { startDate: params.startDate })
+      .andWhere('p.issued_at <= :endDate', { endDate: params.endDate })
+      .getMany();
+
+    const totalPremium = allBrokerPolicies.reduce((sum, p) => sum + Number(p.premiumAmount || 0), 0);
+    const collectedAmount = allBrokerPolicies
+      .filter(p => p.status === 'active' || p.status === 'expired')
+      .reduce((sum, p) => sum + Number(p.premiumAmount || 0), 0);
+    const outstandingAmount = Math.max(0, totalPremium - collectedAmount);
+    const overdueCount = allBrokerPolicies.filter(p => p.status === 'pending' && p.issuedAt && new Date(p.issuedAt) < new Date()).length;
+
+    return {
+      kpis,
+      recentPolicies: recentPolicies.map(p => ({
+        policyId: p.policyId,
+        policyNumber: p.policyNumber,
+        status: p.status,
+        premiumAmount: p.premiumAmount,
+        issuedAt: p.issuedAt?.toISOString?.() ?? null,
+      })),
+      recentClaims: recentClaims.map(c => ({
+        claimId: c.claimId,
+        policyId: c.policyId,
+        approvedAmount: c.approvedAmount,
+        claimPaidAt: c.claimPaidAt?.toISOString?.() ?? null,
+      })),
+      commissionSummary: { totalCommission, pendingCommission, paidCommission },
+      collectionSummary: { totalPremium, collectedAmount, outstandingAmount, overdueCount },
+      period: { startDate: params.startDate.toISOString(), endDate: params.endDate.toISOString() },
+    };
+  }
+
+  async getCommissionReport(params: {
+    tenantId: string;
+    brokerOrganizationId?: string;
+    startDate: Date;
+    endDate: Date;
+    groupBy?: 'broker' | 'agent' | 'policy' | 'product';
+    limit?: number;
+    offset?: number;
+  }): Promise<{
+    summary: { totalCommission: number; paidCommission: number; pendingCommission: number; commissionCount: number };
+    breakdown: Array<{
+      groupKey: string;
+      totalCommission: number;
+      paidCommission: number;
+      pendingCommission: number;
+      commissionCount: number;
+    }>;
+    recentCommissions: Array<{
+      paymentId: string;
+      amount: number;
+      status: string;
+      policyId: string | null;
+      brokerOrganizationId: string | null;
+      paidAt: string | null;
+      createdAt: string;
+    }>;
+    pagination: { total: number; limit: number; offset: number };
+  }> {
+    const qb = this.applyTenantFilter(this.paymentRepo.createQueryBuilder('p'), 'p')
+      .where('p.payment_type = :type', { type: 'commission' })
+      .andWhere('p.created_at >= :startDate', { startDate: params.startDate })
+      .andWhere('p.created_at <= :endDate', { endDate: params.endDate });
+
+    if (params.brokerOrganizationId) {
+      qb.andWhere('p.broker_organization_id = :brokerOrgId', { brokerOrgId: params.brokerOrganizationId });
+    }
+
+    const allCommissions = await qb.getMany();
+
+    const totalCommission = allCommissions.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const paidCommission = allCommissions.filter(p => p.status === 'paid' || p.paidAt).reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const pendingCommission = totalCommission - paidCommission;
+
+    const groupByField = params.groupBy === 'agent' ? 'p.prepared_by_user_id'
+      : params.groupBy === 'policy' ? 'p.policy_id'
+      : params.groupBy === 'product' ? 'p.policy_id'
+      : 'p.broker_organization_id';
+
+    const groupMap = new Map<string, { totalCommission: number; paidCommission: number; pendingCommission: number; commissionCount: number }>();
+    for (const p of allCommissions) {
+      const key = (groupByField === 'p.broker_organization_id' ? p.brokerOrganizationId
+        : groupByField === 'p.policy_id' ? p.policyId
+        : groupByField === 'p.prepared_by_user_id' ? (p as any).preparedByUserId
+        : p.policyId) || 'unknown';
+      const existing = groupMap.get(key) || { totalCommission: 0, paidCommission: 0, pendingCommission: 0, commissionCount: 0 };
+      existing.totalCommission += Number(p.amount || 0);
+      if (p.status === 'paid' || p.paidAt) existing.paidCommission += Number(p.amount || 0);
+      else existing.pendingCommission += Number(p.amount || 0);
+      existing.commissionCount += 1;
+      groupMap.set(key, existing);
+    }
+
+    const breakdown = Array.from(groupMap.entries())
+      .map(([groupKey, val]) => ({ groupKey, ...val }))
+      .sort((a, b) => b.totalCommission - a.totalCommission);
+
+    const lim = params.limit || 50;
+    const off = params.offset || 0;
+    const recentCommissions = allCommissions
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(off, off + lim)
+      .map(p => ({
+        paymentId: p.paymentId,
+        amount: Number(p.amount || 0),
+        status: p.status,
+        policyId: p.policyId,
+        brokerOrganizationId: p.brokerOrganizationId,
+        paidAt: p.paidAt?.toISOString?.() ?? null,
+        createdAt: p.createdAt?.toISOString?.() ?? new Date().toISOString(),
+      }));
+
+    return {
+      summary: { totalCommission, paidCommission, pendingCommission, commissionCount: allCommissions.length },
+      breakdown,
+      recentCommissions,
+      pagination: { total: allCommissions.length, limit: lim, offset: off },
+    };
+  }
+
+  async getSalesPartnerPerformanceReport(params: {
+    tenantId: string;
+    partnerId?: string;
+    partnerType?: string;
+    status?: string;
+    startDate: Date;
+    endDate: Date;
+    limit?: number;
+    offset?: number;
+  }): Promise<{
+    summary: {
+      totalPartners: number;
+      activePartners: number;
+      totalPoliciesIssued: number;
+      totalPremium: number;
+      totalCommission: number;
+      totalComplaints: number;
+      avgCommissionRateBps: number;
+    };
+    partners: Array<{
+      partnerId: string;
+      partnerName: string;
+      partnerType: string;
+      status: string;
+      totalPoliciesIssued: number;
+      totalPremium: number;
+      totalCommission: number;
+      totalComplaints: number;
+      commissionRateBps: number | null;
+      lastPolicyIssuedAt: string | null;
+      policiesInPeriod: number;
+      premiumInPeriod: number;
+      commissionInPeriod: number;
+    }>;
+    pagination: { total: number; limit: number; offset: number };
+  }> {
+    const qb = this.applyTenantFilter(this.salesNetworkRepo.createQueryBuilder('s'), 's');
+    if (params.partnerId) qb.andWhere('s.partner_id = :partnerId', { partnerId: params.partnerId });
+    if (params.partnerType) qb.andWhere('s.partner_type = :partnerType', { partnerType: params.partnerType });
+    if (params.status) qb.andWhere('s.status = :status', { status: params.status });
+    qb.orderBy('s.total_premium', 'DESC');
+
+    const lim = params.limit || 50;
+    const off = params.offset || 0;
+    qb.limit(lim).offset(off);
+
+    const [partners, total] = await qb.getManyAndCount();
+
+    const partnerIds = partners.map(p => p.partnerId);
+    const policiesInPeriodMap = new Map<string, { count: number; premium: number }>();
+    const commissionInPeriodMap = new Map<string, number>();
+
+    if (partnerIds.length > 0) {
+      const policiesInPeriod = await this.applyTenantFilter(this.policyRepo.createQueryBuilder('p'), 'p')
+        .where('p.broker_organization_id IN (:...partnerIds)', { partnerIds })
+        .andWhere('p.created_at >= :startDate', { startDate: params.startDate })
+        .andWhere('p.created_at <= :endDate', { endDate: params.endDate })
+        .select('p.broker_organization_id', 'partnerId')
+        .addSelect('COUNT(*)', 'count')
+        .addSelect('COALESCE(SUM(p.premium_amount), 0)', 'premium')
+        .groupBy('p.broker_organization_id')
+        .getRawMany();
+
+      for (const row of policiesInPeriod) {
+        policiesInPeriodMap.set(row.partnerId, {
+          count: parseInt(row.count || '0', 10),
+          premium: parseFloat(row.premium || '0'),
+        });
+      }
+
+      const commissionsInPeriod = await this.applyTenantFilter(this.paymentRepo.createQueryBuilder('p'), 'p')
+        .where('p.broker_organization_id IN (:...partnerIds)', { partnerIds })
+        .andWhere('p.payment_type = :type', { type: 'commission' })
+        .andWhere('p.created_at >= :startDate', { startDate: params.startDate })
+        .andWhere('p.created_at <= :endDate', { endDate: params.endDate })
+        .select('p.broker_organization_id', 'partnerId')
+        .addSelect('COALESCE(SUM(p.amount), 0)', 'commission')
+        .groupBy('p.broker_organization_id')
+        .getRawMany();
+
+      for (const row of commissionsInPeriod) {
+        commissionInPeriodMap.set(row.partnerId, parseFloat(row.commission || '0'));
+      }
+    }
+
+    const partnerResults = partners.map(p => {
+      const periodData = policiesInPeriodMap.get(p.partnerId) || { count: 0, premium: 0 };
+      const periodCommission = commissionInPeriodMap.get(p.partnerId) || 0;
+      return {
+        partnerId: p.partnerId,
+        partnerName: p.partnerName,
+        partnerType: p.partnerType,
+        status: p.status,
+        totalPoliciesIssued: p.totalPoliciesIssued || 0,
+        totalPremium: Number(p.totalPremium || 0),
+        totalCommission: Number(p.totalCommission || 0),
+        totalComplaints: p.totalComplaints || 0,
+        commissionRateBps: p.commissionRateBps || null,
+        lastPolicyIssuedAt: p.lastPolicyIssuedAt?.toISOString?.() ?? null,
+        policiesInPeriod: periodData.count,
+        premiumInPeriod: periodData.premium,
+        commissionInPeriod: periodCommission,
+      };
+    });
+
+    const totalPoliciesIssued = partnerResults.reduce((sum, p) => sum + p.totalPoliciesIssued, 0);
+    const totalPremium = partnerResults.reduce((sum, p) => sum + p.totalPremium, 0);
+    const totalCommission = partnerResults.reduce((sum, p) => sum + p.totalCommission, 0);
+    const totalComplaints = partnerResults.reduce((sum, p) => sum + p.totalComplaints, 0);
+    const activePartners = partnerResults.filter(p => p.status === 'active').length;
+    const avgCommissionRateBps = partnerResults.length > 0
+      ? Math.round(partnerResults.reduce((sum, p) => sum + (p.commissionRateBps || 0), 0) / partnerResults.length)
+      : 0;
+
+    return {
+      summary: {
+        totalPartners: total,
+        activePartners,
+        totalPoliciesIssued,
+        totalPremium,
+        totalCommission,
+        totalComplaints,
+        avgCommissionRateBps,
+      },
+      partners: partnerResults,
+      pagination: { total, limit: lim, offset: off },
     };
   }
 }

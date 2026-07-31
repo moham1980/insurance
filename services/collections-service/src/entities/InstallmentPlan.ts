@@ -12,6 +12,12 @@ export class InstallmentPlan {
   @Column({ name: 'policy_id', type: 'uuid' })
   policyId!: string;
 
+  @Column({ name: 'tenant_id', type: 'text', nullable: true })
+  tenantId!: string | null;
+
+  @Column({ name: 'broker_organization_id', type: 'uuid', nullable: true })
+  brokerOrganizationId!: string | null;
+
   @Column({ name: 'premium_amount', type: 'numeric' })
   premiumAmount!: number;
 

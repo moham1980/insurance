@@ -3,7 +3,14 @@ import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { AppModule } from './app.module';
 import { DataSource } from 'typeorm';
-import { createLogger, KafkaProducer, OutboxWorker } from '@insurance/shared';
+import { createLogger, createTracer, KafkaProducer, OutboxWorker } from '@insurance/shared';
+
+const tracer = createTracer({
+  serviceName: 'policy-service',
+  otlpEndpoint: process.env.OTEL_OTLP_ENDPOINT,
+  jaegerEndpoint: process.env.OTEL_JAEGER_ENDPOINT,
+});
+tracer.start();
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter());

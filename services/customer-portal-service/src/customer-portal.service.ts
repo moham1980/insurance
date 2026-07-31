@@ -1,6 +1,6 @@
 import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { CustomerSession, SessionStatus } from './entities/CustomerSession';
 import { JwtService } from '@nestjs/jwt';
 import { HttpService } from '@nestjs/axios';
@@ -13,12 +13,16 @@ export class CustomerPortalService {
   private readonly logger = new Logger(CustomerPortalService.name);
   private readonly maxRetries = 3;
   private readonly retryDelay = 1000; // 1 second
+  private readonly otpRateLimitWindowMs = 10 * 60 * 1000; // 10 minutes
+  private readonly otpRateLimitMax = 3; // max 3 OTP requests per window
+  private readonly otpMaxAttempts = 5; // max 5 wrong OTP attempts before lock
 
   constructor(
     @InjectRepository(CustomerSession)
     private sessionRepo: Repository<CustomerSession>,
     private jwtService: JwtService,
     private httpService: HttpService,
+    private dataSource: DataSource,
   ) {}
 
   /**
@@ -86,6 +90,21 @@ export class CustomerPortalService {
     tenantId: string;
     phoneNumber: string;
   }): Promise<{ sessionId: string; expiresAt: Date }> {
+    // Rate limit: check recent OTP requests for this phone number
+    const windowStart = new Date(Date.now() - this.otpRateLimitWindowMs);
+    const recentSessions = await this.sessionRepo.count({
+      where: {
+        phoneNumber: params.phoneNumber,
+        createdAt: { $gte: windowStart } as any,
+      } as any,
+    });
+    if (recentSessions >= this.otpRateLimitMax) {
+      throw new HttpException(
+        'Too many OTP requests. Please try again later.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
     // Generate 6-digit OTP
     const otp = crypto.randomInt(100000, 999999).toString();
     const otpHash = crypto.createHash('sha256').update(otp + (process.env.OTP_SALT || 'default-salt')).digest('hex');
@@ -102,6 +121,8 @@ export class CustomerPortalService {
       phoneNumber: params.phoneNumber,
       otp: otpHash,
       status: SessionStatus.ACTIVE,
+      otpAttempts: 0,
+      lockedAt: null,
       expiresAt,
       metadata: null,
     });
@@ -153,6 +174,10 @@ export class CustomerPortalService {
       return { success: false, error: 'Session not found' };
     }
 
+    if (session.status === SessionStatus.LOCKED) {
+      return { success: false, error: 'Session is locked due to too many failed attempts' };
+    }
+
     if (session.status !== SessionStatus.ACTIVE) {
       return { success: false, error: 'Session is not active' };
     }
@@ -165,7 +190,15 @@ export class CustomerPortalService {
 
     const otpHash = crypto.createHash('sha256').update(params.otp + (process.env.OTP_SALT || 'default-salt')).digest('hex');
     if (session.otp !== otpHash) {
-      return { success: false, error: 'Invalid OTP' };
+      session.otpAttempts += 1;
+      if (session.otpAttempts >= this.otpMaxAttempts) {
+        session.status = SessionStatus.LOCKED;
+        session.lockedAt = new Date();
+        await this.sessionRepo.save(session);
+        return { success: false, error: 'Too many failed attempts. Session locked.' };
+      }
+      await this.sessionRepo.save(session);
+      return { success: false, error: `Invalid OTP. ${this.otpMaxAttempts - session.otpAttempts} attempts remaining.` };
     }
 
     // OTP is valid - link to customer if exists
@@ -216,7 +249,62 @@ export class CustomerPortalService {
   }
 
   // BFF Methods - Proxy to downstream services with customer filtering
-  async getPoliciesForCustomer(customerId: string, tenantId: string, authToken?: string): Promise<any[]> {
+  async getKycStatus(customerId: string, tenantId: string, authToken?: string): Promise<any> {
+    const partyServiceUrl = process.env.PARTY_KYC_URL || 'http://party-kyc-service:18006';
+    const authHeaders: Record<string, string> = { 'x-tenant-id': tenantId };
+    if (authToken) authHeaders['Authorization'] = `Bearer ${authToken}`;
+
+    try {
+      const partyResponse: any = await this.fetchWithRetry(
+        () => firstValueFrom(
+          this.httpService.get(
+            `${partyServiceUrl}/parties`,
+            {
+              params: { nationalId: customerId },
+              headers: authHeaders,
+            },
+          ),
+        ),
+        'Fetch party for KYC status',
+      );
+
+      const partyId = (partyResponse.data as any)?.data?.[0]?.id || (partyResponse.data as any)?.data?.partyId;
+      if (!partyId) {
+        this.logger.warn(`No party found for customer ${customerId}`);
+        return { kycStatus: 'not_found', partyId: null };
+      }
+
+      const kycResponse: any = await this.fetchWithRetry(
+        () => firstValueFrom(
+          this.httpService.get(
+            `${partyServiceUrl}/party/${partyId}/kyc`,
+            { headers: authHeaders },
+          ),
+        ),
+        'Fetch KYC status for party',
+      );
+
+      const kycData = (kycResponse.data as any)?.data;
+      return {
+        partyId,
+        kycStatus: kycData?.status || 'unknown',
+        kycType: kycData?.kycType || 'standard',
+        workflowStage: kycData?.workflowStage || null,
+        riskLevel: kycData?.riskLevel || null,
+        dueDate: kycData?.dueDate || null,
+        documentStatus: kycData?.documentStatus || null,
+        amlScreeningStatus: kycData?.amlScreeningStatus || null,
+      };
+    } catch (error: any) {
+      this.logger.error(`Failed to fetch KYC status for customer ${customerId}: ${error.message}`);
+      throw new HttpException(
+        { success: false, error: { code: 'KYC_STATUS_FETCH_FAILED', message: error.message } },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async getPoliciesForCustomer(customerId: string, tenantId: string, authToken?: string, brokerOrganizationId?: string): Promise<any[]> {
     const policyServiceUrl = process.env.POLICY_SERVICE_URL || 'http://policy-service:18007';
     const partyServiceUrl = process.env.PARTY_KYC_URL || 'http://party-kyc-service:18006';
     const authHeaders: Record<string, string> = { 'x-tenant-id': tenantId };
@@ -243,13 +331,16 @@ export class CustomerPortalService {
         return [];
       }
 
-      // Get policies for this party
+      // Get policies for this party, optionally filtered by brokerOrganizationId
+      const policyParams: Record<string, string> = { partyId };
+      if (brokerOrganizationId) policyParams.brokerOrganizationId = brokerOrganizationId;
+
       const policiesResponse: any = await this.fetchWithRetry(
         () => firstValueFrom(
           this.httpService.get(
             `${policyServiceUrl}/policies`,
             {
-              params: { partyId },
+              params: policyParams,
               headers: authHeaders,
             },
           ),
@@ -435,6 +526,77 @@ export class CustomerPortalService {
     }
   }
 
+  async createComplaint(params: {
+    customerId: string;
+    tenantId: string;
+    subject: string;
+    description: string;
+    category?: string;
+    priority?: string;
+    authToken?: string;
+  }): Promise<any> {
+    const complaintsServiceUrl = process.env.COMPLAINTS_SERVICE_URL || 'http://complaints-service:18013';
+    const authHeaders: Record<string, string> = { 'x-tenant-id': params.tenantId };
+    if (params.authToken) authHeaders['Authorization'] = `Bearer ${params.authToken}`;
+
+    try {
+      const response: any = await this.fetchWithRetry(
+        () => firstValueFrom(
+          this.httpService.post(
+            `${complaintsServiceUrl}/complaints`,
+            {
+              customerId: params.customerId,
+              subject: params.subject,
+              description: params.description,
+              category: params.category,
+              priority: params.priority,
+            },
+            { headers: authHeaders },
+          ),
+        ),
+        'Create complaint',
+      );
+
+      return (response.data as any)?.data || (response.data as any);
+    } catch (error) {
+      this.logger.error('Failed to create complaint', error);
+      throw new HttpException(
+        'Failed to create complaint',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async getComplaintStatus(params: {
+    complaintId: string;
+    tenantId: string;
+    authToken?: string;
+  }): Promise<any> {
+    const complaintsServiceUrl = process.env.COMPLAINTS_SERVICE_URL || 'http://complaints-service:18013';
+    const authHeaders: Record<string, string> = { 'x-tenant-id': params.tenantId };
+    if (params.authToken) authHeaders['Authorization'] = `Bearer ${params.authToken}`;
+
+    try {
+      const response: any = await this.fetchWithRetry(
+        () => firstValueFrom(
+          this.httpService.get(
+            `${complaintsServiceUrl}/complaints/${params.complaintId}`,
+            { headers: authHeaders },
+          ),
+        ),
+        'Get complaint status',
+      );
+
+      return (response.data as any)?.data || (response.data as any);
+    } catch (error) {
+      this.logger.error('Failed to fetch complaint status', error);
+      throw new HttpException(
+        'Failed to fetch complaint status',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   async submitFnol(params: {
     customerId: string;
     tenantId: string;
@@ -444,6 +606,7 @@ export class CustomerPortalService {
     incidentAmount?: number;
     documents?: Array<{ name: string; type: string; url: string }>;
     authToken?: string;
+    correlationId?: string;
   }): Promise<{ success: boolean; data?: any; error?: string }> {
     const claimsServiceUrl = process.env.CLAIMS_SERVICE_URL || 'http://claims-service:18002';
     const documentServiceUrl = process.env.DOCUMENT_SERVICE_URL || 'http://document-service:18008';
@@ -453,6 +616,7 @@ export class CustomerPortalService {
     try {
       // First, verify the policy belongs to the customer
       const policy = await this.getPolicyForCustomer(params.policyId, params.customerId, params.tenantId, params.authToken);
+      const brokerOrganizationId = policy?.brokerOrganizationId || policy?.distributionOrganizationId || null;
 
       // Upload documents if provided
       const uploadedDocuments = [];
@@ -494,6 +658,7 @@ export class CustomerPortalService {
               documents: uploadedDocuments.map(d => d.id),
               customerId: params.customerId,
               tenantId: params.tenantId,
+              brokerOrganizationId,
             },
             {
               headers: authHeaders,
@@ -503,9 +668,38 @@ export class CustomerPortalService {
         'Submit FNOL',
       );
 
+      const claimData = (claimResponse.data as any)?.data;
+
+      // Publish broker notification event for FNOL
+      if (brokerOrganizationId && claimData?.claimId) {
+        try {
+          const { OutboxEvent } = await import('@insurance/shared');
+          const outboxRepo = this.dataSource.getRepository(OutboxEvent);
+          await outboxRepo.save({
+            topic: 'insurance.claim.fnol.broker-notification',
+            eventType: 'BrokerFnolNotification',
+            eventVersion: 1,
+            correlationId: params.correlationId || `${Date.now()}`,
+            subject: { claimId: claimData.claimId, policyId: params.policyId, brokerOrganizationId, tenantId: params.tenantId },
+            payload: {
+              tenantId: params.tenantId,
+              claimId: claimData.claimId,
+              policyId: params.policyId,
+              customerId: params.customerId,
+              brokerOrganizationId,
+              incidentDate: params.incidentDate,
+              incidentDescription: params.incidentDescription,
+              notificationType: 'fnol_submitted',
+            },
+          });
+        } catch (e) {
+          this.logger.warn('Failed to publish broker FNOL notification event', e);
+        }
+      }
+
       return {
         success: true,
-        data: (claimResponse.data as any)?.data,
+        data: claimData,
       };
     } catch (error) {
       this.logger.error('Failed to submit FNOL after retries', error);
@@ -567,6 +761,91 @@ export class CustomerPortalService {
     }
   }
 
+  async submitEndorsementForCustomer(params: {
+    endorsementId: string;
+    customerId: string;
+    tenantId: string;
+    authToken?: string;
+    correlationId?: string;
+  }): Promise<{ success: boolean; data?: any; error?: string }> {
+    const policyServiceUrl = process.env.POLICY_SERVICE_URL || 'http://policy-service:18007';
+    const authHeaders = this.getAuthHeaders(params);
+
+    try {
+      const response: any = await this.fetchWithRetry(
+        () => firstValueFrom(
+          this.httpService.post(
+            `${policyServiceUrl}/endorsements/${params.endorsementId}/submit`,
+            {},
+            { headers: authHeaders },
+          )
+        ),
+        'Submit endorsement for broker approval',
+      );
+
+      return {
+        success: true,
+        data: (response.data as any)?.data,
+      };
+    } catch (error) {
+      this.logger.error('Failed to submit endorsement', error);
+      return {
+        success: false,
+        error: error instanceof HttpException ? error.message : 'Failed to submit endorsement',
+      };
+    }
+  }
+
+  async getEndorsementStatusForCustomer(params: {
+    endorsementId: string;
+    customerId: string;
+    tenantId: string;
+    authToken?: string;
+    correlationId?: string;
+  }): Promise<{ success: boolean; data?: any; error?: string }> {
+    const policyServiceUrl = process.env.POLICY_SERVICE_URL || 'http://policy-service:18007';
+    const authHeaders = this.getAuthHeaders(params);
+
+    try {
+      const response: any = await this.fetchWithRetry(
+        () => firstValueFrom(
+          this.httpService.get(
+            `${policyServiceUrl}/endorsements/${params.endorsementId}`,
+            { headers: authHeaders },
+          )
+        ),
+        'Fetch endorsement status',
+      );
+
+      const endorsement = (response.data as any)?.data;
+      if (!endorsement) {
+        return { success: false, error: 'Endorsement not found' };
+      }
+
+      return {
+        success: true,
+        data: {
+          endorsementId: endorsement.endorsementId,
+          policyId: endorsement.policyId,
+          status: endorsement.status,
+          endorsementType: endorsement.endorsementType,
+          reason: endorsement.reason,
+          submittedAt: endorsement.submittedAt,
+          approvedByPartyId: endorsement.approvedByPartyId,
+          appliedAt: endorsement.appliedAt,
+          rejectedAt: endorsement.rejectedAt,
+          rejectionReason: endorsement.rejectionReason,
+        },
+      };
+    } catch (error) {
+      this.logger.error('Failed to fetch endorsement status', error);
+      return {
+        success: false,
+        error: error instanceof HttpException ? error.message : 'Failed to fetch endorsement status',
+      };
+    }
+  }
+
   async requestRenewal(params: {
     customerId: string;
     tenantId: string;
@@ -611,6 +890,638 @@ export class CustomerPortalService {
       };
     }
   }
+private getClaimsServiceUrl(): string {
+    return process.env.CLAIMS_SERVICE_URL || 'http://claims-service:18002';
+  }
+
+  private getAuthHeaders(params: { tenantId: string; authToken?: string; correlationId?: string }): Record<string, string> {
+    const headers: Record<string, string> = { 'x-tenant-id': params.tenantId, 'Content-Type': 'application/json' };
+    if (params.authToken) headers['Authorization'] = `Bearer ${params.authToken}`;
+    if (params.correlationId) headers['x-correlation-id'] = params.correlationId;
+    return headers;
+  }
+
+  async compareRenewalQuotes(params: {
+    customerId: string;
+    tenantId: string;
+    policyId: string;
+    productIds?: string[];
+    effectiveDate?: string;
+    authToken?: string;
+    correlationId?: string;
+  }): Promise<{ success: boolean; data?: any; error?: string }> {
+    const productServiceUrl = process.env.PRODUCT_SERVICE_URL || 'http://product-service:18002';
+    const authHeaders = this.getAuthHeaders(params);
+
+    try {
+      // Verify policy belongs to customer
+      const policy = await this.getPolicyForCustomer(params.policyId, params.customerId, params.tenantId, params.authToken);
+      if (!policy) {
+        return { success: false, error: 'Policy not found or not owned by customer' };
+      }
+
+      // Get quotes from multiple carriers via product-service
+      const response: any = await this.fetchWithRetry(
+        () => firstValueFrom(
+          this.httpService.post(
+            `${productServiceUrl}/product/quote/compare`,
+            {
+              productIds: params.productIds,
+              customerPartyId: params.customerId,
+              effectiveDate: params.effectiveDate || new Date().toISOString().split('T')[0],
+              renewalPolicyId: params.policyId,
+            },
+            { headers: authHeaders },
+          )
+        ),
+        'Compare renewal quotes',
+      );
+
+      return {
+        success: true,
+        data: (response.data as any)?.data,
+      };
+    } catch (error) {
+      this.logger.error('Failed to compare renewal quotes', error);
+      return {
+        success: false,
+        error: error instanceof HttpException ? error.message : 'Failed to compare renewal quotes',
+      };
+    }
+  }
+
+  async addAdjusterCommunicationForCustomer(params: {
+    claimId: string;
+    referralId: string;
+    customerId: string;
+    tenantId: string;
+    channel: string;
+    direction: string;
+    contentRef: string;
+    subject?: string;
+    summary?: string;
+    authToken?: string;
+    correlationId?: string;
+  }): Promise<{ success: boolean; data?: any; error?: string }> {
+    const claimsServiceUrl = this.getClaimsServiceUrl();
+    const authHeaders = this.getAuthHeaders(params);
+
+    // Verify claim ownership
+    try {
+      const claimResponse: any = await this.fetchWithRetry(
+        () => firstValueFrom(
+          this.httpService.get(`${claimsServiceUrl}/claims/${params.claimId}`, { headers: authHeaders })
+        ),
+        'Verify claim ownership for adjuster communication',
+      );
+
+      const claim = (claimResponse.data as any)?.data;
+      if (!claim) {
+        return { success: false, error: 'Claim not found' };
+      }
+
+      if (claim.claimantPartyId !== params.customerId && claim.customerId !== params.customerId) {
+        return { success: false, error: 'Access denied' };
+      }
+
+      // Post communication to claims-service
+      const response: any = await this.fetchWithRetry(
+        () => firstValueFrom(
+          this.httpService.post(
+            `${claimsServiceUrl}/adjuster-referrals/${params.referralId}/communications`,
+            {
+              channel: params.channel,
+              direction: params.direction,
+              contentRef: params.contentRef,
+              partyId: params.customerId,
+              subject: params.subject,
+              summary: params.summary,
+            },
+            { headers: authHeaders },
+          )
+        ),
+        'Add adjuster communication',
+      );
+
+      return {
+        success: true,
+        data: (response.data as any)?.data,
+      };
+    } catch (error) {
+      this.logger.error('Failed to add adjuster communication', error);
+      return {
+        success: false,
+        error: error instanceof HttpException ? error.message : 'Failed to add adjuster communication',
+      };
+    }
+  }
+
+  async getClaimAdvocacyForCustomer(params: {
+    claimId: string;
+    customerId: string;
+    tenantId: string;
+    authToken?: string;
+    correlationId?: string;
+  }): Promise<{ success: boolean; data?: any; error?: string }> {
+    const claimsServiceUrl = this.getClaimsServiceUrl();
+    const authHeaders = this.getAuthHeaders(params);
+
+    try {
+      // Verify claim belongs to customer
+      const claimResponse: any = await this.fetchWithRetry(
+        () => firstValueFrom(
+          this.httpService.get(`${claimsServiceUrl}/claims/${params.claimId}`, { headers: authHeaders })
+        ),
+        'Fetch claim for advocacy',
+      );
+
+      const claim = (claimResponse.data as any)?.data;
+      if (!claim || claim.claimantPartyId !== params.customerId) {
+        return { success: false, error: 'Access denied' };
+      }
+
+      const casesResponse: any = await this.fetchWithRetry(
+        () => firstValueFrom(
+          this.httpService.get(`${claimsServiceUrl}/advocacy-cases`, {
+            params: { claimId: params.claimId },
+            headers: authHeaders,
+          })
+        ),
+        'Fetch advocacy cases for claim',
+      );
+
+      return {
+        success: true,
+        data: (casesResponse.data as any)?.data?.rows || [],
+      };
+    } catch (error) {
+      this.logger.error('Failed to get claim advocacy', error);
+      return { success: false, error: error instanceof HttpException ? error.message : 'Failed to get claim advocacy' };
+    }
+  }
+
+  async createAdvocacyCaseForCustomer(params: {
+    claimId: string;
+    customerId: string;
+    tenantId: string;
+    brokerOrganizationId?: string;
+    caseType?: string;
+    priority?: string;
+    description?: string;
+    authToken?: string;
+    correlationId?: string;
+  }): Promise<{ success: boolean; data?: any; error?: string }> {
+    const claimsServiceUrl = this.getClaimsServiceUrl();
+    const authHeaders = this.getAuthHeaders(params);
+
+    try {
+      // Verify claim belongs to customer
+      const claimResponse: any = await this.fetchWithRetry(
+        () => firstValueFrom(
+          this.httpService.get(`${claimsServiceUrl}/claims/${params.claimId}`, { headers: authHeaders })
+        ),
+        'Fetch claim for advocacy case creation',
+      );
+
+      const claim = (claimResponse.data as any)?.data;
+      if (!claim || claim.claimantPartyId !== params.customerId) {
+        return { success: false, error: 'Access denied' };
+      }
+
+      const response: any = await this.fetchWithRetry(
+        () => firstValueFrom(
+          this.httpService.post(
+            `${claimsServiceUrl}/claims/${params.claimId}/advocacy-cases`,
+            {
+              brokerOrganizationId: params.brokerOrganizationId || claim.brokerOrganizationId,
+              customerPartyId: params.customerId,
+              caseType: params.caseType || 'general',
+              priority: params.priority || 'medium',
+              description: params.description,
+            },
+            { headers: authHeaders },
+          )
+        ),
+        'Create advocacy case for customer',
+      );
+
+      return {
+        success: true,
+        data: (response.data as any)?.data,
+      };
+    } catch (error) {
+      this.logger.error('Failed to create advocacy case', error);
+      return { success: false, error: error instanceof HttpException ? error.message : 'Failed to create advocacy case' };
+    }
+  }
+
+  async addAdvocacyCommunicationForCustomer(params: {
+    caseId: string;
+    claimId: string;
+    customerId: string;
+    tenantId: string;
+    channel: 'email' | 'sms' | 'call' | 'web' | 'mobile_app';
+    contentRef: string;
+    authToken?: string;
+    correlationId?: string;
+  }): Promise<{ success: boolean; data?: any; error?: string }> {
+    const claimsServiceUrl = this.getClaimsServiceUrl();
+    const authHeaders = this.getAuthHeaders(params);
+
+    try {
+      const response: any = await this.fetchWithRetry(
+        () => firstValueFrom(
+          this.httpService.post(
+            `${claimsServiceUrl}/advocacy-cases/${params.caseId}/communications`,
+            {
+              channel: params.channel,
+              direction: 'inbound',
+              contentRef: params.contentRef,
+              partyId: params.customerId,
+            },
+            { headers: authHeaders },
+          )
+        ),
+        'Add advocacy communication',
+      );
+
+      return {
+        success: (response.data as any)?.success ?? true,
+        data: (response.data as any)?.data,
+      };
+    } catch (error) {
+      this.logger.error('Failed to add advocacy communication', error);
+      return { success: false, error: error instanceof HttpException ? error.message : 'Failed to add advocacy communication' };
+    }
+  }
+
+  async getAdvocacyCommunicationsForCustomer(params: {
+    claimId: string;
+    caseId: string;
+    customerId: string;
+    tenantId: string;
+    authToken?: string;
+    correlationId?: string;
+  }): Promise<{ success: boolean; data?: any; error?: string }> {
+    const claimsServiceUrl = this.getClaimsServiceUrl();
+    const authHeaders = this.getAuthHeaders(params);
+
+    try {
+      const response: any = await this.fetchWithRetry(
+        () => firstValueFrom(
+          this.httpService.get(
+            `${claimsServiceUrl}/advocacy-cases/${params.caseId}/communications`,
+            { headers: authHeaders },
+          )
+        ),
+        'Get advocacy communications',
+      );
+
+      return {
+        success: (response.data as any)?.success ?? true,
+        data: (response.data as any)?.data ?? response.data,
+      };
+    } catch (error) {
+      this.logger.error('Failed to fetch advocacy communications', error);
+      return { success: false, error: error instanceof HttpException ? error.message : 'Failed to fetch advocacy communications' };
+    }
+  }
+
+  async getPaymentForCustomer(paymentId: string, customerId: string, tenantId: string, authToken?: string): Promise<any> {
+    const collectionsServiceUrl = process.env.COLLECTIONS_SERVICE_URL || 'http://collections-service:18025';
+    const authHeaders: Record<string, string> = { 'x-tenant-id': tenantId, 'x-customer-id': customerId };
+    if (authToken) authHeaders['Authorization'] = `Bearer ${authToken}`;
+    try {
+      const { data } = await firstValueFrom(
+        this.httpService.get(`${collectionsServiceUrl}/payments/${paymentId}`, { headers: authHeaders }),
+      );
+      return data;
+    } catch (err: any) {
+      const status = err?.response?.status || 500;
+      const message = err?.response?.data?.message || 'Failed to fetch payment details';
+      return { success: false, error: { code: 'PAYMENTS_ERROR', message, status } };
+    }
+  }
+
+  async getClaimStatusForCustomer(params: {
+    claimId: string;
+    customerId: string;
+    tenantId: string;
+    authToken?: string;
+    correlationId?: string;
+  }): Promise<{ success: boolean; data?: any; error?: string }> {
+    const claimsServiceUrl = this.getClaimsServiceUrl();
+    const authHeaders = this.getAuthHeaders(params);
+
+    try {
+      const claimResponse: any = await this.fetchWithRetry(
+        () => firstValueFrom(
+          this.httpService.get(`${claimsServiceUrl}/claims/${params.claimId}`, { headers: authHeaders })
+        ),
+        'Fetch claim status',
+      );
+
+      const claim = (claimResponse.data as any)?.data;
+      if (!claim) {
+        return { success: false, error: 'Claim not found' };
+      }
+
+      if (claim.claimantPartyId !== params.customerId && claim.customerId !== params.customerId) {
+        return { success: false, error: 'Access denied' };
+      }
+
+      const projectionsResponse: any = await this.fetchWithRetry(
+        () => firstValueFrom(
+          this.httpService.get(`${claimsServiceUrl}/claims/${params.claimId}/projections`, {
+            params: { limit: 1 },
+            headers: authHeaders,
+          })
+        ),
+        'Fetch claim projections',
+      );
+
+      const projections = (projectionsResponse.data as any)?.data?.rows || [];
+
+      return {
+        success: true,
+        data: {
+          claimId: claim.claimId,
+          claimNumber: claim.claimNumber,
+          status: claim.status,
+          assessedAmount: claim.assessedAmount,
+          approvedAmount: claim.approvedAmount,
+          paidAmount: claim.paidAmount,
+          currency: claim.currency,
+          updatedAt: claim.updatedAt,
+          latestProjection: projections[0] || null,
+        },
+      };
+    } catch (error) {
+      this.logger.error('Failed to get claim status', error);
+      return { success: false, error: error instanceof HttpException ? error.message : 'Failed to get claim status' };
+    }
+  }
+
+  async uploadClaimDocumentForCustomer(params: {
+    claimId: string;
+    customerId: string;
+    tenantId: string;
+    documentId: string;
+    documentType: string;
+    uploadedByPartyId: string;
+    authToken?: string;
+    correlationId?: string;
+  }): Promise<{ success: boolean; data?: any; error?: string }> {
+    const claimsServiceUrl = this.getClaimsServiceUrl();
+    const authHeaders = this.getAuthHeaders(params);
+
+    try {
+      const claimResponse: any = await this.fetchWithRetry(
+        () => firstValueFrom(
+          this.httpService.get(`${claimsServiceUrl}/claims/${params.claimId}`, { headers: authHeaders })
+        ),
+        'Verify claim ownership for document upload',
+      );
+
+      const claim = (claimResponse.data as any)?.data;
+      if (!claim) {
+        return { success: false, error: 'Claim not found' };
+      }
+
+      if (claim.claimantPartyId !== params.customerId && claim.customerId !== params.customerId) {
+        return { success: false, error: 'Access denied' };
+      }
+
+      const response: any = await this.fetchWithRetry(
+        () => firstValueFrom(
+          this.httpService.post(
+            `${claimsServiceUrl}/claims/${params.claimId}/documents`,
+            {
+              documentId: params.documentId,
+              documentType: params.documentType,
+              uploadedByPartyId: params.uploadedByPartyId,
+            },
+            { headers: authHeaders },
+          )
+        ),
+        'Upload claim document',
+      );
+
+      return {
+        success: (response.data as any)?.success ?? true,
+        data: (response.data as any)?.data,
+      };
+    } catch (error) {
+      this.logger.error('Failed to upload claim document', error);
+      return { success: false, error: error instanceof HttpException ? error.message : 'Failed to upload claim document' };
+    }
+  }
+
+  async getClaimDocumentDownloadUrl(params: {
+    claimId: string;
+    documentId: string;
+    customerId: string;
+    tenantId: string;
+    authToken?: string;
+    correlationId?: string;
+  }): Promise<{ success: boolean; data?: any; error?: string }> {
+    const claimsServiceUrl = this.getClaimsServiceUrl();
+    const authHeaders = this.getAuthHeaders(params);
+
+    try {
+      const claimResponse: any = await this.fetchWithRetry(
+        () => firstValueFrom(
+          this.httpService.get(`${claimsServiceUrl}/claims/${params.claimId}`, { headers: authHeaders })
+        ),
+        'Verify claim ownership for document download',
+      );
+
+      const claim = (claimResponse.data as any)?.data;
+      if (!claim) {
+        return { success: false, error: 'Claim not found' };
+      }
+
+      if (claim.claimantPartyId !== params.customerId && claim.customerId !== params.customerId) {
+        return { success: false, error: 'Access denied' };
+      }
+
+      const response: any = await this.fetchWithRetry(
+        () => firstValueFrom(
+          this.httpService.get(
+            `${claimsServiceUrl}/claims/${params.claimId}/documents/${params.documentId}/download`,
+            { headers: authHeaders },
+          )
+        ),
+        'Get claim document download URL',
+      );
+
+      return {
+        success: (response.data as any)?.success ?? true,
+        data: (response.data as any)?.data,
+      };
+    } catch (error) {
+      this.logger.error('Failed to get claim document download URL', error);
+      return { success: false, error: error instanceof HttpException ? error.message : 'Failed to get download URL' };
+    }
+  }
+
+  async initiatePayment(params: {
+    customerId: string;
+    tenantId: string;
+    invoiceId: string;
+    authToken?: string;
+    correlationId?: string;
+  }): Promise<{ success: boolean; data?: any; error?: string }> {
+    const billingServiceUrl = process.env.BILLING_SERVICE_URL || 'http://billing-service:18007';
+    const authHeaders = this.getAuthHeaders(params);
+
+    try {
+      const response: any = await this.fetchWithRetry(
+        () => firstValueFrom(
+          this.httpService.post(
+            `${billingServiceUrl}/payments/initiate`,
+            { invoiceId: params.invoiceId },
+            { headers: authHeaders },
+          )
+        ),
+        'Initiate payment for customer',
+      );
+
+      return {
+        success: (response.data as any)?.success ?? true,
+        data: (response.data as any)?.data,
+      };
+    } catch (error) {
+      this.logger.error('Failed to initiate payment', error);
+      return { success: false, error: error instanceof HttpException ? error.message : 'Failed to initiate payment' };
+    }
+  }
+
+  async getBrokerInfo(params: {
+    customerId: string;
+    tenantId: string;
+    authToken?: string;
+    correlationId?: string;
+  }): Promise<{ success: boolean; data?: any; error?: string }> {
+    const policyServiceUrl = process.env.POLICY_SERVICE_URL || 'http://policy-service:18003';
+    const salesNetworkUrl = process.env.SALES_NETWORK_SERVICE_URL || 'http://sales-network-service:18006';
+    const authHeaders = this.getAuthHeaders(params);
+
+    try {
+      const policyResponse: any = await this.fetchWithRetry(
+        () => firstValueFrom(
+          this.httpService.get(`${policyServiceUrl}/policies`, {
+            params: { customerId: params.customerId, limit: 1 },
+            headers: authHeaders,
+          })
+        ),
+        'Fetch policy for broker info lookup',
+      );
+
+      const policies = (policyResponse.data as any)?.data || [];
+      if (policies.length === 0) {
+        return { success: false, error: 'No policies found for customer' };
+      }
+
+      const brokerOrgId = policies[0].distributionOrganizationId;
+      if (!brokerOrgId) {
+        return { success: false, error: 'No broker assigned to customer policy' };
+      }
+
+      const partnerResponse: any = await this.fetchWithRetry(
+        () => firstValueFrom(
+          this.httpService.get(`${salesNetworkUrl}/sales-network/partners`, {
+            params: { orgUnitId: brokerOrgId },
+            headers: authHeaders,
+          })
+        ),
+        'Fetch broker partner info',
+      );
+
+      const partners = (partnerResponse.data as any)?.data || [];
+      if (partners.length === 0) {
+        return { success: false, error: 'Broker not found' };
+      }
+
+      const broker = partners[0];
+      return {
+        success: true,
+        data: {
+          partnerId: broker.partnerId,
+          displayName: broker.displayName,
+          status: broker.status,
+          organizationId: broker.orgUnitId,
+          parentPartnerId: broker.parentPartnerId,
+          partnerType: broker.partnerType,
+        },
+      };
+    } catch (error) {
+      this.logger.error('Failed to get broker info', error);
+      return { success: false, error: error instanceof HttpException ? error.message : 'Failed to get broker info' };
+    }
+  }
+
+  async getInstallmentDetails(params: {
+    customerId: string;
+    tenantId: string;
+    installmentId: string;
+    authToken?: string;
+    correlationId?: string;
+  }): Promise<{ success: boolean; data?: any; error?: string }> {
+    const collectionsServiceUrl = process.env.COLLECTIONS_SERVICE_URL || 'http://collections-service:18025';
+    const authHeaders = this.getAuthHeaders(params);
+
+    try {
+      const response: any = await this.fetchWithRetry(
+        () => firstValueFrom(
+          this.httpService.get(
+            `${collectionsServiceUrl}/collections/installments/${params.installmentId}`,
+            { headers: authHeaders },
+          )
+        ),
+        'Fetch installment details for customer',
+      );
+
+      const installment = (response.data as any)?.data;
+      if (!installment) {
+        return { success: false, error: 'Installment not found' };
+      }
+
+      if (installment.customerId && installment.customerId !== params.customerId) {
+        return { success: false, error: 'Access denied' };
+      }
+
+      return { success: true, data: installment };
+    } catch (error) {
+      this.logger.error('Failed to get installment details', error);
+      return { success: false, error: error instanceof HttpException ? error.message : 'Failed to get installment details' };
+    }
+  }
+
+  async getOfferingsForCustomer(customerId: string, tenantId: string, authToken?: string, params?: { brokerOrganizationId?: string; currency?: string; region?: string; limit?: number; offset?: number }): Promise<any> {
+    const productUrl = process.env.PRODUCT_SERVICE_URL || 'http://localhost:18018';
+    const query: Record<string, string> = {};
+    if (params?.brokerOrganizationId) query.brokerOrganizationId = params.brokerOrganizationId;
+    if (params?.currency) query.currency = params.currency;
+    if (params?.region) query.region = params.region;
+    if (params?.limit) query.limit = String(params.limit);
+    if (params?.offset) query.offset = String(params.offset);
+
+    return this.fetchWithRetry(
+      () => firstValueFrom(
+        this.httpService.get(`${productUrl}/api/v1/customers/offerings`, {
+          headers: {
+            ...(authToken ? { Authorization: authToken } : {}),
+            'x-tenant-id': tenantId,
+            'x-customer-id': customerId,
+          },
+          params: query,
+        }),
+      ).then(res => res.data),
+      'getOfferingsForCustomer',
+    );
+  }
+
 private maskPii(value: string | null | undefined): string | null {
   if (!value || typeof value !== 'string') return null;
   if (value.length <= 4) return '****';
@@ -628,6 +1539,215 @@ private maskPiiFields(data: any): any {
   }
   return masked;
 }
+
+  // --- Consent Management (proxy to customer-360-service) ---
+
+  async getConsents(customerId: string, tenantId: string, authToken?: string): Promise<any> {
+    const customer360Url = process.env.CUSTOMER_360_URL || 'http://localhost:3010';
+    const authHeaders: Record<string, string> = { 'x-tenant-id': tenantId };
+    if (authToken) authHeaders['Authorization'] = `Bearer ${authToken}`;
+    try {
+      const { data } = await firstValueFrom(
+        this.httpService.get(`${customer360Url}/customer-360/${customerId}/consents`, { headers: authHeaders }),
+      );
+      return data;
+    } catch (err: any) {
+      const status = err?.response?.status || 500;
+      const message = err?.response?.data?.message || 'Failed to fetch consents';
+      return { success: false, error: { code: 'CONSENT_ERROR', message, status } };
+    }
+  }
+
+  async grantConsent(params: {
+    customerId: string;
+    tenantId: string;
+    purpose: string;
+    source?: string;
+    channel?: string;
+    authToken?: string;
+  }): Promise<any> {
+    const customer360Url = process.env.CUSTOMER_360_URL || 'http://localhost:3010';
+    const authHeaders: Record<string, string> = { 'x-tenant-id': params.tenantId, 'Content-Type': 'application/json' };
+    if (params.authToken) authHeaders['Authorization'] = `Bearer ${params.authToken}`;
+    try {
+      const { data } = await firstValueFrom(
+        this.httpService.post(`${customer360Url}/customer-360/${params.customerId}/consents`, {
+          purpose: params.purpose,
+          status: 'granted',
+          source: params.source || 'customer-portal',
+          channel: params.channel || 'web',
+        }, { headers: authHeaders }),
+      );
+      return data;
+    } catch (err: any) {
+      const status = err?.response?.status || 500;
+      const message = err?.response?.data?.message || 'Failed to grant consent';
+      return { success: false, error: { code: 'CONSENT_ERROR', message, status } };
+    }
+  }
+
+  async revokeConsent(params: {
+    customerId: string;
+    tenantId: string;
+    purpose: string;
+    reason?: string;
+    authToken?: string;
+  }): Promise<any> {
+    const customer360Url = process.env.CUSTOMER_360_URL || 'http://localhost:3010';
+    const authHeaders: Record<string, string> = { 'x-tenant-id': params.tenantId, 'Content-Type': 'application/json' };
+    if (params.authToken) authHeaders['Authorization'] = `Bearer ${params.authToken}`;
+    try {
+      const { data } = await firstValueFrom(
+        this.httpService.get(`${customer360Url}/customer-360/${params.customerId}/consents`, {
+          headers: authHeaders,
+          params: { purpose: params.purpose },
+        }),
+      );
+      const consents = data?.data || data?.consents || [];
+      const consent = Array.isArray(consents) ? consents.find((c: any) => c.purpose === params.purpose) : null;
+      if (!consent?.id) {
+        return { success: false, error: { code: 'NOT_FOUND', message: 'Consent not found for this purpose' } };
+      }
+      const { data: revokeData } = await firstValueFrom(
+        this.httpService.post(`${customer360Url}/customer-360/${params.customerId}/consents/${consent.id}/revoke`, {
+          reason: params.reason || 'User revoked from portal',
+        }, { headers: authHeaders }),
+      );
+      return revokeData;
+    } catch (err: any) {
+      const status = err?.response?.status || 500;
+      const message = err?.response?.data?.message || 'Failed to revoke consent';
+      return { success: false, error: { code: 'CONSENT_ERROR', message, status } };
+    }
+  }
+
+  // --- Adjuster Communications ---
+
+  async getAdjusterCommunications(claimId: string, customerId: string, tenantId: string, authToken?: string): Promise<any> {
+    const claimsUrl = process.env.CLAIMS_SERVICE_URL || 'http://claims-service:18010';
+    const authHeaders: Record<string, string> = { 'x-tenant-id': tenantId, 'x-customer-id': customerId };
+    if (authToken) authHeaders['Authorization'] = `Bearer ${authToken}`;
+    try {
+      const { data } = await firstValueFrom(
+        this.httpService.get(`${claimsUrl}/claims/${claimId}/adjuster-communications`, { headers: authHeaders }),
+      );
+      return data;
+    } catch (err: any) {
+      const status = err?.response?.status || 500;
+      const message = err?.response?.data?.message || 'Failed to fetch adjuster communications';
+      return { success: false, error: { code: 'CLAIMS_ERROR', message, status } };
+    }
+  }
+
+  async sendAdjusterMessage(params: {
+    claimId: string;
+    customerId: string;
+    tenantId: string;
+    message: string;
+    attachments?: string[];
+    authToken?: string;
+  }): Promise<any> {
+    const claimsUrl = process.env.CLAIMS_SERVICE_URL || 'http://claims-service:18010';
+    const authHeaders: Record<string, string> = { 'x-tenant-id': params.tenantId, 'x-customer-id': params.customerId, 'Content-Type': 'application/json' };
+    if (params.authToken) authHeaders['Authorization'] = `Bearer ${params.authToken}`;
+    try {
+      const { data } = await firstValueFrom(
+        this.httpService.post(`${claimsUrl}/claims/${params.claimId}/adjuster-communications`, {
+          message: params.message,
+          attachments: params.attachments || [],
+        }, { headers: authHeaders }),
+      );
+      return data;
+    } catch (err: any) {
+      const status = err?.response?.status || 500;
+      const message = err?.response?.data?.message || 'Failed to send adjuster message';
+      return { success: false, error: { code: 'CLAIMS_ERROR', message, status } };
+    }
+  }
+
+  // --- Policy Endorsements List ---
+
+  async listPolicyEndorsements(policyId: string, customerId: string, tenantId: string, authToken?: string): Promise<any> {
+    const policyUrl = process.env.POLICY_SERVICE_URL || 'http://policy-service:18007';
+    const authHeaders: Record<string, string> = { 'x-tenant-id': tenantId, 'x-customer-id': customerId };
+    if (authToken) authHeaders['Authorization'] = `Bearer ${authToken}`;
+    try {
+      const { data } = await firstValueFrom(
+        this.httpService.get(`${policyUrl}/policies/${policyId}/endorsements`, { headers: authHeaders }),
+      );
+      return data;
+    } catch (err: any) {
+      const status = err?.response?.status || 500;
+      const message = err?.response?.data?.message || 'Failed to fetch endorsements';
+      return { success: false, error: { code: 'POLICY_ERROR', message, status } };
+    }
+  }
+
+  // --- Renewal Quotes ---
+
+  async getRenewalQuotes(policyId: string, customerId: string, tenantId: string, authToken?: string): Promise<any> {
+    const policyUrl = process.env.POLICY_SERVICE_URL || 'http://policy-service:18007';
+    const authHeaders: Record<string, string> = { 'x-tenant-id': tenantId, 'x-customer-id': customerId };
+    if (authToken) authHeaders['Authorization'] = `Bearer ${authToken}`;
+    try {
+      const { data } = await firstValueFrom(
+        this.httpService.get(`${policyUrl}/policies/${policyId}/renewal/quotes`, { headers: authHeaders }),
+      );
+      return data;
+    } catch (err: any) {
+      const status = err?.response?.status || 500;
+      const message = err?.response?.data?.message || 'Failed to fetch renewal quotes';
+      return { success: false, error: { code: 'POLICY_ERROR', message, status } };
+    }
+  }
+
+  async acceptRenewalQuote(params: {
+    policyId: string;
+    quoteId: string;
+    customerId: string;
+    tenantId: string;
+    authToken?: string;
+  }): Promise<any> {
+    const policyUrl = process.env.POLICY_SERVICE_URL || 'http://policy-service:18007';
+    const authHeaders: Record<string, string> = { 'x-tenant-id': params.tenantId, 'x-customer-id': params.customerId, 'Content-Type': 'application/json' };
+    if (params.authToken) authHeaders['Authorization'] = `Bearer ${params.authToken}`;
+    try {
+      const { data } = await firstValueFrom(
+        this.httpService.post(`${policyUrl}/policies/${params.policyId}/renewal/quotes/${params.quoteId}/accept`, {}, { headers: authHeaders }),
+      );
+      return data;
+    } catch (err: any) {
+      const status = err?.response?.status || 500;
+      const message = err?.response?.data?.message || 'Failed to accept renewal quote';
+      return { success: false, error: { code: 'POLICY_ERROR', message, status } };
+    }
+  }
+
+  async scheduleRenewal(params: {
+    policyId: string;
+    customerId: string;
+    tenantId: string;
+    newStartDate: string;
+    newProductCode?: string;
+    authToken?: string;
+  }): Promise<any> {
+    const policyUrl = process.env.POLICY_SERVICE_URL || 'http://policy-service:18007';
+    const authHeaders: Record<string, string> = { 'x-tenant-id': params.tenantId, 'x-customer-id': params.customerId, 'Content-Type': 'application/json' };
+    if (params.authToken) authHeaders['Authorization'] = `Bearer ${params.authToken}`;
+    try {
+      const { data } = await firstValueFrom(
+        this.httpService.post(`${policyUrl}/policies/${params.policyId}/renewal/schedule`, {
+          newStartDate: params.newStartDate,
+          newProductCode: params.newProductCode,
+        }, { headers: authHeaders }),
+      );
+      return data;
+    } catch (err: any) {
+      const status = err?.response?.status || 500;
+      const message = err?.response?.data?.message || 'Failed to schedule renewal';
+      return { success: false, error: { code: 'POLICY_ERROR', message, status } };
+    }
+  }
 
 
 }

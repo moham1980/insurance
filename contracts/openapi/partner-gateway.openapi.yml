@@ -1,0 +1,414 @@
+openapi: 3.0.3
+info:
+  title: Partner API Gateway
+  version: 1.0.0
+  description: |
+    Partner API Gateway for inter-tenant federation communication.
+    Handles partner registration, mTLS certificate management, token exchange (RFC 8693),
+    and replay protection for cross-tenant requests.
+servers:
+  - url: http://localhost:3010
+    description: Local development
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: Service healthy
+
+  /partner-gateway/partners:
+    post:
+      summary: Register a new federation partner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePartnerDto'
+      responses:
+        '201':
+          description: Partner registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartnerRegistration'
+        '400':
+          description: Bad request
+
+    get:
+      summary: List partners for a tenant
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of partners
+
+  /partner-gateway/partners/{partnerId}:
+    get:
+      summary: Get partner details
+      parameters:
+        - name: partnerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Partner details
+        '404':
+          description: Not found
+
+    put:
+      summary: Update partner configuration
+      parameters:
+        - name: partnerId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePartnerDto'
+      responses:
+        '200':
+          description: Updated
+
+  /partner-gateway/partners/{partnerId}/revoke:
+    post:
+      summary: Revoke a partner (permanent)
+      parameters:
+        - name: partnerId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Partner revoked
+
+  /partner-gateway/partners/{partnerId}/suspend:
+    post:
+      summary: Suspend a partner (temporary)
+      parameters:
+        - name: partnerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Partner suspended
+
+  /partner-gateway/partners/{partnerId}/activate:
+    post:
+      summary: Activate a suspended partner
+      parameters:
+        - name: partnerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Partner activated
+
+  /partner-gateway/partners/{partnerId}/certificates:
+    post:
+      summary: Upload partner mTLS certificate
+      parameters:
+        - name: partnerId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterCertDto'
+      responses:
+        '201':
+          description: Certificate registered
+
+    get:
+      summary: List partner certificates
+      parameters:
+        - name: partnerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of certificates
+
+  /partner-gateway/partners/{partnerId}/certificates/{certId}/rotate:
+    post:
+      summary: Rotate partner certificate
+      parameters:
+        - name: partnerId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: certId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterCertDto'
+      responses:
+        '200':
+          description: Certificate rotated
+
+  /partner-gateway/certificates/expiring:
+    get:
+      summary: Get certificates expiring within N days
+      parameters:
+        - name: x-days-ahead
+          in: header
+          schema:
+            type: integer
+            default: 30
+      responses:
+        '200':
+          description: List of expiring certificates
+
+  /partner-gateway/token-exchange:
+    post:
+      summary: RFC 8693 Token Exchange
+      description: |
+        Exchanges a subject token for a partner-scoped access token.
+        Requires x-nonce header for replay protection.
+      parameters:
+        - name: x-nonce
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenExchangeRequest'
+      responses:
+        '200':
+          description: Token exchanged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenExchangeResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+
+  /partner-gateway/validate-access:
+    post:
+      summary: Validate partner access for API and scope
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                certSubject:
+                  type: string
+                requestedApi:
+                  type: string
+                requestedScope:
+                  type: string
+      responses:
+        '200':
+          description: Access validated
+        '403':
+          description: Access denied
+
+components:
+  schemas:
+    CreatePartnerDto:
+      type: object
+      required:
+        - tenantId
+        - organizationId
+        - partnerTenantId
+        - partnerOrganizationId
+        - relationshipType
+        - mTlsCertSubject
+        - validFrom
+      properties:
+        tenantId:
+          type: string
+        organizationId:
+          type: string
+        partnerTenantId:
+          type: string
+        partnerOrganizationId:
+          type: string
+        relationshipType:
+          type: string
+          enum: [carrier_broker, mga_carrier, agency_carrier]
+        mTlsCertSubject:
+          type: string
+        allowedScopes:
+          type: array
+          items:
+            type: string
+        allowedApis:
+          type: array
+          items:
+            type: string
+        rateLimitRps:
+          type: integer
+          default: 100
+        validFrom:
+          type: string
+          format: date-time
+        validTo:
+          type: string
+          format: date-time
+        distributionAgreementId:
+          type: string
+        tokenExchangeEndpoint:
+          type: string
+        partnerApiGatewayUrl:
+          type: string
+
+    UpdatePartnerDto:
+      type: object
+      properties:
+        allowedScopes:
+          type: array
+          items:
+            type: string
+        allowedApis:
+          type: array
+          items:
+            type: string
+        rateLimitRps:
+          type: integer
+        validTo:
+          type: string
+          format: date-time
+        tokenExchangeEndpoint:
+          type: string
+        partnerApiGatewayUrl:
+          type: string
+
+    PartnerRegistration:
+      type: object
+      properties:
+        partnerId:
+          type: string
+        tenantId:
+          type: string
+        organizationId:
+          type: string
+        partnerTenantId:
+          type: string
+        partnerOrganizationId:
+          type: string
+        relationshipType:
+          type: string
+        mTlsCertSubject:
+          type: string
+        allowedScopes:
+          type: array
+          items:
+            type: string
+        allowedApis:
+          type: array
+          items:
+            type: string
+        rateLimitRps:
+          type: integer
+        status:
+          type: string
+          enum: [active, suspended, revoked]
+        validFrom:
+          type: string
+          format: date-time
+        validTo:
+          type: string
+          format: date-time
+
+    RegisterCertDto:
+      type: object
+      required:
+        - certSubject
+        - certSerial
+        - publicCertPem
+        - issuer
+        - validFrom
+        - expiresAt
+      properties:
+        certSubject:
+          type: string
+        certSerial:
+          type: string
+        publicCertPem:
+          type: string
+        issuer:
+          type: string
+        validFrom:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+
+    TokenExchangeRequest:
+      type: object
+      required:
+        - partnerId
+        - subjectToken
+        - subjectTokenType
+        - audience
+        - scope
+      properties:
+        partnerId:
+          type: string
+        subjectToken:
+          type: string
+        subjectTokenType:
+          type: string
+        audience:
+          type: string
+        scope:
+          type: string
+        requestedTokenType:
+          type: string
+          default: urn:ietf:params:oauth:token-type:access_token
+
+    TokenExchangeResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        issuedTokenType:
+          type: string
+        expiresIn:
+          type: integer
+        scope:
+          type: string

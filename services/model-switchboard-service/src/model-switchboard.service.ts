@@ -11,10 +11,12 @@ import { RoutePolicy, RoutingStrategy } from './entities/RoutePolicy';
 import { UsageRecord } from './entities/UsageRecord';
 import { ModelCard, ModelCardStatus } from './entities/ModelCard';
 import { auditLogger } from './audit.logger';
+import { CircuitBreaker } from './circuit-breaker';
 
 @Injectable()
 export class ModelSwitchboardService {
   private readonly logger = new Logger(ModelSwitchboardService.name);
+  private readonly circuitBreaker = new CircuitBreaker();
 
   constructor(
     @InjectDataSource() private readonly dataSource: DataSource,
@@ -106,6 +108,7 @@ export class ModelSwitchboardService {
   async invokeModel(params: {
     tenantId: string;
     modelType: ModelType;
+    capability?: string;
     businessKey?: string;
     input: Record<string, any>;
     metadata?: Record<string, any>;
@@ -117,15 +120,55 @@ export class ModelSwitchboardService {
       prioritizeAccuracy?: boolean;
       prioritizeRisk?: boolean;
     };
+    skipGovernance?: boolean;
   }): Promise<ModelInvocation> {
     const startTime = Date.now();
 
-    // Find the best model for this type based on selection criteria
-    const model = await this.selectBestModel({
+    let selectedModel = await this.selectBestModel({
       tenantId: params.tenantId,
       modelType: params.modelType,
       criteria: params.selectionCriteria,
     });
+
+    // Optional capability-based route policy override
+    if (params.capability) {
+      try {
+        const routed = await this.route({ capability: params.capability, tenantId: params.tenantId });
+        const routedModel = await this.modelRepo.findOne({
+          where: { modelKey: routed.modelId, tenantId: params.tenantId, status: ModelStatus.ACTIVE },
+        });
+        if (routedModel) {
+          auditLogger.info('Using route policy override', { capability: params.capability, modelKey: routedModel.modelKey, policyId: routed.policyId });
+          selectedModel = routedModel;
+        }
+      } catch (e) {
+        // No route policy; fall back to selected model
+      }
+    }
+
+    // AI Governance: validate model card before invocation unless skipped
+    if (selectedModel && !params.skipGovernance) {
+      const governance = await this.governanceCheck({
+        tenantId: params.tenantId,
+        modelKey: selectedModel.modelKey,
+      });
+      if (!governance.allowed) {
+        const invocation = this.invocationRepo.create({
+          tenantId: params.tenantId,
+          modelKey: selectedModel.modelKey,
+          businessKey: params.businessKey || null,
+          input: params.input,
+          output: null,
+          status: InvocationStatus.FAILED,
+          error: { message: governance.reason, code: 'GOVERNANCE_REJECTED' },
+          latencyMs: Date.now() - startTime,
+          invokedAt: new Date(),
+        });
+        return this.invocationRepo.save(invocation);
+      }
+    }
+
+    const model = selectedModel;
 
     if (!model) {
       // No active model found
@@ -160,6 +203,7 @@ export class ModelSwitchboardService {
     const invocation = this.invocationRepo.create({
       tenantId: params.tenantId,
       modelKey: model.modelKey,
+      modelVersion: model.config?.version || null,
       businessKey: params.businessKey || null,
       input: params.input,
       output,
@@ -250,6 +294,14 @@ export class ModelSwitchboardService {
       throw new Error(`Model ${model.modelKey} has no endpoint configured`);
     }
 
+    const breakerKey = model.modelKey;
+
+    if (!this.circuitBreaker.canCall(breakerKey)) {
+      const state = this.circuitBreaker.getState(breakerKey);
+      auditLogger.warn('Circuit breaker OPEN — rejecting call', { modelKey: model.modelKey, state });
+      throw new Error(`Circuit breaker open for model ${model.modelKey}. Endpoint temporarily unavailable.`);
+    }
+
     this.logger.log(`Calling model ${model.modelKey} at ${endpoint}`);
 
     try {
@@ -268,8 +320,10 @@ export class ModelSwitchboardService {
         }),
       );
 
+      this.circuitBreaker.recordSuccess(breakerKey);
       return response.data || {};
     } catch (error: any) {
+      this.circuitBreaker.recordFailure(breakerKey);
       this.logger.error(`Failed to call model ${model.modelKey}`, error);
       throw new Error(`Model invocation failed: ${error.message}`);
     }
@@ -347,6 +401,9 @@ export class ModelSwitchboardService {
     costBudgetPerDay?: number;
     routingStrategy?: RoutingStrategy;
     metadata?: Record<string, any>;
+    abTestEnabled?: boolean;
+    abTestModelId?: string;
+    abTestSplitPercent?: number;
     createdBy?: string;
   }): Promise<RoutePolicy> {
     return await this.dataSource.transaction(async (manager) => {
@@ -359,6 +416,9 @@ export class ModelSwitchboardService {
         costBudgetPerDay: params.costBudgetPerDay || null,
         routingStrategy: params.routingStrategy || RoutingStrategy.BALANCED,
         metadata: params.metadata || null,
+        abTestEnabled: params.abTestEnabled || false,
+        abTestModelId: params.abTestModelId || null,
+        abTestSplitPercent: params.abTestSplitPercent ?? 50,
         isActive: true,
         createdBy: params.createdBy || null,
       });
@@ -392,6 +452,9 @@ export class ModelSwitchboardService {
     routingStrategy: RoutingStrategy;
     metadata: Record<string, any>;
     isActive: boolean;
+    abTestEnabled: boolean;
+    abTestModelId: string;
+    abTestSplitPercent: number;
     updatedBy: string;
   }>): Promise<RoutePolicy> {
     return await this.dataSource.transaction(async (manager) => {
@@ -483,6 +546,27 @@ export class ModelSwitchboardService {
 
     const policy = policies[0];
 
+    // A/B Testing: route splitPercent of traffic to the B variant
+    if (policy.abTestEnabled && policy.abTestModelId) {
+      const roll = Math.random() * 100;
+      if (roll < policy.abTestSplitPercent) {
+        // Route to B variant
+        const abTestModel = await this.modelRepo.findOne({ where: { modelKey: policy.abTestModelId, status: ModelStatus.ACTIVE } });
+        if (abTestModel) {
+          auditLogger.info('A/B test: routing to B variant', {
+            capability: params.capability,
+            primaryModel: policy.primaryModel,
+            abTestModel: policy.abTestModelId,
+            splitPercent: policy.abTestSplitPercent,
+            policyId: policy.id,
+          });
+          return { modelId: policy.abTestModelId, policyId: policy.id, fallbackChain: policy.fallbackChain };
+        }
+        // B variant unavailable — fall through to primary
+        auditLogger.warn('A/B test: B variant unavailable, falling back to primary', { abTestModelId: policy.abTestModelId });
+      }
+    }
+
     // Check cost budget
     if (policy.costBudgetPerDay) {
       const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
@@ -529,6 +613,7 @@ export class ModelSwitchboardService {
 
   async recordUsage(params: {
     modelId: string;
+    modelVersion?: string;
     tenantId?: string;
     capability: string;
     inputTokens: number;
@@ -546,6 +631,7 @@ export class ModelSwitchboardService {
     return await this.dataSource.transaction(async (manager) => {
       const record = manager.create(UsageRecord, {
         modelId: params.modelId,
+        modelVersion: params.modelVersion || null,
         tenantId: params.tenantId || '*',
         capability: params.capability,
         inputTokens: params.inputTokens,
@@ -719,5 +805,121 @@ export class ModelSwitchboardService {
     card.status = 'deprecated';
     card.updatedAt = new Date();
     return this.modelCardRepo.save(card);
+  }
+
+  // ── AI Governance ───────────────────────────────────────────────────
+
+  async governanceCheck(params: { tenantId: string; modelKey: string }): Promise<{ allowed: boolean; reason: string; riskLevel?: string; cardStatus?: string }> {
+    const model = await this.modelRepo.findOne({ where: { modelKey: params.modelKey, tenantId: params.tenantId } });
+    if (!model) {
+      return { allowed: false, reason: 'Model not registered for tenant' };
+    }
+
+    const card = await this.modelCardRepo.findOne({
+      where: { modelId: model.id },
+      order: { createdAt: 'DESC' as any },
+    });
+
+    if (!card) {
+      auditLogger.warn('No model card found; allowing with governance warning', { modelKey: params.modelKey });
+      return { allowed: true, reason: 'No model card found; governance review recommended', cardStatus: 'missing', riskLevel: 'unknown' };
+    }
+
+    if (card.status === 'deprecated' || card.status === 'archived') {
+      return { allowed: false, reason: `Model card status is ${card.status}`, cardStatus: card.status, riskLevel: card.biasRiskLevel };
+    }
+
+    if (card.status !== 'approved') {
+      return { allowed: false, reason: `Model card not approved (status=${card.status})`, cardStatus: card.status, riskLevel: card.biasRiskLevel };
+    }
+
+    return { allowed: true, reason: 'Governance checks passed', cardStatus: card.status, riskLevel: card.biasRiskLevel };
+  }
+
+  async getGovernanceReport(params: { tenantId?: string; limit?: number; offset?: number }): Promise<{ modelCards: ModelCard[]; total: number; invocationsSummary: { total: number; failed: number; rejected: number } }> {
+    const limit = Math.min(params.limit || 50, 200);
+    const offset = params.offset || 0;
+
+    const qb = this.modelCardRepo.createQueryBuilder('mc');
+    if (params.tenantId) {
+      qb.andWhere('mc.modelId IN (SELECT id FROM model_definitions WHERE tenant_id = :tenantId)', { tenantId: params.tenantId });
+    }
+    qb.orderBy('mc.createdAt', 'DESC').take(limit).skip(offset);
+    const [modelCards, total] = await qb.getManyAndCount();
+
+    const invocationsSummary = await this.invocationRepo
+      .createQueryBuilder('i')
+      .select('COUNT(i.id)', 'total')
+      .addSelect("SUM(CASE WHEN i.status = 'failed' THEN 1 ELSE 0 END)", 'failed')
+      .addSelect("SUM(CASE WHEN i.error->>'code' = 'GOVERNANCE_REJECTED' THEN 1 ELSE 0 END)", 'rejected')
+      .where(params.tenantId ? 'i.tenantId = :tenantId' : '1=1', { tenantId: params.tenantId })
+      .getRawOne();
+
+    return {
+      modelCards,
+      total,
+      invocationsSummary: {
+        total: parseInt(invocationsSummary?.total || '0', 10),
+        failed: parseInt(invocationsSummary?.failed || '0', 10),
+        rejected: parseInt(invocationsSummary?.rejected || '0', 10),
+      },
+    };
+  }
+
+  // ── Circuit Breaker ──────────────────────────────────────────────────
+
+  getCircuitBreakerStats(modelKey: string): { state: string; failureCount: number; successCount: number } | null {
+    return this.circuitBreaker.getStats(modelKey);
+  }
+
+  // ── A/B Test Reporting ──────────────────────────────────────────────
+
+  async getAbTestReport(policyId: string): Promise<{
+    policyId: string;
+    abTestEnabled: boolean;
+    primaryModel: string;
+    abTestModelId: string | null;
+    splitPercent: number;
+    primaryStats: { invocations: number; successes: number; failures: number; avgLatencyMs: number };
+    abTestStats: { invocations: number; successes: number; failures: number; avgLatencyMs: number };
+  }> {
+    const policy = await this.routePolicyRepo.findOne({ where: { id: policyId } });
+    if (!policy) {
+      throw new Error(`Route policy ${policyId} not found`);
+    }
+
+    const [primaryInvocations, abTestInvocations] = await Promise.all([
+      this.invocationRepo.find({
+        where: { modelKey: policy.primaryModel },
+        order: { invokedAt: 'DESC' },
+        take: 1000,
+      }),
+      policy.abTestModelId
+        ? this.invocationRepo.find({
+            where: { modelKey: policy.abTestModelId },
+            order: { invokedAt: 'DESC' },
+            take: 1000,
+          })
+        : Promise.resolve([]),
+    ]);
+
+    const computeStats = (invocations: ModelInvocation[]) => ({
+      invocations: invocations.length,
+      successes: invocations.filter(i => i.status === InvocationStatus.SUCCESS).length,
+      failures: invocations.filter(i => i.status === InvocationStatus.FAILED).length,
+      avgLatencyMs: invocations.length > 0
+        ? Math.round(invocations.reduce((sum, i) => sum + i.latencyMs, 0) / invocations.length)
+        : 0,
+    });
+
+    return {
+      policyId: policy.id,
+      abTestEnabled: policy.abTestEnabled,
+      primaryModel: policy.primaryModel,
+      abTestModelId: policy.abTestModelId,
+      splitPercent: policy.abTestSplitPercent,
+      primaryStats: computeStats(primaryInvocations),
+      abTestStats: computeStats(abTestInvocations),
+    };
   }
 }

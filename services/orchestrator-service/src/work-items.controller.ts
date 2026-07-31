@@ -531,7 +531,8 @@ export class WorkItemsController {
   @RequirePermissions('work_items:sla_view')
   async getSlaBreaches(@Headers() headers: Record<string, any>, @Req() req: any) {
     const correlationId = this.getCorrelationId(headers);
-    const { breached, metrics } = await this.slaMonitorService.checkSlaBreaches();
+    const tenantId = req?.user?.tenantId as string | undefined;
+    const { breached, metrics } = await this.slaMonitorService.checkSlaBreaches(tenantId);
 
     return {
       success: true,
@@ -558,7 +559,7 @@ export class WorkItemsController {
       action: 'work_items:sla_manage',
     });
 
-    const result = await this.slaMonitorService.processSlaBreaches();
+    const result = await this.slaMonitorService.processSlaBreaches(tenantId);
 
     auditLogger.info('work_items.sla.process_breaches.success', {
       correlationId,
@@ -581,12 +582,14 @@ export class WorkItemsController {
   @RequirePermissions('work_items:sla_view')
   async getSlaStats(
     @Headers() headers: Record<string, any>,
+    @Req() req: any,
     @Param('sagaId') sagaId: string
   ) {
     const correlationId = this.getCorrelationId(headers);
+    const tenantId = req?.user?.tenantId as string | undefined;
 
     try {
-      const stats = await this.slaMonitorService.getSlaStats(sagaId);
+      const stats = await this.slaMonitorService.getSlaStats(tenantId || '00000000-0000-0000-0000-000000000000', sagaId);
       return {
         success: true,
         data: stats,

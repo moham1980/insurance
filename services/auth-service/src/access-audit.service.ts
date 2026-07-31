@@ -8,6 +8,8 @@ export interface AuditLogParams {
   username?: string;
   roles?: string[];
   orgUnitId?: string;
+  organizationId?: string;
+  agreementId?: string;
   resourceType: string;
   resourceId?: string;
   resourceOwner?: string;
@@ -40,6 +42,8 @@ export class AccessAuditService {
       username: params.username,
       roles: params.roles,
       orgUnitId: params.orgUnitId,
+      organizationId: params.organizationId,
+      agreementId: params.agreementId,
       resourceType: params.resourceType,
       resourceId: params.resourceId,
       resourceOwner: params.resourceOwner,
@@ -64,10 +68,16 @@ export class AccessAuditService {
    */
   async getUserAccessLogs(
     userId: string,
-    params: { limit: number; offset: number },
+    params: { limit: number; offset: number; organizationId?: string; agreementId?: string },
   ): Promise<{ logs: AccessAudit[]; total: number }> {
     const qb = this.auditRepo.createQueryBuilder('audit');
     qb.where('audit.userId = :userId', { userId });
+    if (params.organizationId) {
+      qb.andWhere('audit.organizationId = :organizationId', { organizationId: params.organizationId });
+    }
+    if (params.agreementId) {
+      qb.andWhere('audit.agreementId = :agreementId', { agreementId: params.agreementId });
+    }
     qb.orderBy('audit.timestamp', 'DESC');
     qb.limit(params.limit).offset(params.offset);
 
@@ -81,11 +91,17 @@ export class AccessAuditService {
   async getResourceAccessLogs(
     resourceType: string,
     resourceId: string,
-    params: { limit: number; offset: number },
+    params: { limit: number; offset: number; organizationId?: string; agreementId?: string },
   ): Promise<{ logs: AccessAudit[]; total: number }> {
     const qb = this.auditRepo.createQueryBuilder('audit');
     qb.where('audit.resourceType = :resourceType', { resourceType });
     qb.andWhere('audit.resourceId = :resourceId', { resourceId });
+    if (params.organizationId) {
+      qb.andWhere('audit.organizationId = :organizationId', { organizationId: params.organizationId });
+    }
+    if (params.agreementId) {
+      qb.andWhere('audit.agreementId = :agreementId', { agreementId: params.agreementId });
+    }
     qb.orderBy('audit.timestamp', 'DESC');
     qb.limit(params.limit).offset(params.offset);
 
@@ -97,7 +113,7 @@ export class AccessAuditService {
    * Get denied access attempts
    */
   async getDeniedAccessAttempts(
-    params: { limit: number; offset: number; startDate?: Date; endDate?: Date },
+    params: { limit: number; offset: number; startDate?: Date; endDate?: Date; organizationId?: string; agreementId?: string },
   ): Promise<{ logs: AccessAudit[]; total: number }> {
     const qb = this.auditRepo.createQueryBuilder('audit');
     qb.where('audit.decision = :decision', { decision: 'deny' });
@@ -107,6 +123,12 @@ export class AccessAuditService {
     }
     if (params.endDate) {
       qb.andWhere('audit.timestamp <= :endDate', { endDate: params.endDate });
+    }
+    if (params.organizationId) {
+      qb.andWhere('audit.organizationId = :organizationId', { organizationId: params.organizationId });
+    }
+    if (params.agreementId) {
+      qb.andWhere('audit.agreementId = :agreementId', { agreementId: params.agreementId });
     }
 
     qb.orderBy('audit.timestamp', 'DESC');
@@ -119,7 +141,7 @@ export class AccessAuditService {
   /**
    * Get access statistics
    */
-  async getAccessStats(params: { startDate?: Date; endDate?: Date }): Promise<{
+  async getAccessStats(params: { startDate?: Date; endDate?: Date; organizationId?: string; agreementId?: string }): Promise<{
     totalRequests: number;
     allowedRequests: number;
     deniedRequests: number;
@@ -134,6 +156,12 @@ export class AccessAuditService {
     }
     if (params.endDate) {
       qb.andWhere('audit.timestamp <= :endDate', { endDate: params.endDate });
+    }
+    if (params.organizationId) {
+      qb.andWhere('audit.organizationId = :organizationId', { organizationId: params.organizationId });
+    }
+    if (params.agreementId) {
+      qb.andWhere('audit.agreementId = :agreementId', { agreementId: params.agreementId });
     }
 
     const totalRequests = await qb.getCount();

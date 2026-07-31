@@ -4,6 +4,7 @@ import { Kafka, Consumer, EachMessagePayload } from 'kafkajs';
 import { Repository } from 'typeorm';
 import { ConsumedEvent, createLogger, EventEnvelope } from '@insurance/shared';
 import { RmPolicyLifecycle } from './entities/RmPolicyLifecycle';
+import { RmPolicy } from './entities/RmPolicy';
 import { RmClaimPayment } from './entities/RmClaimPayment';
 import { RmFraudSignal } from './entities/RmFraudSignal';
 import { RmRiCeded } from './entities/RmRiCeded';
@@ -20,6 +21,7 @@ export class KpiConsumer implements OnModuleInit, OnModuleDestroy {
   constructor(
     @InjectRepository(ConsumedEvent) private readonly consumedRepo: Repository<ConsumedEvent>,
     @InjectRepository(RmPolicyLifecycle) private readonly rmPolicyRepo: Repository<RmPolicyLifecycle>,
+    @InjectRepository(RmPolicy) private readonly policyProjectionRepo: Repository<RmPolicy>,
     @InjectRepository(RmClaimPayment) private readonly rmClaimPaymentRepo: Repository<RmClaimPayment>,
     @InjectRepository(RmFraudSignal) private readonly rmFraudRepo: Repository<RmFraudSignal>,
     @InjectRepository(RmRiCeded) private readonly rmRiCededRepo: Repository<RmRiCeded>,
@@ -353,6 +355,79 @@ export class KpiConsumer implements OnModuleInit, OnModuleDestroy {
 
     row.updatedAt = new Date();
     await this.rmPolicyRepo.save(row);
+    await this.applyPolicyProjection(envelope, policyNumber, occurredAt);
+  }
+
+  private async applyPolicyProjection(envelope: EventEnvelope<any>, policyNumberArg: string | null, occurredAt: Date): Promise<void> {
+    const policyId = envelope.subject?.policyId || envelope.payload?.policyId;
+    if (!policyId) return;
+
+    const payload = envelope.payload || {};
+    const existing = await this.policyProjectionRepo.findOne({ where: { policyId } });
+    const row = existing
+      ? existing
+      : this.policyProjectionRepo.create({
+          tenantId: envelope.tenantId || null,
+          policyId,
+          policyNumber: policyNumberArg || payload.policyNumber || null,
+          status: payload.status || 'draft',
+          createdAt: this.parseOccurredAt(envelope),
+          updatedAt: new Date(),
+        });
+
+    row.policyNumber = row.policyNumber || policyNumberArg || payload.policyNumber || null;
+    row.tenantId = envelope.tenantId || row.tenantId || null;
+
+    if (payload.productId !== undefined) row.productId = payload.productId || row.productId;
+    if (payload.productName !== undefined) row.productName = payload.productName || row.productName;
+    if (payload.lineOfBusiness !== undefined) row.lineOfBusiness = payload.lineOfBusiness || row.lineOfBusiness;
+    if (payload.uniqueCode !== undefined) row.uniqueCode = payload.uniqueCode || row.uniqueCode;
+    if (payload.brokerOrganizationId !== undefined) row.brokerOrganizationId = payload.brokerOrganizationId || row.brokerOrganizationId;
+    if (payload.issuerOrganizationId !== undefined) row.issuerOrganizationId = payload.issuerOrganizationId || row.issuerOrganizationId;
+    if (payload.status !== undefined) row.status = payload.status || row.status;
+    if (payload.holderPartyId !== undefined) row.holderPartyId = payload.holderPartyId || row.holderPartyId;
+    if (payload.insuredPartyId !== undefined) row.insuredPartyId = payload.insuredPartyId || row.insuredPartyId;
+
+    const startDate = payload.startDate ? this.parseOptionalDate(payload.startDate) : null;
+    const endDate = payload.endDate ? this.parseOptionalDate(payload.endDate) : null;
+    if (startDate) row.effectiveFrom = startDate;
+    if (endDate) row.effectiveTo = endDate;
+
+    if (payload.premiumAmount !== undefined && payload.premiumAmount !== null) row.premiumAmount = String(payload.premiumAmount);
+    if (payload.sumInsured !== undefined && payload.sumInsured !== null) row.sumInsured = String(payload.sumInsured);
+    if (payload.currency !== undefined) row.currency = payload.currency || row.currency;
+
+    switch (envelope.eventType) {
+      case 'PolicyQuoted':
+        row.quotedAt = row.quotedAt || occurredAt;
+        break;
+      case 'PolicyIssued':
+        row.issuedAt = row.issuedAt || occurredAt;
+        break;
+      case 'PolicyRenewed':
+        row.renewedAt = row.renewedAt || occurredAt;
+        row.renewalCount = (row.renewalCount || 0) + 1;
+        if (payload.renewalParentId !== undefined) row.renewalParentId = payload.renewalParentId;
+        break;
+      case 'PolicyCancelled':
+        row.cancelledAt = row.cancelledAt || occurredAt;
+        break;
+      case 'PolicyUniqueCodeSet':
+        if (payload.uniqueCode !== undefined) row.uniqueCode = payload.uniqueCode || row.uniqueCode;
+        break;
+    }
+
+    if (payload.autoRenew !== undefined) row.autoRenew = Boolean(payload.autoRenew);
+    if (payload.renewalCount !== undefined && !Number.isNaN(Number(payload.renewalCount))) row.renewalCount = Number(payload.renewalCount);
+
+    row.updatedAt = new Date();
+    await this.policyProjectionRepo.save(row);
+  }
+
+  private parseOptionalDate(value: any): Date | null {
+    if (!value) return null;
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d;
   }
 
   private async applyClaimEvent(envelope: EventEnvelope<any>): Promise<void> {

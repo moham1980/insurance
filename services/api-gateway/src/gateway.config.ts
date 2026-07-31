@@ -8,6 +8,8 @@
  * - required vs conditional routes
  */
 
+import * as crypto from 'crypto';
+
 export interface ServiceRoute {
   /** Gateway path prefix (e.g. /auth) */
   path: string;
@@ -91,6 +93,8 @@ export const SERVICE_ROUTES: ServiceRoute[] = [
   route('/customer-360', 'CUSTOMER_360_URL', 'http://localhost:18026', false, 'customer-360-service'),
   route('/outbox', 'OUTBOX_RELAY_URL', 'http://localhost:18041', false, 'outbox-relay'),
   route('/ai-governance', 'AI_GOVERNANCE_URL', 'http://localhost:18036', false, 'ai-governance-service'),
+  route('/broker-bff', 'BROKER_PORTAL_BFF_URL', 'http://localhost:3030', false, 'broker-portal-bff'),
+  route('/channel-bff', 'CHANNEL_WORKSPACE_BFF_URL', 'http://localhost:3020', false, 'channel-workspace-bff'),
 ];
 
 /** Public route allow-list using exact path matching. */
@@ -105,6 +109,7 @@ export const PUBLIC_ROUTES: PublicRoute[] = [
   { method: 'GET', path: '/auth/sso/:provider/callback', allowsTenantSelection: true },
   { method: 'POST', path: '/auth/federation/:provider/callback', allowsTenantSelection: true },
   { method: 'POST', path: '/auth/service-token' },
+  { method: 'GET', path: '/auth/api/v1/brand/by-domain' },
   { method: 'GET', path: '/health' },
   { method: 'GET', path: '/gateway/health' },
   { method: 'GET', path: '/gateway/health/upstreams' },
@@ -164,4 +169,60 @@ export function validateRequiredRoutes(): { valid: boolean; missing: string[] } 
     }
   }
   return { valid: missing.length === 0, missing };
+}
+
+/** Host / brand-key → tenant resolution for multi-brand white-label routing.
+ *  Loads optional mapping from BRAND_HOST_TENANT_MAP env var (JSON object host → { tenantId, brandKey, domainAllowList }).
+ */
+export interface BrandTenant {
+  tenantId: string;
+  brandKey: string;
+  displayNameFa?: string;
+  displayNameEn?: string;
+  primaryColor?: string;
+  domainAllowList?: string[];
+}
+
+export function getBrandTenantMap(): Record<string, BrandTenant> {
+  const raw = process.env.BRAND_HOST_TENANT_MAP;
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    if (typeof parsed !== 'object' || parsed === null) return {};
+    return parsed;
+  } catch {
+    return {};
+  }
+}
+
+export function resolveTenantFromHost(host?: string): { tenant: BrandTenant; matchedHost: string } | undefined {
+  if (!host) return undefined;
+  const map = getBrandTenantMap();
+  const normalized = host.split(':')[0].toLowerCase();
+  const direct = map[normalized];
+  if (direct) {
+    const allowList = (direct.domainAllowList || [normalized]);
+    if (!allowList.includes(normalized)) return undefined;
+    return { tenant: direct, matchedHost: normalized };
+  }
+  for (const [key, value] of Object.entries(map)) {
+    const allowList = (value.domainAllowList || [key]).map((d) => d.toLowerCase());
+    if (allowList.includes(normalized)) {
+      return { tenant: value, matchedHost: normalized };
+    }
+  }
+  return undefined;
+}
+
+export function getGatewaySignatureSecret(): string {
+  return process.env.GATEWAY_SIGNATURE_SECRET || 'default-gateway-secret-do-not-use-in-production';
+}
+
+export function signInternalContext(payload: Record<string, string>): string {
+  const secret = getGatewaySignatureSecret();
+  const canonical = Object.keys(payload)
+    .sort()
+    .map((k) => `${k}=${payload[k]}`)
+    .join('&');
+  return crypto.createHmac('sha256', secret).update(canonical).digest('hex');
 }

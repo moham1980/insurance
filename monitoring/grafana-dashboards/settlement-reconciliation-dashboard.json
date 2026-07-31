@@ -1,0 +1,283 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "settlement-reconciliation",
+    "title": "Settlement Reconciliation Dashboard",
+    "tags": ["insurance", "settlement", "reconciliation"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "30s",
+    "time": {
+      "from": "now-7d",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Policy Premium vs Ledger",
+        "type": "stat",
+        "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+        "targets": [
+          {
+            "expr": "reporting_policy_premium_total{tenant=\"$tenant\"}",
+            "legendFormat": "Policy Premium",
+            "refId": "A"
+          },
+          {
+            "expr": "reporting_ledger_premium_total{tenant=\"$tenant\"}",
+            "legendFormat": "Ledger Premium",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyIRR",
+            "thresholds": {
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "red", "value": 1000000 }
+              ]
+            }
+          }
+        },
+        "options": {
+          "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+          "orientation": "horizontal",
+          "textMode": "auto"
+        }
+      },
+      {
+        "id": 2,
+        "title": "Premium Discrepancy",
+        "type": "gauge",
+        "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+        "targets": [
+          {
+            "expr": "abs(reporting_policy_premium_total{tenant=\"$tenant\"} - reporting_ledger_premium_total{tenant=\"$tenant\"})",
+            "legendFormat": "Discrepancy",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyIRR",
+            "min": 0,
+            "max": 10000000,
+            "thresholds": {
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "yellow", "value": 100000 },
+                { "color": "red", "value": 1000000 }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "Claim Payments vs Ledger",
+        "type": "stat",
+        "gridPos": { "h": 6, "w": 6, "x": 12, "y": 0 },
+        "targets": [
+          {
+            "expr": "reporting_claim_paid_total{tenant=\"$tenant\"}",
+            "legendFormat": "Claims Paid",
+            "refId": "A"
+          },
+          {
+            "expr": "reporting_ledger_claim_total{tenant=\"$tenant\"}",
+            "legendFormat": "Ledger Claims",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyIRR"
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "Critical Data Quality Issues",
+        "type": "stat",
+        "gridPos": { "h": 6, "w": 6, "x": 18, "y": 0 },
+        "targets": [
+          {
+            "expr": "reporting_data_quality_critical_count{tenant=\"$tenant\"}",
+            "legendFormat": "Critical Issues",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "thresholds": {
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "red", "value": 1 }
+              ]
+            }
+          }
+        },
+        "options": {
+          "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+          "colorMode": "background"
+        }
+      },
+      {
+        "id": 5,
+        "title": "Settlement by Broker Organization",
+        "type": "table",
+        "gridPos": { "h": 8, "w": 24, "x": 0, "y": 6 },
+        "targets": [
+          {
+            "expr": "reporting_settlement_by_broker{tenant=\"$tenant\"}",
+            "legendFormat": "{{broker_org}}",
+            "refId": "A",
+            "format": "table"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": { "Time": true, "__name__": true, "instance": true, "job": true },
+              "renameByName": { "Value": "Net Settlement", "broker_org": "Broker" }
+            }
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Reconciliation Run History",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+        "targets": [
+          {
+            "expr": "reporting_reconciliation_discrepancy{tenant=\"$tenant\", type=\"policy_ledger\"}",
+            "legendFormat": "Policy-Ledger Discrepancy",
+            "refId": "A"
+          },
+          {
+            "expr": "reporting_reconciliation_discrepancy{tenant=\"$tenant\", type=\"payment_ledger\"}",
+            "legendFormat": "Payment-Ledger Discrepancy",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyIRR",
+            "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10 }
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "Data Quality Issues by Severity",
+        "type": "bargauge",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+        "targets": [
+          {
+            "expr": "reporting_data_quality_by_severity{tenant=\"$tenant\"}",
+            "legendFormat": "{{severity}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "thresholds": {
+              "steps": [
+                { "color": "blue", "value": null },
+                { "color": "yellow", "value": 10 },
+                { "color": "orange", "value": 50 },
+                { "color": "red", "value": 100 }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 8,
+        "title": "Broker Report Status Distribution",
+        "type": "piechart",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 22 },
+        "targets": [
+          {
+            "expr": "reporting_broker_report_by_status{tenant=\"$tenant\"}",
+            "legendFormat": "{{status}}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "pieType": "donut",
+          "displayLabels": ["name", "percent"]
+        }
+      },
+      {
+        "id": 9,
+        "title": "TCoR Combined Ratio Trend",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 22 },
+        "targets": [
+          {
+            "expr": "reporting_tcor_combined_ratio{tenant=\"$tenant\"}",
+            "legendFormat": "Combined Ratio",
+            "refId": "A"
+          },
+          {
+            "expr": "reporting_tcor_loss_ratio{tenant=\"$tenant\"}",
+            "legendFormat": "Loss Ratio",
+            "refId": "B"
+          },
+          {
+            "expr": "reporting_tcor_expense_ratio{tenant=\"$tenant\"}",
+            "legendFormat": "Expense Ratio",
+            "refId": "C"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 200,
+            "thresholds": {
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "yellow", "value": 100 },
+                { "color": "red", "value": 120 }
+              ]
+            }
+          }
+        }
+      }
+    ],
+    "templating": {
+      "list": [
+        {
+          "name": "tenant",
+          "type": "query",
+          "datasource": "PostgreSQL",
+          "query": "SELECT DISTINCT tenant_id FROM reporting.rm_policies WHERE tenant_id IS NOT NULL",
+          "refresh": 1,
+          "includeAll": true,
+          "multi": false
+        }
+      ]
+    },
+    "annotations": {
+      "list": [
+        {
+          "name": "Reconciliation Runs",
+          "datasource": "PostgreSQL",
+          "enable": true,
+          "query": "SELECT started_at as time, reconciliation_type as text, status as tags FROM reporting.reconciliation_run_log ORDER BY started_at DESC LIMIT 100"
+        }
+      ]
+    }
+  },
+  "overwrite": true,
+  "folderUid": "insurance-reporting",
+  "message": "P6-14: Settlement Reconciliation Dashboard"
+}

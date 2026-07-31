@@ -1,6 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import jwt from 'jsonwebtoken';
 import { JwksClient } from 'jwks-rsa';
+import { JwtClaimsService } from './jwt-claims.service';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -10,7 +11,7 @@ export class JwtAuthGuard implements CanActivate {
   private readonly issuer: string;
   private readonly audience: string;
 
-  constructor() {
+  constructor(private readonly jwtClaimsService: JwtClaimsService) {
     if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET is required');
     this.jwtSecret = process.env.JWT_SECRET;
     this.issuer = process.env.IAM_ISSUER || 'http://localhost:18001';
@@ -50,8 +51,8 @@ export class JwtAuthGuard implements CanActivate {
           audience: this.audience,
           algorithms: ['RS256'],
         }) as any;
-        request.user = payload;
-        request.globalUserId = payload.sub;
+        request.user = this.jwtClaimsService.resolve(payload);
+        request.globalUserId = request.user.userId;
         request.scopes = payload.scope?.split(' ') || [];
         return true;
       }
@@ -66,7 +67,8 @@ export class JwtAuthGuard implements CanActivate {
         audience: this.audience,
         algorithms: ['HS256'],
       }) as any;
-      request.user = payload;
+      request.user = this.jwtClaimsService.resolve(payload);
+      request.globalUserId = request.user.userId;
       request.scopes = payload.scope?.split(' ') || [];
       return true;
     } catch {

@@ -40,6 +40,16 @@ export class RoutePolicy {
   @Column({ type: 'jsonb', nullable: true })
   metadata: Record<string, any>;
 
+  // A/B Testing fields
+  @Column({ type: 'boolean', default: false })
+  abTestEnabled: boolean;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  abTestModelId: string | null; // modelId for the B variant
+
+  @Column({ type: 'int', default: 50 })
+  abTestSplitPercent: number; // 0-100, percent of traffic to B variant
+
   @Column({ default: true })
   isActive: boolean;
 

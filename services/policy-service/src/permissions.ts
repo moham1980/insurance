@@ -13,7 +13,10 @@ export type PermissionKey =
   | 'policy:sanhab_inquiry'
   | 'policy:sanhab_inquiries_view'
   | 'policy:quality_gate_override'
-  | 'policy:changes_view';
+  | 'policy:changes_view'
+  | 'policy:project'
+  | 'policy:broker_change'
+  | 'policy:commission_view';
 
 const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
   insurer_admin: [
@@ -32,6 +35,9 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     'policy:sanhab_inquiries_view',
     'policy:quality_gate_override',
     'policy:changes_view',
+    'policy:project',
+    'policy:broker_change',
+    'policy:commission_view',
   ],
   head_office_ops: [
     'policy:issue',
@@ -45,6 +51,9 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     'policy:sanhab_inquiries_view',
     'policy:quality_gate_override',
     'policy:changes_view',
+    'policy:project',
+    'policy:broker_change',
+    'policy:commission_view',
   ],
   underwriter: [
     'policy:quote',
@@ -58,6 +67,9 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     'policy:sanhab_inquiry',
     'policy:sanhab_inquiries_view',
     'policy:changes_view',
+    'policy:project',
+    'policy:broker_change',
+    'policy:commission_view',
   ],
   branch_manager: [
     'policy:quote',
@@ -70,6 +82,9 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     'policy:sanhab_inquiry',
     'policy:sanhab_inquiries_view',
     'policy:changes_view',
+    'policy:project',
+    'policy:broker_change',
+    'policy:commission_view',
   ],
   branch_staff: [
     'policy:quote',
@@ -81,11 +96,12 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     'policy:sanhab_inquiry',
     'policy:sanhab_inquiries_view',
     'policy:changes_view',
+    'policy:project',
   ],
   agency_owner: ['policy:quote', 'policy:submit_docs', 'policy:view', 'policy:list', 'policy:sanhab_inquiry', 'policy:sanhab_inquiries_view', 'policy:changes_view'],
   agency_staff: ['policy:quote', 'policy:submit_docs', 'policy:view', 'policy:list', 'policy:sanhab_inquiry', 'policy:sanhab_inquiries_view', 'policy:changes_view'],
-  broker_owner: ['policy:quote', 'policy:submit_docs', 'policy:view', 'policy:list', 'policy:sanhab_inquiry', 'policy:sanhab_inquiries_view', 'policy:changes_view'],
-  broker_staff: ['policy:quote', 'policy:submit_docs', 'policy:view', 'policy:list', 'policy:sanhab_inquiry', 'policy:sanhab_inquiries_view', 'policy:changes_view'],
+  broker_owner: ['policy:quote', 'policy:submit_docs', 'policy:view', 'policy:list', 'policy:sanhab_inquiry', 'policy:sanhab_inquiries_view', 'policy:changes_view', 'policy:broker_change', 'policy:commission_view'],
+  broker_staff: ['policy:quote', 'policy:submit_docs', 'policy:view', 'policy:list', 'policy:sanhab_inquiry', 'policy:sanhab_inquiries_view', 'policy:changes_view', 'policy:commission_view'],
   call_center: ['policy:quote', 'policy:submit_docs', 'policy:view', 'policy:sanhab_inquiry', 'policy:sanhab_inquiries_view', 'policy:changes_view'],
   auditor: ['policy:view', 'policy:list', 'policy:sanhab_inquiries_view', 'policy:changes_view'],
 };

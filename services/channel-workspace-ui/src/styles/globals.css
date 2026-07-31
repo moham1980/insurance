@@ -1,0 +1,16 @@
+@import '@insurance/design-system/themes/light.css';
+@import '@insurance/design-system/themes/dark.css';
+@import '@insurance/design-system/themes/high-contrast.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    direction: rtl;
+  }
+  body {
+    @apply bg-bg-base text-text-primary;
+  }
+}

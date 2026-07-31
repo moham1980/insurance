@@ -1,0 +1,509 @@
+asyncapi: '2.6.0'
+info:
+  title: Claims Advocacy Domain Events
+  version: 1.0.0
+  description: P5 claims advocacy events between claims-service, sales-network-service, party-kyc-service, document-service, billing-service and workflow-service.
+servers:
+  dev:
+    url: kafka://localhost:19092
+    protocol: kafka
+    description: Dev Kafka broker
+channels:
+  insurance.claim.events:
+    publish:
+      message:
+        oneOf:
+          - $ref: '#/components/messages/ClaimAcknowledged'
+          - $ref: '#/components/messages/ClaimSubmittedToCarrier'
+          - $ref: '#/components/messages/ClaimAppealed'
+          - $ref: '#/components/messages/ClaimAdjusterAssigned'
+          - $ref: '#/components/messages/ClaimReferredToAdjuster'
+          - $ref: '#/components/messages/ClaimProjectionUpdated'
+          - $ref: '#/components/messages/ClaimDocumentAttached'
+          - $ref: '#/components/messages/ClaimRegistered'
+          - $ref: '#/components/messages/ClaimStatusUpdated'
+          - $ref: '#/components/messages/ClaimAssessed'
+          - $ref: '#/components/messages/ClaimApproved'
+          - $ref: '#/components/messages/ClaimRejected'
+          - $ref: '#/components/messages/ClaimPaid'
+          - $ref: '#/components/messages/ClaimClosed'
+          - $ref: '#/components/messages/AdjusterReferred'
+          - $ref: '#/components/messages/AdjusterReportReceived'
+          - $ref: '#/components/messages/RecoveryCaseCreated'
+          - $ref: '#/components/messages/RecoveryReceived'
+  insurance.claim.advocacy.events:
+    publish:
+      message:
+        oneOf:
+          - $ref: '#/components/messages/ClaimAdvocacyCaseOpened'
+          - $ref: '#/components/messages/ClaimAdvocacyCaseEscalated'
+          - $ref: '#/components/messages/ClaimAdvocacyCaseClosed'
+          - $ref: '#/components/messages/AdvocacyTaskCreated'
+          - $ref: '#/components/messages/AdvocacyTaskUpdated'
+          - $ref: '#/components/messages/AdvocacyTaskOverdue'
+          - $ref: '#/components/messages/AdvocacyCommunicationAdded'
+components:
+  messages:
+    ClaimAcknowledged:
+      name: ClaimAcknowledged.v1
+      payload:
+        $ref: '#/components/schemas/ClaimAcknowledgedEvent'
+    ClaimSubmittedToCarrier:
+      name: ClaimSubmittedToCarrier.v1
+      payload:
+        $ref: '#/components/schemas/ClaimSubmittedToCarrierEvent'
+    ClaimAppealed:
+      name: ClaimAppealed.v1
+      payload:
+        $ref: '#/components/schemas/ClaimAppealedEvent'
+    ClaimAdjusterAssigned:
+      name: ClaimAdjusterAssigned.v1
+      payload:
+        $ref: '#/components/schemas/ClaimAdjusterAssignedEvent'
+    ClaimReferredToAdjuster:
+      name: ClaimReferredToAdjuster.v1
+      payload:
+        $ref: '#/components/schemas/ClaimReferredToAdjusterEvent'
+    ClaimProjectionUpdated:
+      name: ClaimProjectionUpdated.v1
+      payload:
+        $ref: '#/components/schemas/ClaimProjectionUpdatedEvent'
+    ClaimDocumentAttached:
+      name: ClaimDocumentAttached.v1
+      payload:
+        $ref: '#/components/schemas/ClaimDocumentAttachedEvent'
+    RecoveryCaseCreated:
+      name: RecoveryCaseCreated.v1
+      payload:
+        $ref: '#/components/schemas/RecoveryCaseCreatedEvent'
+    RecoveryReceived:
+      name: RecoveryReceived.v1
+      payload:
+        $ref: '#/components/schemas/RecoveryReceivedEvent'
+    ClaimAdvocacyCaseOpened:
+      name: ClaimAdvocacyCaseOpened.v1
+      payload:
+        $ref: '#/components/schemas/ClaimAdvocacyCaseOpenedEvent'
+    ClaimAdvocacyCaseEscalated:
+      name: ClaimAdvocacyCaseEscalated.v1
+      payload:
+        $ref: '#/components/schemas/ClaimAdvocacyCaseEscalatedEvent'
+    ClaimAdvocacyCaseClosed:
+      name: ClaimAdvocacyCaseClosed.v1
+      payload:
+        $ref: '#/components/schemas/ClaimAdvocacyCaseClosedEvent'
+    AdvocacyTaskCreated:
+      name: AdvocacyTaskCreated.v1
+      payload:
+        $ref: '#/components/schemas/AdvocacyTaskCreatedEvent'
+    AdvocacyTaskUpdated:
+      name: AdvocacyTaskUpdated.v1
+      payload:
+        $ref: '#/components/schemas/AdvocacyTaskUpdatedEvent'
+    AdvocacyCommunicationAdded:
+      name: AdvocacyCommunicationAdded.v1
+      payload:
+        $ref: '#/components/schemas/AdvocacyCommunicationAddedEvent'
+    ClaimStatusUpdated:
+      name: ClaimStatusUpdated.v1
+      payload:
+        $ref: '#/components/schemas/ClaimStatusUpdatedEvent'
+    AdvocacyTaskOverdue:
+      name: AdvocacyTaskOverdue.v1
+      payload:
+        $ref: '#/components/schemas/AdvocacyTaskOverdueEvent'
+    ClaimRegistered:
+      name: ClaimRegistered.v1
+      payload:
+        $ref: '#/components/schemas/ClaimRegisteredEvent'
+    ClaimAssessed:
+      name: ClaimAssessed.v1
+      payload:
+        $ref: '#/components/schemas/ClaimAssessedEvent'
+    ClaimApproved:
+      name: ClaimApproved.v1
+      payload:
+        $ref: '#/components/schemas/ClaimApprovedEvent'
+    ClaimRejected:
+      name: ClaimRejected.v1
+      payload:
+        $ref: '#/components/schemas/ClaimRejectedEvent'
+    ClaimPaid:
+      name: ClaimPaid.v1
+      payload:
+        $ref: '#/components/schemas/ClaimPaidEvent'
+    ClaimClosed:
+      name: ClaimClosed.v1
+      payload:
+        $ref: '#/components/schemas/ClaimClosedEvent'
+    AdjusterReferred:
+      name: AdjusterReferred.v1
+      payload:
+        $ref: '#/components/schemas/AdjusterReferredEvent'
+    AdjusterReportReceived:
+      name: AdjusterReportReceived.v1
+      payload:
+        $ref: '#/components/schemas/AdjusterReportReceivedEvent'
+  schemas:
+    DomainEventEnvelope:
+      type: object
+      required:
+        - eventId
+        - eventType
+        - schemaVersion
+        - occurredAt
+        - producer
+        - tenantId
+        - correlationId
+        - subject
+        - data
+      properties:
+        eventId: { type: string }
+        eventType: { type: string }
+        schemaVersion: { type: integer }
+        occurredAt: { type: string, format: date-time }
+        producer: { type: string }
+        tenantId: { type: string }
+        organizationId: { type: string }
+        correlationId: { type: string }
+        causationId: { type: string }
+        idempotencyKey: { type: string }
+        dataClassification:
+          type: string
+          enum: [PUBLIC, INTERNAL, CONFIDENTIAL, PII]
+        subject:
+          type: object
+          properties:
+            type: { type: string }
+            id: { type: string }
+        data:
+          type: object
+    ClaimAcknowledgedEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                claimId: { type: string }
+                acknowledgedBy: { type: string }
+                acknowledgedAt: { type: string, format: date-time }
+    ClaimSubmittedToCarrierEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                claimId: { type: string }
+                externalClaimId: { type: string }
+                carrierOrganizationId: { type: string }
+                submittedBy: { type: string }
+                submittedAt: { type: string, format: date-time }
+    ClaimAppealedEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                claimId: { type: string }
+                reason: { type: string }
+                appealedBy: { type: string }
+                appealedAt: { type: string, format: date-time }
+    ClaimAdjusterAssignedEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                claimId: { type: string }
+                adjusterId: { type: string }
+                autoAssigned: { type: boolean }
+                assignmentReason: { type: string }
+    ClaimReferredToAdjusterEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                claimId: { type: string }
+                adjusterId: { type: string }
+                reason: { type: string }
+                referralId: { type: string }
+                referredBy: { type: string }
+                referredAt: { type: string, format: date-time }
+    ClaimProjectionUpdatedEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                claimId: { type: string }
+                projectionId: { type: string }
+                sourceSystemId: { type: string }
+                sourceVersion: { type: integer }
+                status: { type: string }
+                brokerOrganizationId: { type: string }
+                carrierOrganizationId: { type: string }
+    ClaimDocumentAttachedEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                claimId: { type: string }
+                documentId: { type: string }
+                documentType: { type: string }
+                classification:
+                  type: string
+                  enum: [PUBLIC, INTERNAL, CONFIDENTIAL, PII]
+                attachedBy: { type: string }
+    RecoveryCaseCreatedEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                claimId: { type: string }
+                recoveryId: { type: string }
+                responsiblePartyId: { type: string }
+                expectedRecoveryAmount: { type: number }
+                expectedRecoveryCurrency: { type: string }
+    RecoveryReceivedEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                claimId: { type: string }
+                recoveryId: { type: string }
+                recoveredAmount: { type: number }
+                recoveredCurrency: { type: string }
+                journalEntryId: { type: string }
+    ClaimAdvocacyCaseOpenedEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                caseId: { type: string }
+                claimId: { type: string }
+                brokerOrganizationId: { type: string }
+                customerPartyId: { type: string }
+                carrierOrganizationId: { type: string }
+                priority: { type: string }
+    ClaimAdvocacyCaseEscalatedEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                caseId: { type: string }
+                claimId: { type: string }
+                reason: { type: string }
+                escalatedBy: { type: string }
+    ClaimAdvocacyCaseClosedEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                caseId: { type: string }
+                claimId: { type: string }
+                closedBy: { type: string }
+                closedAt: { type: string, format: date-time }
+    AdvocacyTaskCreatedEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                taskId: { type: string }
+                caseId: { type: string }
+                taskType: { type: string }
+                assignedToPartyId: { type: string }
+                dueDate: { type: string, format: date-time }
+    AdvocacyTaskUpdatedEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                taskId: { type: string }
+                caseId: { type: string }
+                status: { type: string }
+                outcome: { type: string }
+    AdvocacyCommunicationAddedEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                communicationId: { type: string }
+                caseId: { type: string }
+                channel: { type: string }
+                direction: { type: string }
+                contentRef: { type: string }
+                partyId: { type: string }
+    ClaimStatusUpdatedEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                claimId: { type: string }
+                claimNumber: { type: string }
+                status: { type: string }
+                updatedAt: { type: string, format: date-time }
+    AdvocacyTaskOverdueEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                taskId: { type: string }
+                caseId: { type: string }
+                taskType: { type: string }
+                assignedToPartyId: { type: string }
+                dueDate: { type: string, format: date-time }
+                overdueAt: { type: string, format: date-time }
+    ClaimRegisteredEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                claimId: { type: string }
+                claimNumber: { type: string }
+                policyId: { type: string }
+                claimantPartyId: { type: string }
+                carrierOrganizationId: { type: string }
+                brokerOrganizationId: { type: string }
+                registeredBy: { type: string }
+                registeredAt: { type: string, format: date-time }
+    ClaimAssessedEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                claimId: { type: string }
+                assessedAmount: { type: number }
+                assessedCurrency: { type: string }
+                assessedBy: { type: string }
+                assessedAt: { type: string, format: date-time }
+    ClaimApprovedEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                claimId: { type: string }
+                approvedAmount: { type: number }
+                approvedCurrency: { type: string }
+                approvedBy: { type: string }
+                approvedAt: { type: string, format: date-time }
+    ClaimRejectedEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                claimId: { type: string }
+                reason: { type: string }
+                rejectedBy: { type: string }
+                rejectedAt: { type: string, format: date-time }
+    ClaimPaidEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                claimId: { type: string }
+                paidAmount: { type: number }
+                paidCurrency: { type: string }
+                paymentReference: { type: string }
+                paidBy: { type: string }
+                paidAt: { type: string, format: date-time }
+    ClaimClosedEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                claimId: { type: string }
+                closedBy: { type: string }
+                closedAt: { type: string, format: date-time }
+                closureReason: { type: string }
+    AdjusterReferredEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                claimId: { type: string }
+                caseId: { type: string }
+                referralId: { type: string }
+                adjusterOrganizationId: { type: string }
+                adjusterPartyId: { type: string }
+                referredBy: { type: string }
+                referredAt: { type: string, format: date-time }
+    AdjusterReportReceivedEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                claimId: { type: string }
+                referralId: { type: string }
+                reportRef: { type: string }
+                reportChecksum: { type: string }
+                receivedAt: { type: string, format: date-time }

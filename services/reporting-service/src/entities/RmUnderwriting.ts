@@ -6,6 +6,7 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, Update
 @Index(['status'])
 @Index(['riskLevel'])
 @Index(['createdAt'])
+@Index(['brokerOrganizationId'])
 export class RmUnderwriting {
   @Column({ type: 'uuid', name: 'tenant_id', nullable: true })
   tenantId?: string | null;
@@ -48,6 +49,9 @@ export class RmUnderwriting {
 
   @Column({ name: 'underwriter_id', type: 'uuid', nullable: true })
   underwriterId!: string | null;
+
+  @Column({ name: 'broker_organization_id', type: 'uuid', nullable: true })
+  brokerOrganizationId!: string | null;
 
   @Column({ name: 'underwriter_name', type: 'text', nullable: true })
   underwriterName!: string | null;

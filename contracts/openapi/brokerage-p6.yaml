@@ -1,0 +1,650 @@
+openapi: 3.0.3
+info:
+  title: Brokerage P6 Regulatory & Reporting API
+  version: 1.0.0
+  description: P6 API contracts for Sanhab integration, unique code management, broker/TCoR reports, BI dashboards, data quality, audit, settlement, and retention.
+servers:
+  - url: http://localhost:18003
+    description: policy-service
+  - url: http://localhost:18004
+    description: regulatory-gateway-service
+  - url: http://localhost:18006
+    description: reporting-service
+paths:
+  /policies/{policyId}/unique-code:
+    post:
+      summary: Set authoritative unique code on a policy
+      parameters:
+        - name: policyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: X-Correlation-Id
+          in: header
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [uniqueCode]
+              properties:
+                uniqueCode:
+                  type: string
+                sanhabSubmissionId:
+                  type: string
+                sanhabResponse:
+                  type: object
+      responses:
+        '200':
+          description: Unique code set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyResponse'
+  /policies/{policyId}/sanhab-result:
+    post:
+      summary: Record Sanhab submission result
+      parameters:
+        - name: policyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sanhabStatus]
+              properties:
+                sanhabStatus:
+                  type: string
+                  enum: [pending, confirmed, rejected]
+                sanhabSubmissionId:
+                  type: string
+                uniqueCode:
+                  type: string
+                sanhabResponse:
+                  type: object
+      responses:
+        '200':
+          description: Sanhab result recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyResponse'
+  /api/v1/policies/{policyId}/sanhab-submit:
+    post:
+      summary: Submit a policy to Sanhab via regulatory gateway
+      parameters:
+        - name: policyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nationalId:
+                  type: string
+                vin:
+                  type: string
+      responses:
+        '200':
+          description: Submission result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SanhabSubmitResponse'
+  /api/v1/policies/{policyId}/sanhab-status:
+    get:
+      summary: Get Sanhab status for a policy
+      parameters:
+        - name: policyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SanhabStatusResponse'
+  /api/v1/policies/{policyId}/sanhab-retry:
+    post:
+      summary: Retry Sanhab submission
+      parameters:
+        - name: policyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Retry result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SanhabSubmitResponse'
+  /reporting/broker-reports:
+    post:
+      summary: Create broker transaction report
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBrokerReportRequest'
+      responses:
+        '200':
+          description: Report created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BrokerTransactionReport'
+    get:
+      summary: List broker transaction reports
+      parameters:
+        - name: brokerOrganizationId
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Reports list
+  /reporting/broker-reports/{reportId}/generate:
+    post:
+      summary: Generate broker transaction report
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Generated report
+  /reporting/tcor-reports:
+    post:
+      summary: Create TCoR report
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTCoRReportRequest'
+      responses:
+        '200':
+          description: Report created
+  /reporting/tcor-reports/{reportId}/generate:
+    post:
+      summary: Generate TCoR report
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Generated report
+  /reporting/bi/executive:
+    get:
+      summary: Executive BI dashboard
+      responses:
+        '200':
+          description: Dashboard data
+  /reporting/bi/cockpit:
+    get:
+      summary: Executive cockpit
+      parameters:
+        - name: startDate
+          in: query
+          schema:
+            type: string
+        - name: endDate
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Cockpit data
+  /reporting/data-quality/reconcile:
+    post:
+      summary: Run data quality reconciliation
+      responses:
+        '200':
+          description: Reconciliation result
+  /reporting/data-quality/issues:
+    get:
+      summary: List data quality issues
+      responses:
+        '200':
+          description: Issues list
+  /reporting/audit-reports:
+    post:
+      summary: Create audit report
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAuditReportRequest'
+      responses:
+        '200':
+          description: Audit report created
+  /reporting/settlement/dashboard:
+    get:
+      summary: Broker settlement dashboard
+      parameters:
+        - name: brokerOrganizationId
+          in: query
+          schema:
+            type: string
+        - name: periodId
+          in: query
+          schema:
+            type: string
+        - name: startDate
+          in: query
+          schema:
+            type: string
+        - name: endDate
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Settlement summary
+  /reporting/retention/apply:
+    post:
+      summary: Apply report retention
+      responses:
+        '200':
+          description: Retention result
+  /reporting/retention/policies:
+    get:
+      summary: List data retention policies
+      responses:
+        '200':
+          description: Retention policies list
+  /reporting/regulatory-reports:
+    post:
+      summary: Create regulatory report per issuer/broker
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRegulatoryReportRequest'
+      responses:
+        '200':
+          description: Regulatory report created
+    get:
+      summary: List regulatory reports
+      parameters:
+        - name: reportType
+          in: query
+          schema:
+            type: string
+        - name: issuerId
+          in: query
+          schema:
+            type: string
+        - name: brokerOrganizationId
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Regulatory reports list
+  /reporting/regulatory-reports/{reportId}/generate:
+    post:
+      summary: Generate regulatory report
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Generated regulatory report
+  /reporting/regulatory-reports/{reportId}/export-xml:
+    get:
+      summary: Export regulatory report as XML
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: XML content
+          content:
+            application/xml:
+              schema:
+                type: string
+  /reporting/regulatory-reports/{reportId}/export-pdf:
+    get:
+      summary: Export regulatory report as PDF (HTML)
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: PDF/HTML content
+          content:
+            text/html:
+              schema:
+                type: string
+  /reporting/regulatory-reports/{reportId}/submit:
+    post:
+      summary: Submit regulatory report
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Submitted regulatory report
+  /reporting/aml-fraud/regulatory-report:
+    get:
+      summary: AML/Fraud regulatory report
+      parameters:
+        - name: startDate
+          in: query
+          schema:
+            type: string
+        - name: endDate
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: AML/Fraud report data
+  /reporting/bi/export:
+    get:
+      summary: Export BI dashboard data
+      parameters:
+        - name: format
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [csv, excel, pdf]
+        - name: dashboard
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [executive, cockpit]
+      responses:
+        '200':
+          description: Exported data
+  /reporting/tcor-reports/{reportId}/drilldown:
+    get:
+      summary: TCoR report drilldown
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: by
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [policy, lineOfBusiness, carrier]
+      responses:
+        '200':
+          description: Drilldown data
+  /reporting/audit-reports/{reportId}/export:
+    get:
+      summary: Export audit report (PII-masked)
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Exported audit report
+  /reporting/audit-reports/{reportId}/verify:
+    get:
+      summary: Verify audit report signature
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Verification result
+  /reporting/audit-reports/{reportId}/generate:
+    post:
+      summary: Generate audit report with tamper-evident signature
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Generated audit report
+  /reporting/reconciliation/policy-ledger:
+    get:
+      summary: Run policy-ledger reconciliation
+      responses:
+        '200':
+          description: Reconciliation result
+  /reporting/reconciliation/payment-ledger:
+    get:
+      summary: Run payment-ledger reconciliation
+      responses:
+        '200':
+          description: Reconciliation result
+  /reporting/reconciliation/run-all:
+    get:
+      summary: Run all reconciliation jobs
+      responses:
+        '200':
+          description: All reconciliation results
+  /api/v1/reports/policies-without-unique-code:
+    get:
+      summary: List policies without unique code
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Policies without unique code
+  /api/v1/reports/duplicate-unique-codes:
+    get:
+      summary: List duplicate unique codes
+      responses:
+        '200':
+          description: Duplicate unique codes
+  /api/v1/sanhab/config:
+    get:
+      summary: Get Sanhab configuration (insurer_admin only)
+      responses:
+        '200':
+          description: Sanhab config
+components:
+  schemas:
+    PolicyResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+        correlationId:
+          type: string
+    SanhabSubmitResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            policyId:
+              type: string
+            submissionId:
+              type: string
+            uniqueCode:
+              type: string
+            sanhabStatus:
+              type: string
+            resultCode:
+              type: string
+        correlationId:
+          type: string
+    SanhabStatusResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            policyId:
+              type: string
+            sanhabStatus:
+              type: string
+            sanhabSubmissionId:
+              type: string
+            uniqueCode:
+              type: string
+        correlationId:
+          type: string
+    CreateBrokerReportRequest:
+      type: object
+      required: [periodId, periodStartDate, periodEndDate]
+      properties:
+        periodId:
+          type: string
+        periodStartDate:
+          type: string
+        periodEndDate:
+          type: string
+        brokerOrganizationId:
+          type: string
+        reportType:
+          type: string
+    BrokerTransactionReport:
+      type: object
+      properties:
+        reportId:
+          type: string
+        periodId:
+          type: string
+        status:
+          type: string
+        policyCount:
+          type: integer
+        premiumAmount:
+          type: number
+        claimPaidAmount:
+          type: number
+        commissionAmount:
+          type: number
+        technicalResult:
+          type: number
+    CreateTCoRReportRequest:
+      type: object
+      required: [periodId, periodStartDate, periodEndDate]
+      properties:
+        periodId:
+          type: string
+        periodStartDate:
+          type: string
+        periodEndDate:
+          type: string
+    CreateAuditReportRequest:
+      type: object
+      required: [reportType]
+      properties:
+        reportType:
+          type: string
+        periodId:
+          type: string
+        periodStartDate:
+          type: string
+        periodEndDate:
+          type: string
+    CreateRegulatoryReportRequest:
+      type: object
+      required: [reportType, periodId]
+      properties:
+        reportType:
+          type: string
+        issuerId:
+          type: string
+        brokerOrganizationId:
+          type: string
+        periodId:
+          type: string
+        periodStartDate:
+          type: string
+        periodEndDate:
+          type: string

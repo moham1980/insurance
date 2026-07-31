@@ -93,6 +93,30 @@ export class PaymentGatewayService {
     return urls[provider];
   }
 
+  private resolveAuthHeaders(correlationId?: string): Record<string, string> {
+    const token = process.env.PAYMENT_SERVICE_TOKEN || '';
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    if (correlationId) {
+      headers['X-Correlation-Id'] = correlationId;
+    }
+    return headers;
+  }
+
+  private resolveEscrowAccount(): string {
+    const ref = process.env.INSURANCE_ESCROW_ACCOUNT_REF || '';
+    const number = process.env.INSURANCE_ESCROW_ACCOUNT_NUMBER || '';
+    const account = number || ref;
+    if (!account) {
+      throw new Error('INSURANCE_ESCROW_ACCOUNT_REF or INSURANCE_ESCROW_ACCOUNT_NUMBER is required for ECOSYSTEM payments');
+    }
+    return account;
+  }
+
   private toInterface(entity: PaymentTransactionEntity): PaymentTransaction {
     return {
       id: entity.id,
@@ -322,11 +346,11 @@ export class PaymentGatewayService {
     transaction: PaymentTransactionEntity,
     params: PaymentRequest
   ): Promise<string> {
-    const fromAccount = process.env.PATIENT_BANK_ACCOUNT || process.env.INSURANCE_BANK_ACCOUNT || '';
-    const escrowAccount = process.env.INSURANCE_ESCROW_ACCOUNT || '1000000003';
+    const fromAccount = process.env.INSURANCE_BANK_ACCOUNT || process.env.PATIENT_BANK_ACCOUNT || '';
+    const escrowAccount = this.resolveEscrowAccount();
 
     if (!fromAccount) {
-      throw new Error('No bank account linked. Please connect your bank account in the super-app.');
+      throw new Error('INSURANCE_BANK_ACCOUNT or PATIENT_BANK_ACCOUNT is required for ECOSYSTEM payments');
     }
 
     const idempotencyKey = params.idempotencyKey || `insurance-invoice-${transaction.invoiceId}-${transaction.id}`;
@@ -334,7 +358,7 @@ export class PaymentGatewayService {
     const response = await fetch(`${apiUrl}/api/v1/ecosystem/payments/initiate`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        ...this.resolveAuthHeaders(params.idempotencyKey),
         'X-Idempotency-Key': idempotencyKey,
         'X-Tenant-Id': params.tenantId,
       },
@@ -368,6 +392,7 @@ export class PaymentGatewayService {
     const response = await fetch(`${apiUrl}/api/v1/ecosystem/payments/${transaction.authority}`, {
       method: 'GET',
       headers: {
+        ...this.resolveAuthHeaders(transaction.idempotencyKey || undefined),
         'Content-Type': 'application/json',
         'X-Tenant-Id': transaction.tenantId,
       },

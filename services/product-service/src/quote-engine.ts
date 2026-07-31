@@ -48,6 +48,13 @@ export interface QuoteInput {
   exposure?: Record<string, any>;
   region?: string;
   effectiveDate: Date;
+  brokerAdjustments?: Array<{
+    code: string;
+    nameFa?: string;
+    type: 'add' | 'multiplier' | 'percent';
+    value: number;
+    reasonCode?: string;
+  }>;
 }
 
 export interface QuoteResult {
@@ -59,6 +66,7 @@ export interface QuoteResult {
   totalPremium: string;
   totalPremiumMinor: number;
   adjustments: QuoteAdjustment[];
+  brokerAdjustments?: QuoteAdjustment[];
   appliedRuleIds: string[];
   appliedRuleCodes: string[];
   effectiveDate: string;
@@ -131,6 +139,29 @@ export class QuoteEngine {
       }
     }
 
+    // Apply broker-specific adjustments (discount/surcharge based on volume, agreement, etc.)
+    const brokerAdjustments: QuoteAdjustment[] = [];
+    if (Array.isArray(input.brokerAdjustments)) {
+      for (const ba of input.brokerAdjustments) {
+        if (!ba || !ba.code || typeof ba.value !== 'number' || !Number.isFinite(ba.value)) continue;
+        const adj: QuoteAdjustment = {
+          code: ba.code,
+          nameFa: ba.nameFa,
+          type: ba.type === 'multiplier' ? 'multiplier' : ba.type === 'percent' ? 'percent' : 'add',
+          value: ba.value,
+          applied: true,
+        };
+        brokerAdjustments.push(adj);
+        if (adj.type === 'add') {
+          total = total.add(new Money({ amount: adj.value, currency }));
+        } else if (adj.type === 'multiplier') {
+          total = total.multiply(adj.value);
+        } else if (adj.type === 'percent') {
+          total = total.applyPercent(adj.value);
+        }
+      }
+    }
+
     return {
       productId: input.productId,
       tenantId: input.tenantId,
@@ -140,6 +171,7 @@ export class QuoteEngine {
       totalPremium: total.toMajorString(),
       totalPremiumMinor: total.minor,
       adjustments,
+      brokerAdjustments: brokerAdjustments.length > 0 ? brokerAdjustments : undefined,
       appliedRuleIds,
       appliedRuleCodes,
       effectiveDate: input.effectiveDate.toISOString(),

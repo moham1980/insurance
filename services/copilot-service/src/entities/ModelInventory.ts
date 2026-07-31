@@ -3,6 +3,8 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, Update
 export type ModelType = 'llm' | 'ml' | 'ocr' | 'embedding' | 'other';
 export type ModelStatus = 'development' | 'testing' | 'staging' | 'production' | 'deprecated' | 'retired';
 export type ModelRiskLevel = 'low' | 'medium' | 'high' | 'critical';
+export type PiiHandling = 'redact' | 'anonymize' | 'forbidden';
+export type ApprovalStatus = 'draft' | 'approved' | 'retired';
 
 export type RiskAssessmentStatus = 'pending' | 'approved' | 'rejected' | 'needs_review';
 
@@ -13,15 +15,25 @@ export type ValidationStatus = 'pending' | 'in_progress' | 'passed' | 'failed';
 
 @Entity('model_card')
 @Index(['modelId', 'version'])
+@Index(['tenantId', 'approvalStatus'])
 export class ModelCard {
   @PrimaryGeneratedColumn('uuid', { name: 'card_id' })
   cardId!: string;
+
+  @Column({ name: 'tenant_id', type: 'text', nullable: true })
+  tenantId!: string | null;
 
   @Column({ name: 'model_id', type: 'uuid' })
   modelId!: string;
 
   @Column({ name: 'version', type: 'text' })
   version!: string;
+
+  @Column({ name: 'purpose', type: 'text', nullable: true })
+  purpose!: string | null;
+
+  @Column({ name: 'owner', type: 'text', nullable: true })
+  owner!: string | null;
 
   @Column({ name: 'model_details', type: 'jsonb', nullable: true })
   modelDetails!: object | null;
@@ -35,8 +47,23 @@ export class ModelCard {
   @Column({ name: 'training_data', type: 'jsonb', nullable: true })
   trainingData!: object | null;
 
+  @Column({ name: 'bias_risks', type: 'jsonb', nullable: true })
+  biasRisks!: string[] | null;
+
+  @Column({ name: 'allowed_data_types', type: 'jsonb', nullable: true })
+  allowedDataTypes!: string[] | null;
+
+  @Column({ name: 'pii_handling', type: 'text', default: 'redact' })
+  piiHandling!: PiiHandling;
+
+  @Column({ name: 'approval_status', type: 'text', default: 'draft' })
+  approvalStatus!: ApprovalStatus;
+
   @Column({ name: 'evaluation_metrics', type: 'jsonb', nullable: true })
   evaluationMetrics!: object | null;
+
+  @Column({ name: 'performance_metrics', type: 'jsonb', nullable: true })
+  performanceMetrics!: object | null;
 
   @Column({ name: 'ethical_considerations', type: 'text', nullable: true })
   ethicalConsiderations!: string | null;
@@ -220,9 +247,13 @@ export class AIIncidentReport {
 @Index(['modelType', 'status'])
 @Index(['status', 'createdAt'])
 @Index(['version', 'modelType'])
+@Index(['tenantId', 'status'])
 export class ModelInventory {
   @PrimaryGeneratedColumn('uuid', { name: 'model_id' })
   modelId!: string;
+
+  @Column({ name: 'tenant_id', type: 'text', nullable: true })
+  tenantId!: string | null;
 
   @Column({ name: 'model_name', type: 'text' })
   modelName!: string;
@@ -239,6 +270,12 @@ export class ModelInventory {
   @Column({ name: 'status', type: 'text', default: 'development' })
   status!: ModelStatus;
 
+  @Column({ name: 'purpose', type: 'text', nullable: true })
+  purpose!: string | null;
+
+  @Column({ name: 'owner', type: 'text', nullable: true })
+  owner!: string | null;
+
   @Column({ name: 'description', type: 'text', nullable: true })
   description!: string | null;
 
@@ -250,6 +287,15 @@ export class ModelInventory {
 
   @Column({ name: 'training_data_summary', type: 'text', nullable: true })
   trainingDataSummary!: string | null;
+
+  @Column({ name: 'bias_risks', type: 'jsonb', nullable: true })
+  biasRisks!: string[] | null;
+
+  @Column({ name: 'allowed_data_types', type: 'jsonb', nullable: true })
+  allowedDataTypes!: string[] | null;
+
+  @Column({ name: 'pii_handling', type: 'text', default: 'redact' })
+  piiHandling!: PiiHandling;
 
   @Column({ name: 'performance_metrics', type: 'jsonb', nullable: true })
   performanceMetrics!: object | null;

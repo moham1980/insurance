@@ -71,6 +71,7 @@ export class RuleEngineService {
         eventType: 'RuleCreated',
         eventVersion: 1,
         correlationId: uuidv4(),
+        tenantId: saved.tenantId,
         subject: { ruleId: saved.id, ruleSetKey: params.ruleSetKey },
         payload: {
           ruleId: saved.id,
@@ -99,6 +100,7 @@ export class RuleEngineService {
         eventType: 'RuleActivated',
         eventVersion: 1,
         correlationId: uuidv4(),
+        tenantId: saved.tenantId,
         subject: { ruleId: saved.id, ruleSetKey: saved.ruleSetKey },
         payload: {
           ruleId: saved.id,
@@ -124,6 +126,7 @@ export class RuleEngineService {
         eventType: 'RuleDeactivated',
         eventVersion: 1,
         correlationId: uuidv4(),
+        tenantId: saved.tenantId,
         subject: { ruleId: saved.id, ruleSetKey: saved.ruleSetKey },
         payload: {
           ruleId: saved.id,
@@ -258,6 +261,7 @@ export class RuleEngineService {
           eventType: 'RuleEvaluated',
           eventVersion: 1,
           correlationId: uuidv4(),
+          tenantId: params.tenantId,
           subject: { ruleSetKey: params.ruleSetKey, businessKey: params.businessKey || '' },
           payload: {
             executionId: saved.id,
@@ -275,6 +279,7 @@ export class RuleEngineService {
             eventType: sideEffect.type === 'emit' ? 'RuleEmitted' : 'RuleCalled',
             eventVersion: 1,
             correlationId: uuidv4(),
+            tenantId: params.tenantId,
             subject: { ruleSetKey: params.ruleSetKey, businessKey: params.businessKey || '' },
             payload: sideEffect.payload,
           });

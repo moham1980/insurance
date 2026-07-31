@@ -8,6 +8,7 @@ import { Installment } from './entities/Installment';
 import { IGatewayProvider } from './payment-gateway/gateway-provider.interface';
 import { ZarinpalProvider } from './payment-gateway/zarinpal.provider';
 import { IdPayProvider } from './payment-gateway/idpay.provider';
+import { ReceivableService } from './receivable.service';
 
 @Injectable()
 export class CollectionsService {
@@ -17,7 +18,8 @@ export class CollectionsService {
   constructor(
     private readonly dataSource: DataSource,
     @InjectRepository(InstallmentPlan) private readonly planRepo: Repository<InstallmentPlan>,
-    @InjectRepository(Installment) private readonly instRepo: Repository<Installment>
+    @InjectRepository(Installment) private readonly instRepo: Repository<Installment>,
+    private readonly receivableService: ReceivableService,
   ) {
     const gateway = process.env.COLLECTIONS_GATEWAY_PROVIDER || 'zarinpal';
     const sandbox = process.env.COLLECTIONS_GATEWAY_SANDBOX === 'true';
@@ -41,6 +43,8 @@ export class CollectionsService {
     correlationId: string;
     idempotencyKey: string;
     policyId: string;
+    tenantId?: string;
+    brokerOrganizationId?: string;
     premiumAmount: number;
     currency?: string;
     installments: Array<{ dueDate: string; amount: number; currency?: string }>;
@@ -63,6 +67,8 @@ export class CollectionsService {
       const plan = planRepo.create({
         planId: uuidv4(),
         policyId: params.policyId,
+        tenantId: params.tenantId || null,
+        brokerOrganizationId: params.brokerOrganizationId || null,
         premiumAmount: params.premiumAmount,
         currency: params.currency || 'IRR',
         status: 'active',
@@ -101,6 +107,27 @@ export class CollectionsService {
 
       await instRepo.save(installments);
 
+      // Publish receivable creation requests for each installment to link with billing-service receivables
+      for (const inst of installments) {
+        await outbox.publish({
+          topic: 'insurance.collections.receivable.creation.requested',
+          eventType: 'ReceivableCreationRequested',
+          eventVersion: 1,
+          correlationId: params.correlationId,
+          subject: { policyId: inst.policyId, planId: inst.planId, installmentId: inst.installmentId },
+          payload: {
+            installmentId: inst.installmentId,
+            planId: inst.planId,
+            policyId: inst.policyId,
+            installmentNo: inst.installmentNo,
+            amount: inst.amount,
+            currency: inst.currency,
+            dueDate: inst.dueDate.toISOString(),
+            premiumAmount: plan.premiumAmount,
+          },
+        });
+      }
+
       await outbox.publish({
         topic: 'insurance.collections.plan.created',
         eventType: 'InstallmentPlanCreated',
@@ -110,6 +137,8 @@ export class CollectionsService {
         payload: {
           planId: plan.planId,
           policyId: plan.policyId,
+          tenantId: plan.tenantId,
+          brokerOrganizationId: plan.brokerOrganizationId,
           premiumAmount: plan.premiumAmount,
           currency: plan.currency,
           status: plan.status,
@@ -133,10 +162,12 @@ export class CollectionsService {
     return await this.planRepo.findOne({ where: { planId } });
   }
 
-  async listPlans(params: { policyId?: string; status?: string; limit: number; offset: number }): Promise<{ rows: InstallmentPlan[]; total: number }> {
+  async listPlans(params: { policyId?: string; status?: string; tenantId?: string; brokerOrganizationId?: string; limit: number; offset: number }): Promise<{ rows: InstallmentPlan[]; total: number }> {
     const qb = this.planRepo.createQueryBuilder('p');
     if (params.policyId) qb.andWhere('p.policy_id = :policyId', { policyId: params.policyId });
     if (params.status) qb.andWhere('p.status = :status', { status: params.status });
+    if (params.tenantId) qb.andWhere('p.tenant_id = :tenantId', { tenantId: params.tenantId });
+    if (params.brokerOrganizationId) qb.andWhere('p.broker_organization_id = :brokerOrgId', { brokerOrgId: params.brokerOrganizationId });
     qb.orderBy('p.updated_at', 'DESC').limit(params.limit).offset(params.offset);
     const [rows, total] = await qb.getManyAndCount();
     return { rows, total };
@@ -150,6 +181,7 @@ export class CollectionsService {
     planId?: string;
     policyId?: string;
     status?: string;
+    brokerOrganizationId?: string;
     limit: number;
     offset: number;
   }): Promise<{ rows: Installment[]; total: number }> {
@@ -157,6 +189,10 @@ export class CollectionsService {
     if (params.planId) qb.andWhere('i.plan_id = :planId', { planId: params.planId });
     if (params.policyId) qb.andWhere('i.policy_id = :policyId', { policyId: params.policyId });
     if (params.status) qb.andWhere('i.status = :status', { status: params.status });
+    if (params.brokerOrganizationId) {
+      qb.innerJoin(InstallmentPlan, 'p', 'p.plan_id = i.plan_id')
+        .andWhere('p.broker_organization_id = :brokerOrgId', { brokerOrgId: params.brokerOrganizationId });
+    }
     qb.orderBy('i.due_date', 'ASC').limit(params.limit).offset(params.offset);
     const [rows, total] = await qb.getManyAndCount();
     return { rows, total };
@@ -169,6 +205,7 @@ export class CollectionsService {
     providerRef?: string;
     paidAt?: string;
     details?: Record<string, any>;
+    partialAmount?: number;
   }): Promise<Installment | null> {
     return await this.dataSource.transaction(async (manager) => {
       const repo = manager.getRepository(Installment);
@@ -181,7 +218,7 @@ export class CollectionsService {
         return inst;
       }
 
-      if (inst.status !== 'pending') {
+      if (inst.status !== 'pending' && inst.status !== 'partially_paid') {
         const err: any = new Error(`Invalid state transition: ${inst.status} -> paid`);
         err.code = 'INVALID_STATE';
         throw err;
@@ -194,13 +231,104 @@ export class CollectionsService {
         }
       }
 
+      const totalDue = Number(inst.totalAmount || inst.amount);
+      const currentPaid = Number(inst.paidAmount || 0);
+
+      if (params.partialAmount !== undefined && params.partialAmount > 0 && params.partialAmount < (totalDue - currentPaid)) {
+        const newPaidAmount = currentPaid + params.partialAmount;
+        const isFullyPaid = newPaidAmount >= totalDue;
+
+        inst.status = isFullyPaid ? 'paid' : 'partially_paid';
+        inst.paidAmount = newPaidAmount;
+        inst.provider = params.provider || inst.provider || null;
+        inst.providerRef = params.providerRef || inst.providerRef || null;
+        if (isFullyPaid) {
+          inst.paidAt = params.paidAt ? new Date(params.paidAt) : new Date();
+        }
+        inst.paymentDetails = {
+          ...(inst.paymentDetails || {}),
+          ...(params.details || {}),
+          partialPayment: true,
+          partialAmount: params.partialAmount,
+          cumulativePaid: newPaidAmount,
+          totalDue,
+        };
+        inst.updatedAt = new Date();
+        await repo.save(inst);
+
+        if (inst.receivableId) {
+          await outbox.publish({
+            topic: 'insurance.collections.installment.receivable.sync',
+            eventType: 'InstallmentReceivableSync',
+            eventVersion: 1,
+            correlationId: params.correlationId,
+            subject: { policyId: inst.policyId, planId: inst.planId, installmentId: inst.installmentId },
+            payload: {
+              installmentId: inst.installmentId,
+              receivableId: inst.receivableId,
+              installmentStatus: inst.status,
+              expectedReceivableStatus: isFullyPaid ? 'paid' : 'partially_paid',
+              amount: totalDue,
+              paidAmount: newPaidAmount,
+              currency: inst.currency,
+            },
+          });
+        }
+
+        await outbox.publish({
+          topic: 'insurance.collections.installment.paid',
+          eventType: 'InstallmentPaid',
+          eventVersion: 1,
+          correlationId: params.correlationId,
+          subject: { policyId: inst.policyId, planId: inst.planId, installmentId: inst.installmentId },
+          payload: {
+            installmentId: inst.installmentId,
+            planId: inst.planId,
+            policyId: inst.policyId,
+            installmentNo: inst.installmentNo,
+            amount: inst.amount,
+            paidAmount: params.partialAmount,
+            cumulativePaid: newPaidAmount,
+            totalDue,
+            currency: inst.currency,
+            status: inst.status,
+            isPartial: !isFullyPaid,
+            paidAt: inst.paidAt?.toISOString?.() ?? new Date().toISOString(),
+            provider: inst.provider,
+            providerRef: inst.providerRef,
+          },
+        });
+
+        return inst;
+      }
+
       inst.status = 'paid';
+      inst.paidAmount = totalDue;
       inst.provider = params.provider || null;
       inst.providerRef = params.providerRef || null;
       inst.paidAt = params.paidAt ? new Date(params.paidAt) : new Date();
       inst.paymentDetails = params.details || null;
       inst.updatedAt = new Date();
       await repo.save(inst);
+
+      // Sync receivable status if linked
+      if (inst.receivableId) {
+        await outbox.publish({
+          topic: 'insurance.collections.installment.receivable.sync',
+          eventType: 'InstallmentReceivableSync',
+          eventVersion: 1,
+          correlationId: params.correlationId,
+          subject: { policyId: inst.policyId, planId: inst.planId, installmentId: inst.installmentId },
+          payload: {
+            installmentId: inst.installmentId,
+            receivableId: inst.receivableId,
+            installmentStatus: inst.status,
+            expectedReceivableStatus: 'paid',
+            amount: inst.totalAmount || inst.amount,
+            currency: inst.currency,
+          },
+        });
+      }
 
       await outbox.publish({
         topic: 'insurance.collections.installment.paid',
@@ -368,6 +496,7 @@ export class CollectionsService {
   }): Promise<Installment> {
     return await this.dataSource.transaction(async (manager) => {
       const repo = manager.getRepository(Installment);
+      const planRepo = manager.getRepository(InstallmentPlan);
       const outbox = new OutboxPublisher(manager);
 
       const inst = await repo.findOne({ where: { installmentId: params.installmentId } });
@@ -377,6 +506,9 @@ export class CollectionsService {
         throw err;
       }
 
+      const plan = await planRepo.findOne({ where: { planId: inst.planId } });
+      const brokerOrganizationId = plan?.brokerOrganizationId || null;
+
       const now = new Date();
       const graceEnd = new Date(inst.dueDate);
       graceEnd.setDate(graceEnd.getDate() + params.gracePeriodDays);
@@ -385,6 +517,27 @@ export class CollectionsService {
       inst.gracePeriodEnd = graceEnd;
       inst.updatedAt = new Date();
       await repo.save(inst);
+
+      // Sync receivable status if linked (overdue installment -> receivable remains open but flagged)
+      if (inst.receivableId) {
+        await outbox.publish({
+          topic: 'insurance.collections.installment.receivable.sync',
+          eventType: 'InstallmentReceivableSync',
+          eventVersion: 1,
+          correlationId: params.correlationId,
+          subject: { policyId: inst.policyId, planId: inst.planId, installmentId: inst.installmentId },
+          payload: {
+            installmentId: inst.installmentId,
+            receivableId: inst.receivableId,
+            installmentStatus: inst.status,
+            expectedReceivableStatus: 'open',
+            overdue: true,
+            gracePeriodEnd: graceEnd.toISOString(),
+            amount: inst.totalAmount || inst.amount,
+            currency: inst.currency,
+          },
+        });
+      }
 
       await outbox.publish({
         topic: 'insurance.collections.installment.overdue',
@@ -402,8 +555,32 @@ export class CollectionsService {
           currency: inst.currency,
           gracePeriodEnd: graceEnd.toISOString(),
           markedBy: params.actorUserId,
+          brokerOrganizationId,
         },
       });
+
+      // Publish broker-specific overdue notification event
+      if (brokerOrganizationId) {
+        await outbox.publish({
+          topic: 'insurance.collections.installment.overdue.broker-notification',
+          eventType: 'BrokerOverdueNotification',
+          eventVersion: 1,
+          correlationId: params.correlationId,
+          subject: { policyId: inst.policyId, planId: inst.planId, installmentId: inst.installmentId, brokerOrganizationId },
+          payload: {
+            installmentId: inst.installmentId,
+            planId: inst.planId,
+            policyId: inst.policyId,
+            installmentNo: inst.installmentNo,
+            dueDate: inst.dueDate.toISOString(),
+            amount: inst.amount,
+            currency: inst.currency,
+            gracePeriodEnd: graceEnd.toISOString(),
+            brokerOrganizationId,
+            notificationType: 'installment_overdue',
+          },
+        });
+      }
 
       return inst;
     });
@@ -499,6 +676,153 @@ export class CollectionsService {
     }
 
     return { success: false, error: 'Payment not verified by gateway' };
+  }
+
+  async waiveInstallment(params: {
+    correlationId: string;
+    installmentId: string;
+    reason: string;
+    actorUserId: string;
+  }): Promise<Installment> {
+    return await this.dataSource.transaction(async (manager) => {
+      const repo = manager.getRepository(Installment);
+      const outbox = new OutboxPublisher(manager);
+
+      const inst = await repo.findOne({ where: { installmentId: params.installmentId } });
+      if (!inst) {
+        const err: any = new Error('Installment not found');
+        err.code = 'NOT_FOUND';
+        throw err;
+      }
+
+      if (inst.status !== 'pending') {
+        const err: any = new Error(`Cannot waive installment in status ${inst.status}. Must be pending.`);
+        err.code = 'INVALID_STATE';
+        throw err;
+      }
+
+      inst.status = 'waived';
+      inst.paymentDetails = {
+        ...(inst.paymentDetails || {}),
+        waived: true,
+        waiverReason: params.reason,
+        waivedBy: params.actorUserId,
+        waivedAt: new Date().toISOString(),
+      };
+      inst.updatedAt = new Date();
+      await repo.save(inst);
+
+      if (inst.receivableId) {
+        await outbox.publish({
+          topic: 'insurance.collections.installment.receivable.sync',
+          eventType: 'InstallmentReceivableSync',
+          eventVersion: 1,
+          correlationId: params.correlationId,
+          subject: { policyId: inst.policyId, planId: inst.planId, installmentId: inst.installmentId },
+          payload: {
+            installmentId: inst.installmentId,
+            receivableId: inst.receivableId,
+            installmentStatus: inst.status,
+            expectedReceivableStatus: 'waived',
+            amount: inst.totalAmount || inst.amount,
+            currency: inst.currency,
+          },
+        });
+      }
+
+      await outbox.publish({
+        topic: 'insurance.collections.installment.waived',
+        eventType: 'InstallmentWaived',
+        eventVersion: 1,
+        correlationId: params.correlationId,
+        subject: { policyId: inst.policyId, planId: inst.planId, installmentId: inst.installmentId },
+        payload: {
+          installmentId: inst.installmentId,
+          planId: inst.planId,
+          policyId: inst.policyId,
+          installmentNo: inst.installmentNo,
+          amount: inst.amount,
+          currency: inst.currency,
+          reason: params.reason,
+          waivedBy: params.actorUserId,
+          waivedAt: new Date().toISOString(),
+        },
+      });
+
+      return inst;
+    });
+  }
+
+  async rescheduleInstallment(params: {
+    correlationId: string;
+    installmentId: string;
+    newDueDate: string;
+    reason: string;
+    actorUserId: string;
+  }): Promise<Installment> {
+    return await this.dataSource.transaction(async (manager) => {
+      const repo = manager.getRepository(Installment);
+      const outbox = new OutboxPublisher(manager);
+
+      const inst = await repo.findOne({ where: { installmentId: params.installmentId } });
+      if (!inst) {
+        const err: any = new Error('Installment not found');
+        err.code = 'NOT_FOUND';
+        throw err;
+      }
+
+      if (inst.status === 'paid' || inst.status === 'waived' || inst.status === 'cancelled') {
+        const err: any = new Error(`Cannot reschedule installment in status ${inst.status}`);
+        err.code = 'INVALID_STATE';
+        throw err;
+      }
+
+      const newDate = new Date(params.newDueDate);
+      if (isNaN(newDate.getTime())) {
+        const err: any = new Error('newDueDate must be a valid ISO date string');
+        err.code = 'VALIDATION_ERROR';
+        throw err;
+      }
+
+      const previousDueDate = inst.dueDate;
+      inst.dueDate = newDate;
+      inst.gracePeriodEnd = null;
+      inst.overdueNotifiedAt = null;
+      inst.lateFeeAmount = null;
+      inst.lateFeeDays = null;
+      inst.totalAmount = null;
+      inst.paymentDetails = {
+        ...(inst.paymentDetails || {}),
+        rescheduled: true,
+        previousDueDate: previousDueDate.toISOString(),
+        rescheduleReason: params.reason,
+        rescheduledBy: params.actorUserId,
+        rescheduledAt: new Date().toISOString(),
+      };
+      inst.updatedAt = new Date();
+      await repo.save(inst);
+
+      await outbox.publish({
+        topic: 'insurance.collections.installment.rescheduled',
+        eventType: 'InstallmentRescheduled',
+        eventVersion: 1,
+        correlationId: params.correlationId,
+        subject: { policyId: inst.policyId, planId: inst.planId, installmentId: inst.installmentId },
+        payload: {
+          installmentId: inst.installmentId,
+          planId: inst.planId,
+          policyId: inst.policyId,
+          installmentNo: inst.installmentNo,
+          previousDueDate: previousDueDate.toISOString(),
+          newDueDate: newDate.toISOString(),
+          reason: params.reason,
+          rescheduledBy: params.actorUserId,
+          rescheduledAt: new Date().toISOString(),
+        },
+      });
+
+      return inst;
+    });
   }
 
   async handleGatewayCallback(params: {

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ClaimsService } from './claims.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { PermissionsGuard } from './permissions.guard';
@@ -23,11 +23,13 @@ export class ClaimsController {
     return undefined;
   }
 
-  private getUserInfo(req: any): { tenantId?: string; actor?: string; authorization?: string } {
+  private getUserInfo(req: any): { tenantId?: string; actor?: string; authorization?: string; organizationId?: string; roles?: string[] } {
     const user = req?.user || {};
     return {
       tenantId: user.tenantId || user.tenant_id,
       actor: user.userId || user.sub,
+      organizationId: user.organizationId || user.organization_id,
+      roles: Array.isArray(user.roles) ? user.roles : [],
     };
   }
 
@@ -52,6 +54,8 @@ export class ClaimsController {
       'POLICY_NOT_FOUND',
       'POLICY_SERVICE_NOT_CONFIGURED',
       'SAGA_START_FAILED',
+      'NO_DISTRIBUTION_AGREEMENT',
+      'DUPLICATE_CLAIM',
     ]);
     return {
       success: false,
@@ -103,7 +107,16 @@ export class ClaimsController {
         tenantId,
         actorUserId: actor,
         policyId: body.policyId,
+        policyNumber: body.policyNumber,
         claimantPartyId: body.claimantPartyId,
+        brokerOrganizationId: body.brokerOrganizationId,
+        distributionOrganizationId: body.distributionOrganizationId,
+        carrierOrganizationId: body.carrierOrganizationId,
+        recordOwnerOrganizationId: body.recordOwnerOrganizationId,
+        authoritativeTenantId: body.authoritativeTenantId,
+        representativePartyId: body.representativePartyId,
+        claimType: body.claimType,
+        notificationChannel: body.notificationChannel,
         lossDate: body.lossDate,
         lossType: body.lossType,
         description: body.description,
@@ -340,8 +353,8 @@ export class ClaimsController {
   @RequirePermissions('claims:view')
   async get(@Headers() headers: Record<string, any>, @Req() req: any, @Param('claimId') claimId: string) {
     const correlationId = this.getCorrelationId(headers);
-    const { tenantId } = this.getUserInfo(req);
-    const claim = await this.claimsService.getClaim({ claimId, tenantId });
+    const { tenantId, organizationId, roles } = this.getUserInfo(req);
+    const claim = await this.claimsService.getClaim({ claimId, tenantId, organizationId, roles });
     if (!claim) {
       return {
         success: false,
@@ -351,6 +364,45 @@ export class ClaimsController {
     }
 
     return { success: true, data: claim, correlationId };
+  }
+
+  @Patch('/claims/:claimId')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('claims:edit')
+  async updateClaim(
+    @Headers() headers: Record<string, any>,
+    @Req() req: any,
+    @Param('claimId') claimId: string,
+    @Body() body: any,
+  ) {
+    const correlationId = this.getCorrelationId(headers);
+    const { tenantId, actor } = this.getUserInfo(req);
+
+    try {
+      const claim = await this.claimsService.updateClaim({
+        correlationId,
+        tenantId,
+        actorUserId: actor,
+        claimId,
+        updates: body,
+      });
+
+      if (!claim) {
+        return {
+          success: false,
+          error: { code: 'NOT_FOUND', message: `Claim with ID ${claimId} not found` },
+          correlationId,
+        };
+      }
+
+      return { success: true, data: claim, correlationId };
+    } catch (e: any) {
+      return {
+        success: false,
+        error: { code: e.code || 'INTERNAL_ERROR', message: e.message },
+        correlationId,
+      };
+    }
   }
 
   @Get('/claims')
@@ -365,7 +417,7 @@ export class ClaimsController {
     @Query('offset') offset: string = '0'
   ) {
     const correlationId = this.getCorrelationId(headers);
-    const { tenantId } = this.getUserInfo(req);
+    const { tenantId, organizationId, roles } = this.getUserInfo(req);
 
     const lim = Math.min(parseInt(limit, 10) || 20, 200);
     const off = parseInt(offset, 10);
@@ -376,6 +428,8 @@ export class ClaimsController {
       status,
       limit: Number.isFinite(lim) ? lim : 20,
       offset: Number.isFinite(off) ? off : 0,
+      organizationId,
+      roles,
     });
 
     return {
@@ -591,6 +645,97 @@ export class ClaimsController {
     } catch (e: any) {
       auditLogger.error('claims.validate_policy.failed', e, { correlationId, tenantId, actor, action: 'claims:assess', claimId });
       return this.formatError(e, correlationId, 'Failed to validate policy');
+    }
+  }
+
+  @Post('/claims/:claimId/acknowledge')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('claims:view')
+  async acknowledgeClaim(@Headers() headers: Record<string, any>, @Req() req: any, @Param('claimId') claimId: string) {
+    const correlationId = this.getCorrelationId(headers);
+    const { tenantId, actor } = this.getUserInfo(req);
+
+    try {
+      const claim = await this.claimsService.acknowledgeClaim({ correlationId, tenantId, actorUserId: actor, claimId });
+      if (!claim) return { success: false, error: { code: 'NOT_FOUND', message: `Claim ${claimId} not found` }, correlationId };
+      return { success: true, data: { claimId, status: claim.status }, correlationId };
+    } catch (e: any) {
+      return this.formatError(e, correlationId, 'Failed to acknowledge claim');
+    }
+  }
+
+  @Post('/claims/:claimId/submit-to-carrier')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('claims:register')
+  async submitToCarrier(
+    @Headers() headers: Record<string, any>,
+    @Req() req: any,
+    @Param('claimId') claimId: string,
+    @Body() body: any
+  ) {
+    const correlationId = this.getCorrelationId(headers);
+    const { tenantId, actor } = this.getUserInfo(req);
+
+    try {
+      const claim = await this.claimsService.submitClaimToCarrier({
+        correlationId,
+        tenantId,
+        actorUserId: actor,
+        claimId,
+        externalClaimId: body.externalClaimId,
+      });
+      if (!claim) return { success: false, error: { code: 'NOT_FOUND', message: `Claim ${claimId} not found` }, correlationId };
+      return { success: true, data: { claimId, status: claim.status, externalClaimId: claim.externalClaimId }, correlationId };
+    } catch (e: any) {
+      return this.formatError(e, correlationId, 'Failed to submit claim to carrier');
+    }
+  }
+
+  @Post('/claims/:claimId/appeal')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('claims:reject')
+  async appealClaim(
+    @Headers() headers: Record<string, any>,
+    @Req() req: any,
+    @Param('claimId') claimId: string,
+    @Body() body: any
+  ) {
+    const correlationId = this.getCorrelationId(headers);
+    const { tenantId, actor } = this.getUserInfo(req);
+
+    if (!body?.reason) {
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'reason is required' }, correlationId };
+    }
+
+    try {
+      const claim = await this.claimsService.appealClaim({
+        correlationId,
+        tenantId,
+        actorUserId: actor,
+        claimId,
+        reason: body.reason,
+      });
+      if (!claim) return { success: false, error: { code: 'NOT_FOUND', message: `Claim ${claimId} not found` }, correlationId };
+      return { success: true, data: { claimId, status: claim.status }, correlationId };
+    } catch (e: any) {
+      return this.formatError(e, correlationId, 'Failed to appeal claim');
+    }
+  }
+
+  @Get('/claims/:claimId/history')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('claims:view')
+  async getClaimHistory(@Headers() headers: Record<string, any>, @Req() req: any, @Param('claimId') claimId: string) {
+    const correlationId = this.getCorrelationId(headers);
+    const { tenantId, organizationId, roles } = this.getUserInfo(req);
+
+    try {
+      const claim = await this.claimsService.getClaim({ claimId, tenantId, organizationId, roles });
+      if (!claim) return { success: false, error: { code: 'NOT_FOUND', message: `Claim ${claimId} not found` }, correlationId };
+      const history = this.claimsService.getClaimHistory(claim);
+      return { success: true, data: { claimId, history }, correlationId };
+    } catch (e: any) {
+      return this.formatError(e, correlationId, 'Failed to get claim history');
     }
   }
 }

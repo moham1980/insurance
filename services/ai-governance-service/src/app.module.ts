@@ -14,6 +14,7 @@ import { MonitoringDashboardService } from './services/monitoring-dashboard.serv
 import { MroDashboardService } from './services/mro-dashboard.service';
 import { ValidationWorkflowService } from './services/validation-workflow.service';
 import { EcosystemSyncService } from './services/ecosystem-sync.service';
+import { BiasEvaluationSchedulerService } from './services/bias-evaluation-scheduler.service';
 
 import { AbacGuard } from './abac.guard';
 import { TenantGuard } from './tenant.guard';
@@ -33,6 +34,7 @@ import { OutboxEvent } from '@insurance/shared';
     DeploymentApprovalGateService, MonitoringDashboardService,
     MroDashboardService, ValidationWorkflowService,
     EcosystemSyncService,
+    BiasEvaluationSchedulerService,
   ],
 })
 export class AppModule {}

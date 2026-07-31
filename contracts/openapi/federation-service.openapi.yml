@@ -1,0 +1,514 @@
+openapi: 3.0.3
+info:
+  title: Federation Service API
+  version: 1.0.0
+  description: |
+    Federation Service for cross-tenant projection sync, reconciliation,
+    event routing, and partner health monitoring.
+servers:
+  - url: http://localhost:3020
+    description: Local development
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: Service healthy
+
+  /federation/projections/sync:
+    post:
+      summary: Trigger projection sync for a tenant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tenantId:
+                  type: string
+                entityType:
+                  type: string
+                  enum: [policy, claim]
+                batchSize:
+                  type: integer
+                  default: 100
+      responses:
+        '200':
+          description: Sync completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  synced:
+                    type: integer
+                  skipped:
+                    type: integer
+                  errors:
+                    type: integer
+
+  /federation/projections/reconcile:
+    post:
+      summary: Run projection reconciliation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tenantId:
+                  type: string
+                issuerOrganizationId:
+                  type: string
+                autoRepair:
+                  type: boolean
+                  default: false
+                batchSize:
+                  type: integer
+                  default: 100
+      responses:
+        '200':
+          description: Reconciliation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReconciliationResult'
+
+  /federation/projections/{policyId}:
+    get:
+      summary: Get active projection for a policy
+      parameters:
+        - name: policyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Active projection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyProjection'
+        '404':
+          description: Projection not found
+
+  /federation/partners/health:
+    get:
+      summary: Get health status for all partners
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Partner health statuses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PartnerHealthStatus'
+
+  /federation/partners/{partnerId}/health:
+    get:
+      summary: Get health status for a specific partner
+      parameters:
+        - name: partnerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Partner health status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartnerHealthStatus'
+
+  /federation/sync-latency:
+    get:
+      summary: Get sync latency metrics
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Sync latency metrics
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SyncLatencyMetric'
+
+  /federation/consents:
+    post:
+      summary: Grant cross-tenant consent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GrantConsentRequest'
+      responses:
+        '201':
+          description: Consent granted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Consent'
+
+  /federation/consents/{consentId}:
+    get:
+      summary: Get consent by ID
+      parameters:
+        - name: consentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Consent details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Consent'
+        '404':
+          description: Consent not found
+
+  /federation/consents/{consentId}/revoke:
+    post:
+      summary: Revoke consent
+      parameters:
+        - name: consentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Consent revoked
+
+  /federation/consents/check:
+    post:
+      summary: Check if consent exists for a data access request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                globalSubjectId:
+                  type: string
+                targetTenantId:
+                  type: string
+                consentType:
+                  type: string
+                  enum: [data_sharing, cross_tenant_access, pii_projection]
+                dataCategory:
+                  type: string
+      responses:
+        '200':
+          description: Consent check result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  allowed:
+                    type: boolean
+
+  /federation/global-subjects/{globalSubjectId}/projection:
+    post:
+      summary: Create federated projection for a global subject
+      parameters:
+        - name: globalSubjectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sourceTenantId:
+                  type: string
+                targetTenantId:
+                  type: string
+                targetOrganizationId:
+                  type: string
+                consentType:
+                  type: string
+                  enum: [data_sharing, cross_tenant_access, pii_projection]
+                dataCategories:
+                  type: array
+                  items:
+                    type: string
+                purpose:
+                  type: string
+      responses:
+        '201':
+          description: Federated projection created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  consentId:
+                    type: string
+                  projection:
+                    $ref: '#/components/schemas/GlobalSubjectProjection'
+
+  /federation/event-routes:
+    post:
+      summary: Resolve event routes for cross-tenant delivery
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sourceTenantId:
+                  type: string
+                eventType:
+                  type: string
+                projectedIn:
+                  type: array
+                  items:
+                    type: string
+                sourceOrganizationId:
+                  type: string
+                targetOrganizations:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Resolved routes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    topic:
+                      type: string
+                    targetTenantIds:
+                      type: array
+                      items:
+                        type: string
+                    sourceTenantId:
+                      type: string
+                    allowedOrganizations:
+                      type: array
+                      items:
+                        type: string
+
+components:
+  schemas:
+    ReconciliationResult:
+      type: object
+      properties:
+        totalProjections:
+          type: integer
+        matched:
+          type: integer
+        mismatched:
+          type: integer
+        missing:
+          type: integer
+        stale:
+          type: integer
+        repaired:
+          type: integer
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              projectionId:
+                type: string
+              policyId:
+                type: string
+              issue:
+                type: string
+              repaired:
+                type: boolean
+
+    PolicyProjection:
+      type: object
+      properties:
+        projectionId:
+          type: string
+        policyId:
+          type: string
+        policyNumber:
+          type: string
+        tenantId:
+          type: string
+        sourceVersion:
+          type: integer
+        status:
+          type: string
+        payload:
+          type: object
+        receivedAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PartnerHealthStatus:
+      type: object
+      properties:
+        partnerId:
+          type: string
+        tenantId:
+          type: string
+        partnerTenantId:
+          type: string
+        status:
+          type: string
+          enum: [healthy, degraded, unreachable]
+        certExpiryDays:
+          type: integer
+          nullable: true
+        lastCheckedAt:
+          type: string
+          format: date-time
+        details:
+          type: string
+
+    SyncLatencyMetric:
+      type: object
+      properties:
+        tenantId:
+          type: string
+        totalProjections:
+          type: integer
+        staleCount:
+          type: integer
+        maxLagSeconds:
+          type: integer
+        avgLagSeconds:
+          type: integer
+        measuredAt:
+          type: string
+          format: date-time
+
+    GrantConsentRequest:
+      type: object
+      required:
+        - globalSubjectId
+        - sourceTenantId
+        - targetTenantId
+        - consentType
+        - dataCategories
+        - purpose
+      properties:
+        globalSubjectId:
+          type: string
+        sourceTenantId:
+          type: string
+        targetTenantId:
+          type: string
+        targetOrganizationId:
+          type: string
+        consentType:
+          type: string
+          enum: [data_sharing, cross_tenant_access, pii_projection]
+        dataCategories:
+          type: array
+          items:
+            type: string
+        purpose:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+
+    Consent:
+      type: object
+      properties:
+        consentId:
+          type: string
+        globalSubjectId:
+          type: string
+        sourceTenantId:
+          type: string
+        targetTenantId:
+          type: string
+        targetOrganizationId:
+          type: string
+          nullable: true
+        consentType:
+          type: string
+        dataCategories:
+          type: array
+          items:
+            type: string
+        purpose:
+          type: string
+        status:
+          type: string
+          enum: [granted, revoked, expired]
+        grantedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        revokedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    GlobalSubjectProjection:
+      type: object
+      properties:
+        globalSubjectId:
+          type: string
+        targetTenantId:
+          type: string
+        targetOrganizationId:
+          type: string
+        blindIndex:
+          type: string
+        verificationLevel:
+          type: string
+        consentId:
+          type: string

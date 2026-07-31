@@ -1,16 +1,53 @@
 import { Entity, PrimaryGeneratedColumn, Column, Index, CreateDateColumn, UpdateDateColumn, VersionColumn } from 'typeorm';
 
+export type ClaimStatus =
+  | 'reported'
+  | 'registered'
+  | 'acknowledged'
+  | 'under_review'
+  | 'adjuster_assigned'
+  | 'assessed'
+  | 'approved'
+  | 'rejected'
+  | 'denied'
+  | 'paid'
+  | 'settled'
+  | 'closed'
+  | 'appealed';
+
+export type ClaimNotificationChannel = 'web' | 'mobile_app' | 'sms' | 'email' | 'call_center';
+
 @Entity('claims')
 @Index(['claimNumber'], { unique: true })
 @Index(['policyId'])
 @Index(['status', 'updatedAt'])
 @Index(['tenantId'])
+@Index(['carrierOrganizationId'])
+@Index(['distributionOrganizationId'])
+@Index(['brokerOrganizationId'])
+@Index(['claimantPartyId'])
+@Index(['recordOwnerOrganizationId'])
 export class Claim {
   @PrimaryGeneratedColumn('uuid', { name: 'claim_id' })
   claimId: string;
 
   @Column({ name: 'tenant_id', type: 'uuid' })
   tenantId: string;
+
+  @Column({ name: 'authoritative_tenant_id', type: 'uuid' })
+  authoritativeTenantId: string;
+
+  @Column({ name: 'record_owner_organization_id', type: 'uuid' })
+  recordOwnerOrganizationId: string;
+
+  @Column({ name: 'carrier_organization_id', type: 'uuid' })
+  carrierOrganizationId: string;
+
+  @Column({ name: 'distribution_organization_id', type: 'uuid', nullable: true })
+  distributionOrganizationId: string | null;
+
+  @Column({ name: 'broker_organization_id', type: 'uuid', nullable: true })
+  brokerOrganizationId: string | null;
 
   @Column({ name: 'claim_number', type: 'text', unique: true })
   claimNumber: string;
@@ -21,8 +58,20 @@ export class Claim {
   @Column({ name: 'policy_id', type: 'uuid' })
   policyId: string;
 
+  @Column({ name: 'policy_number', type: 'text', nullable: true })
+  policyNumber: string | null;
+
+  @Column({ name: 'external_claim_id', type: 'text', nullable: true })
+  externalClaimId: string | null;
+
   @Column({ name: 'claimant_party_id', type: 'uuid' })
   claimantPartyId: string;
+
+  @Column({ name: 'representative_party_id', type: 'uuid', nullable: true })
+  representativePartyId: string | null;
+
+  @Column({ name: 'claim_type', type: 'text', default: 'first_party' })
+  claimType: string;
 
   @Column({ name: 'loss_date', type: 'timestamptz' })
   lossDate: Date;
@@ -33,8 +82,11 @@ export class Claim {
   @Column({ name: 'description', type: 'text', nullable: true })
   description: string | null;
 
+  @Column({ name: 'reported_date', type: 'timestamptz', default: () => 'NOW()' })
+  reportedDate: Date;
+
   @Column({ name: 'status', type: 'text', default: 'registered' })
-  status: 'registered' | 'assessed' | 'approved' | 'paid' | 'closed' | 'rejected' | 'adjuster_review';
+  status: ClaimStatus;
 
   @Column({ name: 'assessed_amount', type: 'numeric', nullable: true })
   assessedAmount: number | null;
@@ -44,6 +96,12 @@ export class Claim {
 
   @Column({ name: 'paid_amount', type: 'numeric', nullable: true })
   paidAmount: number | null;
+
+  @Column({ name: 'reserve_amount', type: 'numeric', nullable: true })
+  reserveAmount: number | null;
+
+  @Column({ name: 'settlement_amount', type: 'numeric', nullable: true })
+  settlementAmount: number | null;
 
   // Deductible and franchise fields
   @Column({ name: 'deductible_amount', type: 'numeric', nullable: true })

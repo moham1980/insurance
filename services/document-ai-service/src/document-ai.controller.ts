@@ -3,13 +3,17 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { PermissionsGuard } from './permissions.guard';
 import { RequirePermissions } from './permissions.decorator';
 import { DocumentAiService } from './document-ai.service';
+import { OcrService, OcrProvider } from './ocr/ocr.service';
 import { auditLogger } from './audit.logger';
 import { AbacGuard } from './abac.guard';
 import { TenantGuard } from './tenant.guard';
 
 @Controller()
 export class DocumentAiController {
-  constructor(private readonly documentAiService: DocumentAiService) {}
+  constructor(
+    private readonly documentAiService: DocumentAiService,
+    private readonly ocrService: OcrService,
+  ) {}
 
   private getCorrelationId(headers: Record<string, any>): string {
     const cid = headers['x-correlation-id'] || headers['X-Correlation-Id'];
@@ -265,5 +269,88 @@ export class DocumentAiController {
 
     const res = await this.documentAiService.listEvalResults({ runId: String(runId), limit: lim, offset: off });
     return { success: true, data: res.rows, pagination: { total: res.total, limit: lim, offset: off }, correlationId };
+  }
+
+  @Post('/document-ai/documents/:documentId/redact')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('document_ai:ocr:redact')
+  async redactDocument(@Param('documentId') documentId: string, @Req() req: any, @Headers() headers: Record<string, any>) {
+    const correlationId = String(req?.correlationId || this.getCorrelationId(headers));
+    const tenantId = req?.user?.tenantId as string | undefined;
+    const actorUserId = req?.user?.userId as string | undefined;
+    auditLogger.info('document_ai.ocr.redact.request', { correlationId, action: 'document_ai:ocr:redact', documentId });
+    try {
+      const result = await this.documentAiService.redactDocument({ documentId, tenantId, actorUserId, correlationId });
+      return { success: true, data: result, correlationId };
+    } catch (e: any) {
+      const err = e instanceof Error ? e : new Error(String(e));
+      auditLogger.error('document_ai.ocr.redact.failed', err, { correlationId, action: 'document_ai:ocr:redact', documentId });
+      return { success: false, error: { code: e.message === 'Document not found' ? 'NOT_FOUND' : 'INTERNAL_ERROR', message: e.message }, correlationId };
+    }
+  }
+
+  @Post('/document-ai/documents/:documentId/classify')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('document_ai:ocr:classify')
+  async classifyDocument(@Param('documentId') documentId: string, @Req() req: any, @Headers() headers: Record<string, any>) {
+    const correlationId = String(req?.correlationId || this.getCorrelationId(headers));
+    const tenantId = req?.user?.tenantId as string | undefined;
+    const actorUserId = req?.user?.userId as string | undefined;
+    auditLogger.info('document_ai.ocr.classify.request', { correlationId, action: 'document_ai:ocr:classify', documentId });
+    try {
+      const result = await this.documentAiService.classifyDocument({ documentId, tenantId, actorUserId, correlationId });
+      return { success: true, data: result, correlationId };
+    } catch (e: any) {
+      const err = e instanceof Error ? e : new Error(String(e));
+      auditLogger.error('document_ai.ocr.classify.failed', err, { correlationId, action: 'document_ai:ocr:classify', documentId });
+      return { success: false, error: { code: e.message === 'Document not found' ? 'NOT_FOUND' : 'INTERNAL_ERROR', message: e.message }, correlationId };
+    }
+  }
+
+  @Post('/document-ai/documents/:documentId/confirm')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('document_ai:ocr:confirm')
+  async confirmDocument(@Param('documentId') documentId: string, @Req() req: any, @Headers() headers: Record<string, any>) {
+    const correlationId = String(req?.correlationId || this.getCorrelationId(headers));
+    const tenantId = req?.user?.tenantId as string | undefined;
+    const actorUserId = req?.user?.userId as string | undefined;
+    auditLogger.info('document_ai.ocr.confirm.request', { correlationId, action: 'document_ai:ocr:confirm', documentId });
+    try {
+      const result = await this.documentAiService.confirmDocumentFields({ documentId, tenantId, actorUserId, correlationId });
+      return { success: true, data: result, correlationId };
+    } catch (e: any) {
+      const err = e instanceof Error ? e : new Error(String(e));
+      auditLogger.error('document_ai.ocr.confirm.failed', err, { correlationId, action: 'document_ai:ocr:confirm', documentId });
+      return { success: false, error: { code: e.message === 'Document not found' ? 'NOT_FOUND' : 'INTERNAL_ERROR', message: e.message }, correlationId };
+    }
+  }
+
+  // Direct OCR extract — inline extraction without creating a job
+  @Post('/api/v1/ocr/extract')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('document_ai:ocr:extract')
+  async extractOcr(@Body() body: any, @Req() req: any, @Headers() headers: Record<string, any>) {
+    const correlationId = String(req?.correlationId || this.getCorrelationId(headers));
+    const tenantId = req?.user?.tenantId as string | undefined;
+    const actorUserId = req?.user?.userId as string | undefined;
+    auditLogger.info('document_ai.ocr.extract.request', { correlationId, action: 'document_ai:ocr:extract', tenantId, actorUserId });
+
+    if (!body?.fileBase64) {
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'fileBase64 is required' }, correlationId };
+    }
+
+    try {
+      const buffer = Buffer.from(body.fileBase64, 'base64');
+      const mimeType = body.mimeType || 'image/png';
+      const provider = (body.provider as OcrProvider) || OcrProvider.TESSERACT;
+      const language = body.language || 'fas+eng';
+
+      const result = await this.ocrService.extractWithFallback(buffer, mimeType, provider, language);
+      return { success: true, data: result, correlationId };
+    } catch (e: any) {
+      const err = e instanceof Error ? e : new Error(String(e));
+      auditLogger.error('document_ai.ocr.extract.failed', err, { correlationId, action: 'document_ai:ocr:extract' });
+      return { success: false, error: { code: 'OCR_ERROR', message: e.message }, correlationId };
+    }
   }
 }

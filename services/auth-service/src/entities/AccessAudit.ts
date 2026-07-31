@@ -6,6 +6,8 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index, Before
 @Index(['action'])
 @Index(['decision'])
 @Index(['timestamp'])
+@Index(['organizationId'])
+@Index(['agreementId'])
 export class AccessAudit {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -21,6 +23,12 @@ export class AccessAudit {
 
   @Column({ name: 'org_unit_id', nullable: true })
   orgUnitId: string;
+
+  @Column({ name: 'organization_id', type: 'uuid', nullable: true })
+  organizationId: string;
+
+  @Column({ name: 'agreement_id', type: 'uuid', nullable: true })
+  agreementId: string;
 
   @Column({ name: 'resource_type' })
   resourceType: string;

@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FederatedIdentity } from './entities/FederatedIdentity';
 import { User } from './entities/User';
+import { MtlsCertificate } from './entities/MtlsCertificate';
 import { StateStoreService } from './state-store.service';
 
 /**
@@ -36,6 +37,8 @@ export class FederationService {
     private readonly federatedIdentityRepository: Repository<FederatedIdentity>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(MtlsCertificate)
+    private readonly mtlsCertificateRepository: Repository<MtlsCertificate>,
     private readonly stateStore: StateStoreService,
   ) {}
 
@@ -573,5 +576,63 @@ export class FederationService {
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token,
     };
+  }
+
+  async registerMtlsCertificate(dto: {
+    organizationId: string;
+    tenantId: string;
+    commonName: string;
+    fingerprint: string;
+    pemContent: string;
+    issuer?: string;
+    validFrom: string;
+    validTo: string;
+    metadata?: Record<string, any>;
+  }): Promise<MtlsCertificate> {
+    const existing = await this.mtlsCertificateRepository.findOne({
+      where: { fingerprint: dto.fingerprint },
+    });
+    if (existing) {
+      throw new BadRequestException('Certificate with this fingerprint already exists');
+    }
+
+    const validFrom = new Date(dto.validFrom);
+    const validTo = new Date(dto.validTo);
+    if (validTo <= validFrom) {
+      throw new BadRequestException('validTo must be after validFrom');
+    }
+
+    const cert = this.mtlsCertificateRepository.create({
+      organizationId: dto.organizationId,
+      tenantId: dto.tenantId,
+      commonName: dto.commonName,
+      fingerprint: dto.fingerprint,
+      pemContent: dto.pemContent,
+      issuer: dto.issuer || null,
+      validFrom,
+      validTo,
+      status: 'active',
+      metadata: dto.metadata || null,
+    });
+    return this.mtlsCertificateRepository.save(cert);
+  }
+
+  async listMtlsCertificates(organizationId: string, status?: string): Promise<MtlsCertificate[]> {
+    const where: any = { organizationId };
+    if (status) {
+      where.status = status;
+    }
+    return this.mtlsCertificateRepository.find({ where, order: { createdAt: 'DESC' } });
+  }
+
+  async revokeMtlsCertificate(certificateId: string): Promise<void> {
+    const cert = await this.mtlsCertificateRepository.findOne({
+      where: { certificateId },
+    });
+    if (!cert) {
+      throw new NotFoundException('Certificate not found');
+    }
+    cert.status = 'revoked';
+    await this.mtlsCertificateRepository.save(cert);
   }
 }

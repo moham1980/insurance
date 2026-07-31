@@ -16,6 +16,9 @@ export { CoverageMatrix, type CoverageMatrixProps } from './components/CoverageM
 export { NextBestAction, type NBACardProps } from './components/NextBestAction';
 export { ChatBubble, type ChatMessage } from './components/ChatBubble';
 export { ChatInput, type ChatInputProps } from './components/ChatInput';
+export { CopilotChat, type CopilotChatProps } from './components/CopilotChat';
+export { CopilotSuggestionCard, type CopilotSuggestion, type CopilotSuggestionCardProps } from './components/CopilotSuggestionCard';
+export { ConsentPanel, type ConsentPurpose, type ConsentPanelProps } from './components/ConsentPanel';
 export { CommandPalette, type CommandItem, type CommandPaletteProps } from './components/CommandPalette';
 export { ProgressBar, type ProgressBarProps } from './components/ProgressBar';
 export { StatCard, type StatCardProps } from './components/StatCard';

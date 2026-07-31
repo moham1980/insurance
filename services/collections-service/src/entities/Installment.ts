@@ -29,7 +29,7 @@ export class Installment {
   currency!: string;
 
   @Column({ name: 'status', type: 'text', default: 'pending' })
-  status!: 'pending' | 'paid' | 'cancelled';
+  status!: 'pending' | 'paid' | 'partially_paid' | 'cancelled' | 'waived';
 
   @Column({ name: 'paid_at', type: 'timestamptz', nullable: true })
   paidAt!: Date | null;
@@ -65,6 +65,12 @@ export class Installment {
 
   @Column({ name: 'total_amount', type: 'numeric', nullable: true })
   totalAmount!: number | null;
+
+  @Column({ name: 'paid_amount', type: 'numeric', default: 0 })
+  paidAmount!: number;
+
+  @Column({ name: 'receivable_id', type: 'uuid', nullable: true })
+  receivableId!: string | null;
 
   @ManyToOne(() => InstallmentPlan, (p) => p.installments)
   @JoinColumn({ name: 'plan_id' })

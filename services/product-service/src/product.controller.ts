@@ -448,6 +448,7 @@ export class ProductController {
     @Query('productId') productId?: string,
     @Query('status') status?: ProductStatus,
     @Query('includeVersions') includeVersions?: string,
+    @Query('organizationId') organizationId?: string,
     @Query('limit') limit: string = '200',
     @Query('offset') offset: string = '0'
   ) {
@@ -470,6 +471,7 @@ export class ProductController {
       productId,
       status,
       includeVersions: includeVersions === 'true' || includeVersions === '1',
+      organizationId,
       limit: paging.limit,
       offset: paging.offset,
     });
@@ -515,6 +517,7 @@ export class ProductController {
       region: body?.region,
       effectiveDate: body?.effectiveDate,
       version: body?.version !== undefined ? Number(body.version) : undefined,
+      brokerAdjustments: body?.brokerAdjustments,
     });
 
     auditLogger.info('product.quote.success', {
@@ -523,6 +526,42 @@ export class ProductController {
       actorUserId: actor?.userId,
       productId: out.productId,
       totalPremium: out.totalPremium,
+    });
+
+    return { success: true, data: out, correlationId };
+  }
+
+  @Post('/product/quote/compare')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('product:quote')
+  async multiQuote(@Req() req: any, @Headers() headers: Record<string, any>, @Body() body: any) {
+    const correlationId = this.getCorrelationId(headers);
+    const tenantId = this.requireTenant(req);
+    const actor = req?.user as any;
+
+    auditLogger.info('product.quote.compare.request', {
+      correlationId,
+      tenantId,
+      actorUserId: actor?.userId,
+      action: 'product:quote:compare',
+      productIds: body?.productIds,
+    });
+
+    const out = await this.productService.computeMultiQuote({
+      tenantId,
+      productIds: body?.productIds,
+      currency: body?.currency,
+      exposure: body?.exposure,
+      region: body?.region,
+      effectiveDate: body?.effectiveDate,
+    });
+
+    auditLogger.info('product.quote.compare.success', {
+      correlationId,
+      tenantId,
+      actorUserId: actor?.userId,
+      quoteCount: out.quotes.length,
+      totalPremiumMinor: out.totalPremiumMinor,
     });
 
     return { success: true, data: out, correlationId };

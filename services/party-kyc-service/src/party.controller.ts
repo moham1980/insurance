@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Param, Post, Query, Req, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Patch, Post, Query, Req, UseGuards, UseInterceptors } from '@nestjs/common';
 import { PartyService, type ActorContext } from './party.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { PermissionsGuard } from './permissions.guard';
@@ -42,7 +42,7 @@ export class PartyController {
     };
   }
 
-  @Post('/party')
+  @Post('/api/v1/parties')
   @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
   @RequirePermissions('party:create')
   async create(@Req() req: any, @Headers() headers: Record<string, any>, @Body() body: any) {
@@ -66,6 +66,8 @@ export class PartyController {
         fullName: body.fullName,
         nationalId: body.nationalId,
         mobile: body.mobile,
+        organizationId: body.organizationId,
+        roles: body.roles,
       });
 
       auditLogger.info('party.create.success', {
@@ -83,6 +85,7 @@ export class PartyController {
           type: party.type,
           fullName: party.fullName,
           status: party.status,
+          organizationId: party.organizationId,
           createdAt: party.createdAt,
         },
         correlationId,
@@ -92,7 +95,7 @@ export class PartyController {
     }
   }
 
-  @Get('/party/:partyId')
+  @Get('/api/v1/parties/:partyId')
   @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
   @RequirePermissions('party:view')
   async get(@Req() req: any, @Headers() headers: Record<string, any>, @Param('partyId') partyId: string) {
@@ -115,7 +118,41 @@ export class PartyController {
     }
   }
 
-  @Get('/party')
+  @Patch('/api/v1/parties/:partyId')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('party:manage')
+  async update(@Req() req: any, @Headers() headers: Record<string, any>, @Param('partyId') partyId: string, @Body() body: any) {
+    const correlationId = this.getCorrelationId(headers);
+    const ctx = this.buildContext(req, correlationId);
+
+    auditLogger.info('party.update.request', { correlationId, tenantId: ctx.tenantId, actorUserId: ctx.userId, action: 'party:update', partyId });
+
+    try {
+      const party = await this.partyService.updateParty(ctx, partyId, {
+        fullName: body.fullName,
+        mobile: body.mobile,
+        status: body.status,
+      });
+
+      auditLogger.info('party.update.success', { correlationId, tenantId: ctx.tenantId, actorUserId: ctx.userId, action: 'party:update', partyId });
+
+      return {
+        success: true,
+        data: {
+          partyId: party.partyId,
+          type: party.type,
+          fullName: party.fullName,
+          status: party.status,
+          updatedAt: party.updatedAt,
+        },
+        correlationId,
+      };
+    } catch (error: any) {
+      return this.handleError(error, correlationId);
+    }
+  }
+
+  @Get('/api/v1/parties')
   @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
   @RequirePermissions('party:list')
   async list(
@@ -709,6 +746,296 @@ export class PartyController {
     try {
       const reviews = await this.partyService.getOverdueReviews(ctx);
       return { success: true, data: reviews, correlationId };
+    } catch (error: any) {
+      return this.handleError(error, correlationId);
+    }
+  }
+
+  // Issue 1.2: Link Party to Organization
+  @Post('/party/:partyId/link-organization')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('party:update')
+  async linkPartyToOrganization(@Req() req: any, @Headers() headers: Record<string, any>, @Param('partyId') partyId: string, @Body() body: any) {
+    const correlationId = this.getCorrelationId(headers);
+    const ctx = this.buildContext(req, correlationId);
+
+    if (!body?.organizationId) {
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'organizationId is required' }, correlationId };
+    }
+
+    try {
+      const party = await this.partyService.linkPartyToOrganization(ctx, partyId, body.organizationId);
+      return { success: true, data: { partyId: party.partyId, organizationId: party.organizationId }, correlationId };
+    } catch (error: any) {
+      return this.handleError(error, correlationId);
+    }
+  }
+
+  // Issue 2.1: Initiate broker-specific KYC workflow
+  @Post('/party/:partyId/broker-kyc/initiate')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('kyc:review')
+  async initiateBrokerKyc(@Req() req: any, @Headers() headers: Record<string, any>, @Param('partyId') partyId: string, @Body() body: any) {
+    const correlationId = this.getCorrelationId(headers);
+    const ctx = this.buildContext(req, correlationId);
+
+    try {
+      const review = await this.partyService.initiateBrokerKyc(ctx, {
+        partyId,
+        licenseId: body?.licenseId,
+      });
+      return { success: true, data: review, correlationId };
+    } catch (error: any) {
+      return this.handleError(error, correlationId);
+    }
+  }
+
+  // Issue 2.1: Update broker KYC check status
+  @Post('/party/:partyId/broker-kyc/check')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('kyc:review')
+  async updateBrokerKycCheck(@Req() req: any, @Headers() headers: Record<string, any>, @Param('partyId') partyId: string, @Body() body: any) {
+    const correlationId = this.getCorrelationId(headers);
+    const ctx = this.buildContext(req, correlationId);
+
+    if (!body?.checkType || !body?.status) {
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'checkType and status are required' }, correlationId };
+    }
+
+    try {
+      const review = await this.partyService.updateBrokerKycCheck(ctx, {
+        partyId,
+        checkType: body.checkType,
+        status: body.status,
+        notes: body.notes,
+      });
+      return { success: true, data: review, correlationId };
+    } catch (error: any) {
+      return this.handleError(error, correlationId);
+    }
+  }
+
+  // Issue 2.2: AML screening for commission transaction
+  @Post('/party/:partyId/aml/commission-screening')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('kyc:screen')
+  async screenCommissionTransaction(@Req() req: any, @Headers() headers: Record<string, any>, @Param('partyId') partyId: string, @Body() body: any) {
+    const correlationId = this.getCorrelationId(headers);
+    const ctx = this.buildContext(req, correlationId);
+
+    if (!body?.transactionId || body?.amount === undefined) {
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'transactionId and amount are required' }, correlationId };
+    }
+
+    try {
+      const authToken = req?.headers?.authorization?.replace('Bearer ', '');
+      const screening = await this.partyService.screenCommissionTransaction(ctx, {
+        partyId,
+        transactionId: body.transactionId,
+        amount: body.amount,
+        currency: body.currency,
+        authToken,
+      });
+      return { success: true, data: screening, correlationId };
+    } catch (error: any) {
+      return this.handleError(error, correlationId);
+    }
+  }
+
+  // Issue 2.3: AML screening for settlement batch
+  @Post('/aml/settlement-batch-screening')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('kyc:screen')
+  async screenSettlementBatch(@Req() req: any, @Headers() headers: Record<string, any>, @Body() body: any) {
+    const correlationId = this.getCorrelationId(headers);
+    const ctx = this.buildContext(req, correlationId);
+
+    if (!body?.batchId || !body?.items || !Array.isArray(body.items)) {
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'batchId and items array are required' }, correlationId };
+    }
+
+    try {
+      const authToken = req?.headers?.authorization?.replace('Bearer ', '');
+      const result = await this.partyService.screenSettlementBatch(ctx, {
+        batchId: body.batchId,
+        items: body.items,
+        authToken,
+      });
+      return { success: true, data: result, correlationId };
+    } catch (error: any) {
+      return this.handleError(error, correlationId);
+    }
+  }
+
+  // Issue 3.1: Cross-organization consent management
+  @Post('/party/:partyId/cross-org-consent/grant')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('kyc:review')
+  async grantCrossOrgConsent(@Req() req: any, @Headers() headers: Record<string, any>, @Param('partyId') partyId: string, @Body() body: any) {
+    const correlationId = this.getCorrelationId(headers);
+    const ctx = this.buildContext(req, correlationId);
+
+    if (!body?.sourceOrganizationId || !body?.targetOrganizationId || !body?.consentType || !body?.purpose) {
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'sourceOrganizationId, targetOrganizationId, consentType, and purpose are required' }, correlationId };
+    }
+
+    try {
+      const validTo = body.validTo ? new Date(body.validTo) : undefined;
+      const record = await this.partyService.grantCrossOrgConsent(ctx, {
+        partyId,
+        sourceOrganizationId: body.sourceOrganizationId,
+        targetOrganizationId: body.targetOrganizationId,
+        consentType: body.consentType,
+        purpose: body.purpose,
+        legalBasis: body.legalBasis,
+        validTo,
+        grantedBy: ctx.userId,
+        channel: body.channel,
+        evidence: body.evidence,
+      });
+      return { success: true, data: record, correlationId };
+    } catch (error: any) {
+      return this.handleError(error, correlationId);
+    }
+  }
+
+  @Post('/party/:partyId/cross-org-consent/revoke')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('kyc:review')
+  async revokeCrossOrgConsent(@Req() req: any, @Headers() headers: Record<string, any>, @Param('partyId') partyId: string, @Body() body: any) {
+    const correlationId = this.getCorrelationId(headers);
+    const ctx = this.buildContext(req, correlationId);
+
+    if (!body?.targetOrganizationId) {
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'targetOrganizationId is required' }, correlationId };
+    }
+
+    try {
+      const record = await this.partyService.revokeCrossOrgConsent(ctx, {
+        partyId,
+        targetOrganizationId: body.targetOrganizationId,
+        consentType: body.consentType,
+        revokedBy: ctx.userId,
+        reason: body.reason,
+      });
+      return { success: true, data: record, correlationId };
+    } catch (error: any) {
+      return this.handleError(error, correlationId);
+    }
+  }
+
+  @Get('/party/:partyId/cross-org-consent/check')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('party:view')
+  async checkCrossOrgConsent(@Req() req: any, @Headers() headers: Record<string, any>, @Param('partyId') partyId: string, @Query('targetOrganizationId') targetOrganizationId: string, @Query('consentType') consentType?: string) {
+    const correlationId = this.getCorrelationId(headers);
+    const ctx = this.buildContext(req, correlationId);
+
+    if (!targetOrganizationId) {
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'targetOrganizationId is required' }, correlationId };
+    }
+
+    try {
+      const result = await this.partyService.checkCrossOrgConsent(ctx, {
+        partyId,
+        targetOrganizationId,
+        consentType,
+      });
+      return { success: true, data: result, correlationId };
+    } catch (error: any) {
+      return this.handleError(error, correlationId);
+    }
+  }
+
+  // Issue 5.1: Bulk KYC review
+  @Post('/kyc/bulk-review')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('kyc:review')
+  async bulkReviewKyc(@Req() req: any, @Headers() headers: Record<string, any>, @Body() body: any) {
+    const correlationId = this.getCorrelationId(headers);
+    const ctx = this.buildContext(req, correlationId);
+
+    if (!body?.reviews || !Array.isArray(body.reviews) || body.reviews.length === 0) {
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'reviews array is required and must not be empty' }, correlationId };
+    }
+
+    try {
+      const result = await this.partyService.bulkReviewKyc(ctx, {
+        reviews: body.reviews,
+        reviewerUserId: ctx.userId,
+      });
+      return { success: true, data: result, correlationId };
+    } catch (error: any) {
+      return this.handleError(error, correlationId);
+    }
+  }
+
+  // Issue 5.2: Dedicated KYC history endpoint
+  @Get('/party/:partyId/kyc-history')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('kyc:view')
+  async getKycHistory(@Req() req: any, @Headers() headers: Record<string, any>, @Param('partyId') partyId: string, @Query('limit') limit: string = '50', @Query('offset') offset: string = '0') {
+    const correlationId = this.getCorrelationId(headers);
+    const ctx = this.buildContext(req, correlationId);
+
+    try {
+      const result = await this.partyService.getKycHistory(ctx, partyId, {
+        limit: parseInt(limit, 10),
+        offset: parseInt(offset, 10),
+      });
+      return { success: true, data: result, correlationId };
+    } catch (error: any) {
+      return this.handleError(error, correlationId);
+    }
+  }
+
+  // Issue 5.3: Escalate KYC exception to organization level
+  @Post('/kyc-exception/:exceptionId/escalate-to-organization')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('kyc:escalate')
+  async escalateKycExceptionToOrganization(@Req() req: any, @Headers() headers: Record<string, any>, @Param('exceptionId') exceptionId: string, @Body() body: any) {
+    const correlationId = this.getCorrelationId(headers);
+    const ctx = this.buildContext(req, correlationId);
+
+    if (!body?.organizationId) {
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'organizationId is required' }, correlationId };
+    }
+
+    try {
+      const exception = await this.partyService.escalateKycExceptionToOrganization(ctx, {
+        exceptionId,
+        organizationId: body.organizationId,
+      });
+      return { success: true, data: exception, correlationId };
+    } catch (error: any) {
+      return this.handleError(error, correlationId);
+    }
+  }
+
+  // Issue 4.3: Get parties by organization (for sales-network sync)
+  @Get('/organizations/:organizationId/parties')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('party:view')
+  async getPartiesByOrganization(
+    @Req() req: any,
+    @Headers() headers: Record<string, any>,
+    @Param('organizationId') organizationId: string,
+    @Query('roleType') roleType?: string,
+    @Query('status') status?: string,
+    @Query('limit') limit: string = '50',
+    @Query('offset') offset: string = '0',
+  ) {
+    const correlationId = this.getCorrelationId(headers);
+    const ctx = this.buildContext(req, correlationId);
+
+    try {
+      const result = await this.partyService.getPartiesByOrganization(ctx, organizationId, {
+        roleType: roleType as any,
+        status,
+        limit: parseInt(limit, 10),
+        offset: parseInt(offset, 10),
+      });
+      return { success: true, data: result, correlationId };
     } catch (error: any) {
       return this.handleError(error, correlationId);
     }

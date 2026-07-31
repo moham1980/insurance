@@ -24,7 +24,10 @@ export class PolicyChange {
     | 'underwriting_decision'
     | 'quality_gate_override_issue'
     | 'quality_gate_override_set_unique_code'
-    | 'auto_renew_updated';
+    | 'auto_renew_updated'
+    | 'lapse'
+    | 'sanhab_result_recorded'
+    | 'broker_change';
 
   @Column({ name: 'actor_user_id', type: 'text', nullable: true })
   actorUserId!: string | null;

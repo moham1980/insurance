@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Headers, Param, Post, Query, Req, UseGuards, UnauthorizedException } from '@nestjs/common';
 import { CollectionsService } from './collections.service';
+import { ReceivableService } from './receivable.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { PermissionsGuard } from './permissions.guard';
 import { RequirePermissions } from './permissions.decorator';
@@ -10,7 +11,10 @@ import * as crypto from 'crypto';
 
 @Controller()
 export class CollectionsController {
-  constructor(private readonly collectionsService: CollectionsService) {}
+  constructor(
+    private readonly collectionsService: CollectionsService,
+    private readonly receivableService: ReceivableService,
+  ) {}
 
   private getCorrelationId(headers: Record<string, any>): string {
     const cid = headers['x-correlation-id'] || headers['X-Correlation-Id'];
@@ -59,6 +63,8 @@ export class CollectionsController {
       correlationId,
       idempotencyKey: String(body.idempotencyKey),
       policyId: String(body.policyId),
+      tenantId,
+      brokerOrganizationId: body.brokerOrganizationId,
       premiumAmount: body.premiumAmount,
       currency: body.currency,
       installments: body.installments,
@@ -112,6 +118,8 @@ export class CollectionsController {
     const res = await this.collectionsService.listPlans({
       policyId: this.isNonEmptyString(query?.policyId) ? String(query.policyId) : undefined,
       status: this.isNonEmptyString(query?.status) ? String(query.status) : undefined,
+      tenantId,
+      brokerOrganizationId: actor?.organizationId,
       limit,
       offset,
     });
@@ -167,6 +175,7 @@ export class CollectionsController {
       planId: this.isNonEmptyString(query?.planId) ? String(query.planId) : undefined,
       policyId: this.isNonEmptyString(query?.policyId) ? String(query.policyId) : undefined,
       status: this.isNonEmptyString(query?.status) ? String(query.status) : undefined,
+      brokerOrganizationId: actor?.organizationId,
       limit,
       offset,
     });
@@ -203,6 +212,7 @@ export class CollectionsController {
         providerRef: body?.providerRef,
         paidAt: body?.paidAt,
         details: body?.details,
+        partialAmount: body?.partialAmount,
       });
 
       if (!inst) {
@@ -598,10 +608,15 @@ export class CollectionsController {
     const correlationId = this.getCorrelationId(headers);
 
     const signature = headers['x-gateway-signature'] || headers['X-Gateway-Signature'];
-    const callbackSecret = process.env.PSP_CALLBACK_SECRET || process.env.COLLECTIONS_CALLBACK_SECRET;
+    const collectionsSecret = process.env.COLLECTIONS_CALLBACK_SECRET;
+    const pspSecret = process.env.PSP_CALLBACK_SECRET;
+    const callbackSecret = collectionsSecret || pspSecret;
     if (!callbackSecret) {
       auditLogger.error('collections.gateway.callback.no_secret', undefined as any, { correlationId, action: 'collections:gateway_callback' });
       throw new UnauthorizedException({ success: false, error: { code: 'GATEWAY_NOT_CONFIGURED', message: 'Callback secret not configured' } });
+    }
+    if (!collectionsSecret && pspSecret) {
+      auditLogger.warn('collections.gateway.callback.using_fallback_secret', { correlationId, action: 'collections:gateway_callback', message: 'COLLECTIONS_CALLBACK_SECRET not set, using PSP_CALLBACK_SECRET fallback' });
     }
 
     const rawBody = JSON.stringify(req?.body ?? body);
@@ -641,5 +656,248 @@ export class CollectionsController {
     });
 
     return { success: result.success, data: result, correlationId };
+  }
+
+  @Post('/collections/installments/:installmentId/link-receivable')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('collections:installment_link_receivable')
+  async linkReceivable(
+    @Req() req: any,
+    @Headers() headers: Record<string, any>,
+    @Param('installmentId') installmentId: string,
+    @Body() body: any,
+  ) {
+    const correlationId = this.getCorrelationId(headers);
+    const tenantId = req?.user?.tenantId as string | undefined;
+    const actor = req?.user as any;
+
+    auditLogger.info('collections.installment.link_receivable.request', {
+      correlationId,
+      tenantId,
+      actorUserId: actor?.userId,
+      action: 'collections:installment_link_receivable',
+      installmentId,
+      receivableId: body?.receivableId,
+    });
+
+    try {
+      const result = await this.receivableService.linkInstallmentToReceivable({
+        correlationId,
+        installmentId,
+        receivableId: body?.receivableId,
+      });
+      return { success: true, data: result, correlationId };
+    } catch (e: any) {
+      if (e?.code === 'NOT_FOUND') {
+        return { success: false, error: { code: 'NOT_FOUND', message: e.message }, correlationId };
+      }
+      return { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to link receivable' }, correlationId };
+    }
+  }
+
+  @Post('/collections/installments/:installmentId/sync-receivable')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('collections:installment_sync_receivable')
+  async syncReceivable(
+    @Req() req: any,
+    @Headers() headers: Record<string, any>,
+    @Param('installmentId') installmentId: string,
+  ) {
+    const correlationId = this.getCorrelationId(headers);
+    const tenantId = req?.user?.tenantId as string | undefined;
+    const actor = req?.user as any;
+
+    auditLogger.info('collections.installment.sync_receivable.request', {
+      correlationId,
+      tenantId,
+      actorUserId: actor?.userId,
+      action: 'collections:installment_sync_receivable',
+      installmentId,
+    });
+
+    try {
+      const result = await this.receivableService.syncReceivableStatus({
+        correlationId,
+        installmentId,
+      });
+      return { success: true, data: result, correlationId };
+    } catch (e: any) {
+      if (e?.code === 'NOT_FOUND' || e?.code === 'NOT_LINKED') {
+        return { success: false, error: { code: e.code, message: e.message }, correlationId };
+      }
+      return { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to sync receivable' }, correlationId };
+    }
+  }
+
+  @Get('/collections/receivables/reconciliation')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('collections:receivable_reconcile')
+  async reconcileReceivables(
+    @Req() req: any,
+    @Headers() headers: Record<string, any>,
+    @Query() query: any,
+  ) {
+    const correlationId = this.getCorrelationId(headers);
+    const tenantId = req?.user?.tenantId as string | undefined;
+    const actor = req?.user as any;
+
+    auditLogger.info('collections.receivable.reconciliation.request', {
+      correlationId,
+      tenantId,
+      actorUserId: actor?.userId,
+      action: 'collections:receivable_reconcile',
+    });
+
+    const result = await this.receivableService.reconcileInstallmentsWithReceivables({
+      planId: this.isNonEmptyString(query?.planId) ? String(query.planId) : undefined,
+      policyId: this.isNonEmptyString(query?.policyId) ? String(query.policyId) : undefined,
+    });
+
+    return { success: true, data: result, correlationId };
+  }
+
+  @Post('/collections/plans/:planId/publish-receivable-requests')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('collections:plan_publish_receivable_requests')
+  async publishReceivableRequests(
+    @Req() req: any,
+    @Headers() headers: Record<string, any>,
+    @Param('planId') planId: string,
+  ) {
+    const correlationId = this.getCorrelationId(headers);
+    const tenantId = req?.user?.tenantId as string | undefined;
+    const actor = req?.user as any;
+
+    auditLogger.info('collections.plan.publish_receivable_requests.request', {
+      correlationId,
+      tenantId,
+      actorUserId: actor?.userId,
+      action: 'collections:plan_publish_receivable_requests',
+      planId,
+    });
+
+    try {
+      const result = await this.receivableService.publishReceivableCreationRequests({
+        correlationId,
+        planId,
+      });
+      return { success: true, data: result, correlationId };
+    } catch (e: any) {
+      if (e?.code === 'NOT_FOUND') {
+        return { success: false, error: { code: 'NOT_FOUND', message: e.message }, correlationId };
+      }
+      return { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to publish receivable requests' }, correlationId };
+    }
+  }
+
+  @Post('/collections/installments/:installmentId/waive')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('collections:installment_pay')
+  async waiveInstallment(
+    @Req() req: any,
+    @Headers() headers: Record<string, any>,
+    @Param('installmentId') installmentId: string,
+    @Body() body: any,
+  ) {
+    const correlationId = this.getCorrelationId(headers);
+    const tenantId = req?.user?.tenantId as string | undefined;
+    const actor = req?.user as any;
+
+    auditLogger.info('collections.installment.waive.request', {
+      correlationId,
+      tenantId,
+      actorUserId: actor?.userId,
+      action: 'collections:installment_pay',
+      installmentId,
+    });
+
+    if (!this.isNonEmptyString(body?.reason)) {
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'reason is required' }, correlationId };
+    }
+
+    try {
+      const inst = await this.collectionsService.waiveInstallment({
+        correlationId,
+        installmentId,
+        reason: String(body.reason),
+        actorUserId: actor?.userId ?? 'system',
+      });
+      return { success: true, data: inst, correlationId };
+    } catch (e: any) {
+      if (e?.code === 'NOT_FOUND') {
+        return { success: false, error: { code: 'NOT_FOUND', message: 'Installment not found' }, correlationId };
+      }
+      if (e?.code === 'INVALID_STATE') {
+        return { success: false, error: { code: 'INVALID_STATE', message: e.message }, correlationId };
+      }
+      const err = e instanceof Error ? e : new Error(String(e));
+      auditLogger.error('collections.installment.waive.failed', err, {
+        correlationId,
+        tenantId,
+        actorUserId: actor?.userId,
+        action: 'collections:installment_pay',
+        installmentId,
+      });
+      return { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to waive installment' }, correlationId };
+    }
+  }
+
+  @Post('/collections/installments/:installmentId/reschedule')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('collections:installment_pay')
+  async rescheduleInstallment(
+    @Req() req: any,
+    @Headers() headers: Record<string, any>,
+    @Param('installmentId') installmentId: string,
+    @Body() body: any,
+  ) {
+    const correlationId = this.getCorrelationId(headers);
+    const tenantId = req?.user?.tenantId as string | undefined;
+    const actor = req?.user as any;
+
+    auditLogger.info('collections.installment.reschedule.request', {
+      correlationId,
+      tenantId,
+      actorUserId: actor?.userId,
+      action: 'collections:installment_pay',
+      installmentId,
+    });
+
+    if (!this.isNonEmptyString(body?.newDueDate)) {
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'newDueDate is required' }, correlationId };
+    }
+    if (!this.isNonEmptyString(body?.reason)) {
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'reason is required' }, correlationId };
+    }
+
+    try {
+      const inst = await this.collectionsService.rescheduleInstallment({
+        correlationId,
+        installmentId,
+        newDueDate: String(body.newDueDate),
+        reason: String(body.reason),
+        actorUserId: actor?.userId ?? 'system',
+      });
+      return { success: true, data: inst, correlationId };
+    } catch (e: any) {
+      if (e?.code === 'NOT_FOUND') {
+        return { success: false, error: { code: 'NOT_FOUND', message: 'Installment not found' }, correlationId };
+      }
+      if (e?.code === 'INVALID_STATE') {
+        return { success: false, error: { code: 'INVALID_STATE', message: e.message }, correlationId };
+      }
+      if (e?.code === 'VALIDATION_ERROR') {
+        return { success: false, error: { code: 'VALIDATION_ERROR', message: e.message }, correlationId };
+      }
+      const err = e instanceof Error ? e : new Error(String(e));
+      auditLogger.error('collections.installment.reschedule.failed', err, {
+        correlationId,
+        tenantId,
+        actorUserId: actor?.userId,
+        action: 'collections:installment_pay',
+        installmentId,
+      });
+      return { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to reschedule installment' }, correlationId };
+    }
   }
 }

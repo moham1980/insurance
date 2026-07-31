@@ -148,7 +148,7 @@ export const PARTY_ANONYMIZATION_CONFIG: AnonymizationConfig = {
 /**
  * Check if a consent is valid (granted and not expired or revoked)
  */
-export function isConsentValid(consent: ConsentRecord): boolean {
+export function isConsentValid(consent: GdprConsentRecord): boolean {
   if (!consent.granted) return false;
   if (consent.revokedAt) return false;
   if (consent.expiresAt && new Date(consent.expiresAt) < new Date()) return false;
@@ -176,7 +176,7 @@ export function createDataSubjectRequest(
  * Validate that a data processing operation has consent
  */
 export function validateConsent(
-  consent: ConsentRecord | null,
+  consent: GdprConsentRecord | null,
   purpose: string
 ): { valid: boolean; reason?: string } {
   if (!consent) {

@@ -28,6 +28,9 @@ export class RmPayment {
   @Column({ name: 'claim_number', type: 'text', nullable: true })
   claimNumber!: string | null;
 
+  @Column({ name: 'broker_organization_id', type: 'uuid', nullable: true })
+  brokerOrganizationId!: string | null;
+
   @Column({ name: 'payment_type', type: 'text' })
   paymentType!: string;
 

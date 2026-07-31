@@ -2,6 +2,7 @@ import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 
 @Entity('rm_claim_payment')
 @Index(['updatedAt'])
+@Index(['brokerOrganizationId'])
 export class RmClaimPayment {
   @Column({ type: 'uuid', name: 'tenant_id', nullable: true })
   tenantId?: string | null;
@@ -14,6 +15,9 @@ export class RmClaimPayment {
 
   @Column({ name: 'policy_id', type: 'uuid', nullable: true })
   policyId!: string | null;
+
+  @Column({ name: 'broker_organization_id', type: 'uuid', nullable: true })
+  brokerOrganizationId!: string | null;
 
   @Column({ name: 'registered_at', type: 'timestamptz', nullable: true })
   registeredAt!: Date | null;

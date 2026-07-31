@@ -11,6 +11,8 @@ import { CopilotAudit } from './entities/CopilotAudit';
 import { ModelInventory, ModelRiskAssessment, AIIncidentReport, ModelCard, ModelValidationReport } from './entities/ModelInventory';
 import { LLMService, type LLMProvider } from './llm.service';
 import { EcosystemAiProvider } from './ecosystem-ai.provider';
+import { NbaEngineService, NbaAction } from './nba/nba.service';
+import { NbaActionLog } from './entities/NbaActionLog';
 
 @Injectable()
 export class CopilotService {
@@ -30,7 +32,8 @@ export class CopilotService {
     @InjectRepository(ModelCard) private readonly modelCardRepo: Repository<ModelCard>,
     @InjectRepository(ModelValidationReport) private readonly validationRepo: Repository<ModelValidationReport>,
     private readonly llmService: LLMService,
-    private readonly ecosystemAi: EcosystemAiProvider
+    private readonly ecosystemAi: EcosystemAiProvider,
+    private readonly nbaEngine: NbaEngineService
   ) {}
 
   private getHeader(headers: Record<string, any>, key: string): string | undefined {
@@ -80,6 +83,43 @@ export class CopilotService {
     });
   }
 
+  private httpPostJson(url: string, body: any, headers?: Record<string, string>): Promise<any> {
+    return new Promise((resolve, reject) => {
+      const parsed = new URL(url);
+      const lib = parsed.protocol === 'https:' ? https : http;
+      const payload = JSON.stringify(body);
+
+      const req = lib.request(
+        {
+          method: 'POST',
+          hostname: parsed.hostname,
+          port: parsed.port ? Number(parsed.port) : parsed.protocol === 'https:' ? 443 : 80,
+          path: `${parsed.pathname}${parsed.search}`,
+          headers: {
+            'content-type': 'application/json',
+            'content-length': Buffer.byteLength(payload),
+            accept: 'application/json',
+            ...headers,
+          },
+        },
+        (res) => {
+          const status = res.statusCode ?? 0;
+          let data = '';
+          res.setEncoding('utf8');
+          res.on('data', (chunk) => { data += chunk; });
+          res.on('end', () => {
+            if (status < 200 || status >= 300) return resolve(null);
+            try { resolve(JSON.parse(data)); } catch (e) { reject(e); }
+          });
+        },
+      );
+
+      req.on('error', reject);
+      req.write(payload);
+      req.end();
+    });
+  }
+
   private async fetchFeatureFlagEnabled(name: string): Promise<boolean | null> {
     try {
       const base = process.env.FEATURE_FLAGS_URL || 'http://localhost:18011';
@@ -116,13 +156,63 @@ export class CopilotService {
     return { allowed: true, blockedReason: null, aiEnabledHeader, policyAllowed };
   }
 
-  private redactSensitive(text: string): { text: string; redacted: boolean } {
+  private redactSensitive(text: string): { text: string; redacted: boolean; spans: { type: string; start: number; end: number; replacement: string }[]; confidence: number } {
+    const spans: { type: string; start: number; end: number; replacement: string }[] = [];
+    const patterns: { type: string; regex: RegExp; replacement: string }[] = [
+      { type: 'NATIONAL_ID', regex: /\b\d{10}\b/g, replacement: '[REDACTED_NATIONAL_ID]' },
+      { type: 'CARD_NUMBER', regex: /\b(?:\d{4}[ -]?){3}\d{4}\b|\b\d{16}\b/g, replacement: '[REDACTED_CARD]' },
+      { type: 'IBAN', regex: /\bIR\d{24}\b/gi, replacement: '[REDACTED_IBAN]' },
+      { type: 'MOBILE', regex: /\b09\d{9}\b/g, replacement: '[REDACTED_MOBILE]' },
+      { type: 'EMAIL', regex: /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, replacement: '[REDACTED_EMAIL]' },
+      { type: 'ACCOUNT_NUMBER', regex: /\b\d{2,4}-\d{6,}-\d{1,}\b|\b\d{10,20}\b/g, replacement: '[REDACTED_ACCOUNT]' },
+    ];
+
     let out = text;
-    const before = out;
-    out = out.replace(/\b\d{10}\b/g, '[REDACTED_NATIONAL_ID]');
-    out = out.replace(/\b\d{16}\b/g, '[REDACTED_CARD]');
-    out = out.replace(/\bIR\d{24}\b/gi, '[REDACTED_IBAN]');
-    return { text: out, redacted: out !== before };
+    for (const p of patterns) {
+      let match: RegExpExecArray | null;
+      const regex = new RegExp(p.regex.source, p.regex.flags.includes('g') ? p.regex.flags : p.regex.flags + 'g');
+      while ((match = regex.exec(text)) !== null) {
+        const start = match.index;
+        const end = start + match[0].length;
+        const span = spans.find((s) => s.start === start && s.end === end);
+        if (!span) {
+          spans.push({ type: p.type, start, end, replacement: p.replacement });
+        }
+      }
+    }
+
+    // Replace in reverse order by start index
+    const sortedSpans = [...spans].sort((a, b) => b.start - a.start);
+    for (const span of sortedSpans) {
+      const replacement = spans.find((s) => s.start === span.start && s.end === span.end)?.replacement || '[REDACTED]';
+      out = out.slice(0, span.start) + replacement + out.slice(span.end);
+    }
+
+    const redacted = spans.length > 0;
+    const confidence = redacted ? 0.75 : 0.95;
+    return { text: out, redacted, spans, confidence };
+  }
+
+  private buildSourceRefs(contextType: 'claim' | 'document' | 'policy' | 'complaint', params: { claim?: ClaimEntity; doc?: DocumentEntity; docs?: DocumentEntity[] }): { type: string; id: string; field?: string }[] {
+    const refs: { type: string; id: string; field?: string }[] = [];
+    if (params.claim) {
+      refs.push({ type: 'claim', id: params.claim.claimId });
+    }
+    if (params.doc) {
+      refs.push({ type: 'document', id: params.doc.documentId });
+    }
+    if (params.docs) {
+      for (const doc of params.docs) {
+        refs.push({ type: 'document', id: doc.documentId });
+      }
+    }
+    return refs.length > 0 ? refs : [{ type: contextType, id: params.claim?.claimId || params.doc?.documentId || 'unknown' }];
+  }
+
+  private computeOutputConfidence(redactedConfidence: number, sourceCount: number): number {
+    const sourceBoost = Math.min(sourceCount * 0.02, 0.05);
+    const confidence = redactedConfidence + sourceBoost;
+    return Math.min(Math.round(confidence * 100) / 100, 0.99);
   }
 
   private formatCurrencyIRR(amount: number | null | undefined): string {
@@ -1088,6 +1178,8 @@ export class CopilotService {
       const rawSummary = this.buildClaimSummary(claim, docs);
       const redacted = this.redactSensitive(rawSummary);
       const preview = redacted.text.length > 500 ? `${redacted.text.slice(0, 500)}...` : redacted.text;
+      const sourceRefs = this.buildSourceRefs('claim', { claim, docs });
+      const confidence = this.computeOutputConfidence(redacted.confidence, sourceRefs.length);
 
       await this.auditRepo.save(
         this.auditRepo.create({
@@ -1113,6 +1205,9 @@ export class CopilotService {
           data: {
             claimId: params.claimId,
             summary: redacted.text,
+            confidence,
+            sourceRefs,
+            redactedSpans: redacted.spans,
             sources: {
               claim: { claimNumber: claim.claimNumber, status: claim.status },
               documents: docs.map((d) => ({ documentId: d.documentId, documentType: d.documentType, status: d.status })),
@@ -1204,6 +1299,8 @@ export class CopilotService {
       const rawSummary = this.buildDocumentSummary(doc);
       const redacted = this.redactSensitive(rawSummary);
       const preview = redacted.text.length > 500 ? `${redacted.text.slice(0, 500)}...` : redacted.text;
+      const sourceRefs = this.buildSourceRefs('document', { doc });
+      const confidence = this.computeOutputConfidence(redacted.confidence, sourceRefs.length);
 
       await this.auditRepo.save(
         this.auditRepo.create({
@@ -1229,6 +1326,9 @@ export class CopilotService {
           data: {
             documentId: params.documentId,
             summary: redacted.text,
+            confidence,
+            sourceRefs,
+            redactedSpans: redacted.spans,
             status: doc.status,
             documentType: doc.documentType,
           },
@@ -1306,7 +1406,10 @@ export class CopilotService {
 
     try {
       let context = '';
-      
+      let claimForRef: ClaimEntity | null = null;
+      let docForRef: DocumentEntity | null = null;
+      let docsForRef: DocumentEntity[] = [];
+
       if (params.contextType === 'claim') {
         const claim = await this.claimRepo.findOne({ where: { claimId: params.resourceId } });
         if (!claim) {
@@ -1320,7 +1423,9 @@ export class CopilotService {
             },
           };
         }
+        claimForRef = claim;
         const docs = await this.docRepo.find({ where: { claimId: params.resourceId } });
+        docsForRef = docs;
         context = this.buildClaimSummary(claim, docs);
       } else if (params.contextType === 'document') {
         const doc = await this.docRepo.findOne({ where: { documentId: params.resourceId } });
@@ -1335,6 +1440,7 @@ export class CopilotService {
             },
           };
         }
+        docForRef = doc;
         context = this.buildDocumentSummary(doc);
       } else {
         context = 'Context not available for this resource type in this implementation.';
@@ -1364,6 +1470,8 @@ export class CopilotService {
       }
       const redacted = this.redactSensitive(response.text);
       const preview = redacted.text.length > 500 ? `${redacted.text.slice(0, 500)}...` : redacted.text;
+      const sourceRefs = this.buildSourceRefs(params.contextType, { claim: claimForRef || undefined, doc: docForRef || undefined, docs: docsForRef });
+      const confidence = this.computeOutputConfidence(redacted.confidence, sourceRefs.length);
 
       await this.auditRepo.save(
         this.auditRepo.create({
@@ -1390,6 +1498,9 @@ export class CopilotService {
             resourceId: params.resourceId,
             question: params.question,
             answer: redacted.text,
+            confidence,
+            sourceRefs,
+            redactedSpans: redacted.spans,
             model: response.model,
             provider: response.provider,
           },
@@ -1465,10 +1576,11 @@ export class CopilotService {
     }
 
     try {
-      let context = '';
-      
+      let claim: ClaimEntity | null = null;
+      let docs: DocumentEntity[] = [];
+
       if (params.contextType === 'claim') {
-        const claim = await this.claimRepo.findOne({ where: { claimId: params.resourceId } });
+        claim = await this.claimRepo.findOne({ where: { claimId: params.resourceId } });
         if (!claim) {
           return {
             ok: false as const,
@@ -1480,15 +1592,39 @@ export class CopilotService {
             },
           };
         }
-        const docs = await this.docRepo.find({ where: { claimId: params.resourceId } });
-        context = this.buildClaimSummary(claim, docs);
-      } else {
-        context = 'Context not available for this resource type in this implementation.';
+        docs = await this.docRepo.find({ where: { claimId: params.resourceId } });
       }
 
-      const response = await this.llmService.generateNextBestAction(context, params.contextType, params.provider);
-      const redacted = this.redactSensitive(response.text);
-      const preview = redacted.text.length > 500 ? `${redacted.text.slice(0, 500)}...` : redacted.text;
+      const actions = this.nbaEngine.generateActions({
+        contextType: params.contextType,
+        resourceId: params.resourceId,
+        claim,
+        documents: docs,
+      });
+
+      // Persist recommended actions for audit and feedback and bind logId
+      const loggedActions: NbaAction[] = [];
+      for (const action of actions) {
+        if (action.actionCode !== 'NO_ACTION_REQUIRED') {
+          const entry = await this.nbaEngine.logAction({
+            actionId: action.actionId,
+            actionCode: action.actionCode,
+            contextType: params.contextType,
+            resourceId: params.resourceId,
+            actorUserId: params.actorUserId,
+            tenantId: params.tenantId,
+            status: 'recommended',
+            payload: action.payload,
+            reasonCode: action.reasonCode,
+            confidence: action.confidence,
+          });
+          loggedActions.push({ ...action, logId: entry.logId });
+        } else {
+          loggedActions.push(action);
+        }
+      }
+
+      const actionPreviews = loggedActions.map((a) => `${a.actionCode}: ${a.title}`).join(' | ');
 
       await this.auditRepo.save(
         this.auditRepo.create({
@@ -1501,8 +1637,8 @@ export class CopilotService {
           policyAllowed: policy.policyAllowed,
           decision: 'allowed',
           blockedReason: null,
-          outputPreview: preview,
-          outputRedacted: redacted.redacted,
+          outputPreview: actionPreviews.slice(0, 500),
+          outputRedacted: false,
         })
       );
 
@@ -1513,9 +1649,8 @@ export class CopilotService {
           success: true,
           data: {
             resourceId: params.resourceId,
-            actions: redacted.text,
-            model: response.model,
-            provider: response.provider,
+            actions: loggedActions,
+            count: loggedActions.length,
           },
           correlationId: params.correlationId,
         },
@@ -1625,5 +1760,133 @@ export class CopilotService {
         },
       };
     }
+  }
+
+  async executeNbaAction(logId: string, actorUserId?: string): Promise<{ ok: true; status: 200; body: any } | { ok: false; status: number; body: any }> {
+    try {
+      // Fetch the action log to get actionCode and payload
+      const actionLog = await this.dataSource.getRepository(NbaActionLog).findOne({ where: { logId } });
+      if (!actionLog) {
+        return { ok: false as const, status: 404, body: { success: false, error: { code: 'NBA_ACTION_ERROR', message: 'NBA action log not found' } } };
+      }
+
+      if (actionLog.status === 'executed') {
+        return { ok: false as const, status: 409, body: { success: false, error: { code: 'ALREADY_EXECUTED', message: 'Action already executed' } } };
+      }
+
+      if (actionLog.status === 'opted_out') {
+        return { ok: false as const, status: 409, body: { success: false, error: { code: 'OPTED_OUT', message: 'Action was opted out' } } };
+      }
+
+      // Execute downstream service call based on action code
+      const downstreamResult = await this.executeNbaDownstreamCall(actionLog.actionCode, actionLog.payload, actorUserId);
+
+      const entry = await this.nbaEngine.markExecuted(logId);
+      this.logger.info(`NBA action executed: ${logId} by ${actorUserId || 'system'}, actionCode: ${actionLog.actionCode}, downstreamResult: ${JSON.stringify(downstreamResult)}`);
+      return {
+        ok: true as const,
+        status: 200,
+        body: { success: true, data: { logId, status: entry.status, executedAt: entry.updatedAt, actionCode: actionLog.actionCode, downstreamResult } },
+      };
+    } catch (e: any) {
+      return { ok: false as const, status: e.message === 'NBA action log not found' ? 404 : 500, body: { success: false, error: { code: 'NBA_ACTION_ERROR', message: e.message } } };
+    }
+  }
+
+  private async executeNbaDownstreamCall(actionCode: string, payload: any, actorUserId?: string): Promise<{ executed: boolean; service?: string; result?: any; error?: string }> {
+    const claimUrl = process.env.CLAIM_SERVICE_URL || 'http://localhost:18020';
+    const billingUrl = process.env.BILLING_SERVICE_URL || 'http://localhost:18030';
+    const notificationUrl = process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:18040';
+
+    try {
+      switch (actionCode) {
+        case 'CLAIM_ASSIGN_ADJUSTER': {
+          const claimId = payload?.claimId;
+          if (!claimId) return { executed: false, error: 'Missing claimId in payload' };
+          const result = await this.httpPostJson(
+            `${claimUrl}/api/v1/claims/${claimId}/assign-adjuster`,
+            { reason: 'NBA: AMOUNT_DISCREPANCY', assignedBy: actorUserId || 'nba-engine' },
+          );
+          return { executed: true, service: 'claim-service', result };
+        }
+
+        case 'CLAIM_REQUEST_DOCUMENTS': {
+          const claimId = payload?.claimId;
+          if (!claimId) return { executed: false, error: 'Missing claimId in payload' };
+          const result = await this.httpPostJson(
+            `${notificationUrl}/api/v1/notifications/send`,
+            {
+              channel: 'SMS',
+              recipientType: 'customer',
+              claimId,
+              template: 'CLAIM_DOCUMENT_REQUEST',
+              templateVars: { claimId },
+            },
+          );
+          return { executed: true, service: 'notification-service', result };
+        }
+
+        case 'CLAIM_SCHEDULE_PAYMENT': {
+          const claimId = payload?.claimId;
+          const approvedAmount = payload?.approvedAmount;
+          if (!claimId) return { executed: false, error: 'Missing claimId in payload' };
+          const result = await this.httpPostJson(
+            `${billingUrl}/api/v1/payments/schedule`,
+            {
+              claimId,
+              amount: approvedAmount,
+              paymentType: 'CLAIM_PAYOUT',
+              scheduledBy: actorUserId || 'nba-engine',
+            },
+          );
+          return { executed: true, service: 'billing-service', result };
+        }
+
+        case 'CLAIM_RECOVERY_REVIEW': {
+          const claimId = payload?.claimId;
+          if (!claimId) return { executed: false, error: 'Missing claimId in payload' };
+          const result = await this.httpPostJson(
+            `${claimUrl}/api/v1/claims/${claimId}/recovery-review`,
+            { initiatedBy: actorUserId || 'nba-engine', reason: 'NBA: THIRD_PARTY_RECOVERY' },
+          );
+          return { executed: true, service: 'claim-service', result };
+        }
+
+        case 'NO_ACTION_REQUIRED':
+          return { executed: true, result: 'No downstream action needed' };
+
+        default:
+          this.logger.warn(`Unknown NBA action code: ${actionCode}`);
+          return { executed: false, error: `Unknown action code: ${actionCode}` };
+      }
+    } catch (err: any) {
+      this.logger.error(`NBA downstream call failed for ${actionCode}: ${err.message}`);
+      return { executed: false, error: err.message };
+    }
+  }
+
+  async optOutNbaAction(logId: string, reason?: string): Promise<{ ok: true; status: 200; body: any } | { ok: false; status: number; body: any }> {
+    try {
+      const entry = await this.nbaEngine.markOptedOut(logId, reason);
+      this.logger.info(`NBA action opted out: ${logId}, reason: ${reason || 'none'}`);
+      return {
+        ok: true as const,
+        status: 200,
+        body: { success: true, data: { logId, status: entry.status, optOutReason: entry.optOutReason, optedOutAt: entry.updatedAt } },
+      };
+    } catch (e: any) {
+      return { ok: false as const, status: e.message === 'NBA action log not found' ? 404 : 500, body: { success: false, error: { code: 'NBA_ACTION_ERROR', message: e.message } } };
+    }
+  }
+
+  async listNbaActionLogs(params: {
+    contextType?: string;
+    resourceId?: string;
+    actorUserId?: string;
+    tenantId?: string;
+    limit?: number;
+    offset?: number;
+  }) {
+    return this.nbaEngine.listActions(params);
   }
 }

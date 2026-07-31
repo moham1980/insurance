@@ -1,0 +1,47 @@
+groups:
+  - name: insurance-service-alerts
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.instance }} is down"
+          description: "{{ $labels.instance }} has been down for more than 1 minute."
+
+      - alert: HighRequestLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High P95 latency on {{ $labels.path }}"
+          description: "P95 latency is above 500ms for 5 minutes."
+
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate (5xx) on {{ $labels.path }}"
+          description: "Error rate exceeds 5% for 5 minutes."
+
+      - alert: KafkaConsumerLag
+        expr: kafka_consumer_lag > 1000
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Kafka consumer lag high for {{ $labels.consumerGroup }} on {{ $labels.topic }}"
+          description: "Consumer lag exceeds 1000 messages for 10 minutes."
+
+      - alert: DlqDepthHigh
+        expr: dlq_depth > 50
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "DLQ depth high for {{ $labels.topic }}"
+          description: "Dead letter queue depth exceeds 50 messages."

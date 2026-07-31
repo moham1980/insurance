@@ -134,9 +134,10 @@ function createIdempotencyStore(): IdempotencyStore {
   }
   const memStore = new InMemoryIdempotencyStore();
   // Clean up expired entries every 5 minutes
-  setInterval(() => {
+  const timer = setInterval(() => {
     memStore.cleanup();
   }, 5 * 60 * 1000);
+  timer.unref();
   return memStore;
 }
 

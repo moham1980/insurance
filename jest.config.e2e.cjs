@@ -1,6 +1,6 @@
 module.exports = {
   displayName: 'e2e',
-  testMatch: ['<rootDir>/tests/e2e/**/*.test.ts'],
+  testMatch: ['<rootDir>/tests/e2e/**/*.test.ts', '<rootDir>/tests/e2e/**/*.spec.ts'],
   testTimeout: 60000,
   preset: 'ts-jest',
   testEnvironment: 'node',

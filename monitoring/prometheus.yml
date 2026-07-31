@@ -1,0 +1,30 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - host.docker.internal:9093
+
+rule_files:
+  - /etc/prometheus/alert-rules.yml
+
+scrape_configs:
+  - job_name: 'insurance-services'
+    static_configs:
+      - targets:
+          - host.docker.internal:18000
+          - host.docker.internal:18001
+          - host.docker.internal:18002
+          - host.docker.internal:18003
+          - host.docker.internal:18004
+          - host.docker.internal:18005
+          - host.docker.internal:18006
+          - host.docker.internal:18007
+          - host.docker.internal:18008
+          - host.docker.internal:18009
+          - host.docker.internal:18010
+    metrics_path: /metrics
+    scheme: http

@@ -1,8 +1,9 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThan } from 'typeorm';
-import { createLogger, Logger } from '@insurance/shared';
-import { WorkItem } from './entities/WorkItem';
+import { Repository, LessThan, Not, In, DataSource } from 'typeorm';
+import { v4 as uuidv4 } from 'uuid';
+import { createLogger, Logger, OutboxPublisher } from '@insurance/shared';
+import { WorkItem, WorkItemPriority, WorkItemStatus } from './entities/WorkItem';
 import { SagaInstance } from './entities/SagaInstance';
 
 @Injectable()
@@ -12,7 +13,8 @@ export class SlaMonitorService implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     @InjectRepository(WorkItem) private readonly workItemRepo: Repository<WorkItem>,
-    @InjectRepository(SagaInstance) private readonly sagaRepo: Repository<SagaInstance>
+    @InjectRepository(SagaInstance) private readonly sagaRepo: Repository<SagaInstance>,
+    private readonly dataSource: DataSource
   ) {
     this.logger = createLogger({
       serviceName: 'orchestrator-sla-monitor',
@@ -43,7 +45,7 @@ export class SlaMonitorService implements OnModuleInit, OnModuleDestroy {
    * Check for SLA breaches in work items
    * Returns work items that have exceeded their due date and are not completed
    */
-  async checkSlaBreaches(): Promise<{
+  async checkSlaBreaches(tenantId?: string): Promise<{
     breached: WorkItem[];
     metrics: {
       totalBreached: number;
@@ -53,12 +55,17 @@ export class SlaMonitorService implements OnModuleInit, OnModuleDestroy {
   }> {
     const now = new Date();
 
-    // Find work items with due date passed and status not completed/rejected
+    // Find work items with due date passed and status not completed/rejected/escalated
+    const where: any = {
+      dueDate: LessThan(now),
+      status: Not(In([WorkItemStatus.completed, WorkItemStatus.rejected, WorkItemStatus.escalated])),
+    };
+    if (tenantId) {
+      where.tenantId = tenantId;
+    }
+
     const breachedItems = await this.workItemRepo.find({
-      where: {
-        dueDate: LessThan(now),
-        status: 'pending' as any,
-      },
+      where,
       order: { dueDate: 'ASC' },
     });
 
@@ -101,7 +108,7 @@ export class SlaMonitorService implements OnModuleInit, OnModuleDestroy {
   /**
    * Get SLA statistics for a specific saga
    */
-  async getSlaStats(sagaId: string): Promise<{
+  async getSlaStats(tenantId: string, sagaId: string): Promise<{
     sagaStatus: string;
     totalWorkItems: number;
     completedOnTime: number;
@@ -110,12 +117,12 @@ export class SlaMonitorService implements OnModuleInit, OnModuleDestroy {
     pendingWithoutDueDate: number;
     averageResolutionHours: number;
   }> {
-    const saga = await this.sagaRepo.findOne({ where: { sagaId } });
+    const saga = await this.sagaRepo.findOne({ where: { sagaId, tenantId } });
     if (!saga) {
       throw new Error('Saga not found');
     }
 
-    const workItems = await this.workItemRepo.find({ where: { sagaId } });
+    const workItems = await this.workItemRepo.find({ where: { sagaId, tenantId } });
     const now = new Date();
 
     let completedOnTime = 0;
@@ -126,7 +133,7 @@ export class SlaMonitorService implements OnModuleInit, OnModuleDestroy {
     let completedCount = 0;
 
     for (const item of workItems) {
-      if (item.status === 'completed' || item.status === 'rejected') {
+      if (item.status === WorkItemStatus.completed || item.status === WorkItemStatus.rejected || item.status === WorkItemStatus.escalated) {
         completedCount++;
         if (item.dueDate && item.updatedAt && item.updatedAt <= item.dueDate) {
           completedOnTime++;
@@ -134,7 +141,7 @@ export class SlaMonitorService implements OnModuleInit, OnModuleDestroy {
         if (item.createdAt && item.updatedAt) {
           totalResolutionMs += item.updatedAt.getTime() - item.createdAt.getTime();
         }
-      } else if (item.status === 'pending') {
+      } else if (item.status === WorkItemStatus.pending || item.status === WorkItemStatus.in_progress) {
         if (item.dueDate) {
           if (item.dueDate < now) {
             breached++;
@@ -165,7 +172,7 @@ export class SlaMonitorService implements OnModuleInit, OnModuleDestroy {
   /**
    * Update SLA status for work items and publish breach events
    */
-  async processSlaBreaches(): Promise<{
+  async processSlaBreaches(tenantId?: string): Promise<{
     processed: number;
     escalated: number;
     details: Array<{
@@ -175,7 +182,7 @@ export class SlaMonitorService implements OnModuleInit, OnModuleDestroy {
       action: string;
     }>;
   }> {
-    const { breached } = await this.checkSlaBreaches();
+    const { breached } = await this.checkSlaBreaches(tenantId);
     const now = new Date();
 
     let processed = 0;
@@ -187,42 +194,116 @@ export class SlaMonitorService implements OnModuleInit, OnModuleDestroy {
       action: string;
     }> = [];
 
-    for (const item of breached) {
-      if (!item.dueDate) continue;
-
-      const overdueMs = now.getTime() - item.dueDate.getTime();
-      const overdueHours = Math.round(overdueMs / (1000 * 60 * 60) * 100) / 100;
-
-      let action = 'notified';
-
-      // Escalate if severely overdue (> 48 hours)
-      if (overdueHours > 48) {
-        action = 'escalated';
-        escalated++;
-
-        // Update work item to mark as escalated
-        item.decisionNotes = item.decisionNotes
-          ? `${item.decisionNotes}\n[SLA ESCALATED] Overdue by ${overdueHours}h at ${now.toISOString()}`
-          : `[SLA ESCALATED] Overdue by ${overdueHours}h at ${now.toISOString()}`;
-        item.updatedAt = now;
-        await this.workItemRepo.save(item);
-      }
-
-      processed++;
-      details.push({
-        workItemId: item.workItemId,
-        workItemType: item.workItemType || 'unknown',
-        overdueHours,
-        action,
-      });
-
-      this.logger.warn('sla.breach.processed', {
-        workItemId: item.workItemId,
-        workItemType: item.workItemType,
-        overdueHours,
-        action,
-      });
+    if (breached.length === 0) {
+      return { processed, escalated, details };
     }
+
+    await this.dataSource.transaction(async (manager) => {
+      const workItemRepoTx = manager.getRepository(WorkItem);
+      const outboxPublisher = new OutboxPublisher(manager);
+
+      for (const item of breached) {
+        if (!item.dueDate) continue;
+
+        const overdueMs = now.getTime() - item.dueDate.getTime();
+        const overdueHours = Math.round(overdueMs / (1000 * 60 * 60) * 100) / 100;
+
+        let action = 'notified';
+
+        // Publish SLA breach event for every overdue work item
+        const correlationId = uuidv4();
+        await outboxPublisher.publish({
+          topic: 'insurance.sla.breached',
+          eventType: 'insurance.sla.breached',
+          eventVersion: 1,
+          correlationId,
+          tenantId: item.tenantId,
+          subject: {
+            sagaId: item.sagaId,
+            workItemId: item.workItemId,
+            workItemType: item.workItemType || 'unknown',
+          },
+          payload: {
+            sagaId: item.sagaId,
+            workItemId: item.workItemId,
+            workItemType: item.workItemType,
+            stepName: item.stepName,
+            overdueHours,
+            dueDate: item.dueDate.toISOString(),
+            tenantId: item.tenantId,
+          },
+        });
+
+        // Escalate if severely overdue (> 48 hours)
+        if (overdueHours > 48) {
+          action = 'escalated';
+          escalated++;
+
+          // Update work item to mark as escalated
+          item.decisionNotes = item.decisionNotes
+            ? `${item.decisionNotes}\n[SLA ESCALATED] Overdue by ${overdueHours}h at ${now.toISOString()}`
+            : `[SLA ESCALATED] Overdue by ${overdueHours}h at ${now.toISOString()}`;
+          item.status = WorkItemStatus.escalated;
+          item.updatedAt = now;
+          await workItemRepoTx.save(item);
+
+          // Create an escalation work item linked to the same saga
+          const escalationItem = workItemRepoTx.create({
+            workItemId: uuidv4(),
+            tenantId: item.tenantId,
+            sagaId: item.sagaId,
+            stepName: `${item.stepName}_SLA_ESCALATION`,
+            workItemType: 'sla_escalation',
+            status: WorkItemStatus.pending,
+            claimId: item.claimId,
+            policyId: item.policyId,
+            priority: WorkItemPriority.critical,
+            context: {
+              originalWorkItemId: item.workItemId,
+              originalStepName: item.stepName,
+              overdueHours,
+            },
+          });
+          await workItemRepoTx.save(escalationItem);
+
+          await outboxPublisher.publish({
+            topic: 'insurance.sla.escalated',
+            eventType: 'insurance.sla.escalated',
+            eventVersion: 1,
+            correlationId,
+            tenantId: item.tenantId,
+            subject: {
+              sagaId: item.sagaId,
+              workItemId: item.workItemId,
+              escalationWorkItemId: escalationItem.workItemId,
+            },
+            payload: {
+              sagaId: item.sagaId,
+              workItemId: item.workItemId,
+              escalationWorkItemId: escalationItem.workItemId,
+              stepName: item.stepName,
+              overdueHours,
+              tenantId: item.tenantId,
+            },
+          });
+        }
+
+        processed++;
+        details.push({
+          workItemId: item.workItemId,
+          workItemType: item.workItemType || 'unknown',
+          overdueHours,
+          action,
+        });
+
+        this.logger.warn('sla.breach.processed', {
+          workItemId: item.workItemId,
+          workItemType: item.workItemType,
+          overdueHours,
+          action,
+        });
+      }
+    });
 
     return { processed, escalated, details };
   }

@@ -4,6 +4,7 @@ export enum SessionStatus {
   ACTIVE = 'active',
   EXPIRED = 'expired',
   REVOKED = 'revoked',
+  LOCKED = 'locked',
 }
 
 @Entity('customer_sessions')
@@ -27,6 +28,12 @@ export class CustomerSession {
 
   @Column({ type: 'enum', enum: SessionStatus, default: SessionStatus.ACTIVE })
   status!: SessionStatus;
+
+  @Column({ type: 'int', default: 0 })
+  otpAttempts!: number;
+
+  @Column({ type: 'timestamp', nullable: true })
+  lockedAt!: Date | null;
 
   @Column({ type: 'timestamp' })
   expiresAt!: Date;

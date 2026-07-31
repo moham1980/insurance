@@ -4,8 +4,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { createHash } from 'crypto';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { Claim } from './entities/Claim';
+import { ClaimAdvocacyCase } from './entities/ClaimAdvocacyCase';
 import { OutboxPublisher, consumeOnce, EventEnvelope, circuitBreakerRegistry } from '@insurance/shared';
 import { auditLogger } from './audit.logger';
+import { ServiceClient } from './service-client';
 
 @Injectable()
 export class ClaimsService {
@@ -16,7 +18,8 @@ export class ClaimsService {
 
   constructor(
     private readonly dataSource: DataSource,
-    @InjectRepository(Claim) private readonly claimRepo: Repository<Claim>
+    @InjectRepository(Claim) private readonly claimRepo: Repository<Claim>,
+    private readonly serviceClient: ServiceClient
   ) {
     this.outboxPublisher = new OutboxPublisher(this.dataSource);
   }
@@ -41,6 +44,12 @@ export class ClaimsService {
 
   private getPartyKycServiceUrl(): string | null {
     const url = process.env.PARTY_KYC_SERVICE_URL;
+    if (typeof url === 'string' && url.length > 0) return url;
+    return null;
+  }
+
+  private getSalesNetworkServiceUrl(): string | null {
+    const url = process.env.SALES_NETWORK_SERVICE_URL;
     if (typeof url === 'string' && url.length > 0) return url;
     return null;
   }
@@ -203,7 +212,16 @@ export class ClaimsService {
     tenantId: string;
     actorUserId?: string;
     policyId: string;
+    policyNumber?: string;
     claimantPartyId: string;
+    brokerOrganizationId?: string;
+    distributionOrganizationId?: string;
+    carrierOrganizationId?: string;
+    recordOwnerOrganizationId?: string;
+    authoritativeTenantId?: string;
+    representativePartyId?: string;
+    claimType?: string;
+    notificationChannel?: Claim['notificationChannel'];
     lossDate: string;
     lossType: string;
     description?: string;
@@ -235,21 +253,65 @@ export class ClaimsService {
       }
     }
 
+    const lossDateObj = new Date(params.lossDate);
+    const duplicate = await this.claimRepo.findOne({
+      where: { tenantId, policyId: params.policyId, lossDate: lossDateObj } as any,
+    });
+    if (duplicate) {
+      const err: any = new Error('Duplicate claim detected: a claim already exists for this policy and loss date');
+      err.code = 'DUPLICATE_CLAIM';
+      err.details = { existingClaimId: duplicate.claimId, claimNumber: duplicate.claimNumber };
+      throw err;
+    }
+
+    if (params.brokerOrganizationId && params.carrierOrganizationId) {
+      const salesNetworkUrl = this.getSalesNetworkServiceUrl();
+      if (salesNetworkUrl) {
+        const hasAgreement = await this.serviceClient.validateActiveDistributionAgreement({
+          correlationId: params.correlationId,
+          salesNetworkServiceUrl: salesNetworkUrl,
+          carrierOrganizationId: params.carrierOrganizationId,
+          distributorOrganizationId: params.brokerOrganizationId,
+          tenantId,
+        });
+        if (!hasAgreement) {
+          const err: any = new Error('No active distribution agreement found between broker and carrier organizations');
+          err.code = 'NO_DISTRIBUTION_AGREEMENT';
+          throw err;
+        }
+      }
+    }
+
     return await this.dataSource.transaction(async (manager) => {
       const claimRepo = manager.getRepository(Claim);
 
       const claimNumber = await this.generateClaimNumber(claimRepo);
+      const recordOwner = params.recordOwnerOrganizationId || tenantId;
+      const carrier = params.carrierOrganizationId || recordOwner;
+      const authoritativeTenant = params.authoritativeTenantId || tenantId;
+
       const claim = claimRepo.create({
         claimId: uuidv4(),
         tenantId,
+        authoritativeTenantId: authoritativeTenant,
+        recordOwnerOrganizationId: recordOwner,
+        carrierOrganizationId: carrier,
+        distributionOrganizationId: params.distributionOrganizationId || null,
+        brokerOrganizationId: params.brokerOrganizationId || null,
         claimNumber,
         policyId: params.policyId,
+        policyNumber: params.policyNumber || null,
+        externalClaimId: null,
         claimantPartyId: params.claimantPartyId,
+        representativePartyId: params.representativePartyId || null,
+        claimType: params.claimType || 'first_party',
         lossDate: new Date(params.lossDate),
+        reportedDate: new Date(),
         lossType: params.lossType,
         description: params.description || null,
         status: 'registered',
         requiresHumanTriage: true,
+        notificationChannel: params.notificationChannel || null,
         idempotencyKey: params.idempotencyKey || null,
         idempotencyPayloadHash: payloadHash,
       });
@@ -272,14 +334,110 @@ export class ClaimsService {
         },
       });
 
+      if (claim.brokerOrganizationId) {
+        const caseRepo = manager.getRepository(ClaimAdvocacyCase);
+        const existingCase = await caseRepo.findOne({ where: { claimId: claim.claimId } });
+        if (!existingCase) {
+          const advocacyCase = caseRepo.create({
+            caseId: uuidv4(),
+            tenantId,
+            brokerOrganizationId: claim.brokerOrganizationId,
+            claimId: claim.claimId,
+            customerPartyId: claim.claimantPartyId,
+            carrierOrganizationId: claim.carrierOrganizationId,
+            status: 'open',
+            priority: 'medium',
+            openedAt: new Date(),
+          });
+          await caseRepo.save(advocacyCase);
+
+          await this.outboxPublisher.publish({
+            topic: 'insurance.claim.advocacy_case_opened',
+            eventType: 'ClaimAdvocacyCaseOpened',
+            eventVersion: 1,
+            correlationId: params.correlationId,
+            subject: { caseId: advocacyCase.caseId, claimId: claim.claimId, tenantId },
+            payload: {
+              caseId: advocacyCase.caseId,
+              claimId: claim.claimId,
+              brokerOrganizationId: claim.brokerOrganizationId,
+              customerPartyId: claim.claimantPartyId,
+              carrierOrganizationId: claim.carrierOrganizationId,
+              priority: 'medium',
+            },
+          });
+
+          this.logger.log(`Auto-created advocacy case ${advocacyCase.caseId} for broker claim ${claim.claimId}`);
+        }
+      }
+
       return claim;
     });
   }
 
-  async getClaim(params: { claimId: string; tenantId?: string }): Promise<Claim | null> {
+  async getClaim(params: { claimId: string; tenantId?: string; organizationId?: string; roles?: string[] }): Promise<Claim | null> {
     const where: any = { claimId: params.claimId };
     if (params.tenantId) where.tenantId = params.tenantId;
-    return this.claimRepo.findOne({ where });
+    const claim = await this.claimRepo.findOne({ where });
+    if (!claim) return null;
+    if (params.organizationId && params.roles && params.roles.length > 0) {
+      const isPrivileged = params.roles.some((r) =>
+        ['insurer_admin', 'auditor', 'head_office_ops', 'branch_manager', 'finance_ops'].includes(r),
+      );
+      if (!isPrivileged) {
+        const hasAccess =
+          claim.brokerOrganizationId === params.organizationId ||
+          claim.carrierOrganizationId === params.organizationId ||
+          claim.recordOwnerOrganizationId === params.organizationId;
+        if (!hasAccess) return null;
+      }
+    }
+    return claim;
+  }
+
+  async updateClaim(params: {
+    correlationId: string;
+    tenantId?: string;
+    actorUserId?: string;
+    claimId: string;
+    updates: Record<string, any>;
+  }): Promise<Claim | null> {
+    const claim = await this.getClaim({ claimId: params.claimId, tenantId: params.tenantId });
+    if (!claim) return null;
+
+    const allowedFields = [
+      'description',
+      'lossType',
+      'lossDate',
+      'notificationChannel',
+      'representativePartyId',
+      'contactPhone',
+      'contactEmail',
+      'locationAddress',
+      'locationCity',
+      'locationProvince',
+      'metadata',
+    ];
+
+    for (const field of allowedFields) {
+      if (params.updates[field] !== undefined) {
+        (claim as any)[field] = params.updates[field];
+      }
+    }
+
+    await this.claimRepo.save(claim);
+
+    auditLogger.log({
+      action: 'CLAIM_UPDATED',
+      actor: params.actorUserId || 'system',
+      tenantId: params.tenantId || claim.tenantId,
+      resourceType: 'Claim',
+      resourceId: claim.claimId,
+      correlationId: params.correlationId,
+      details: { updatedFields: Object.keys(params.updates) },
+    });
+
+    return claim;
   }
 
   async listClaims(params: {
@@ -288,6 +446,8 @@ export class ClaimsService {
     status?: string;
     limit: number;
     offset: number;
+    organizationId?: string;
+    roles?: string[];
   }): Promise<{ rows: Claim[]; total: number }> {
     const qb = this.claimRepo.createQueryBuilder('claim');
 
@@ -301,6 +461,18 @@ export class ClaimsService {
 
     if (params.status) {
       qb.andWhere('claim.status = :status', { status: params.status });
+    }
+
+    if (params.organizationId && params.roles && params.roles.length > 0) {
+      const isPrivileged = params.roles.some((r) =>
+        ['insurer_admin', 'auditor', 'head_office_ops', 'branch_manager', 'finance_ops'].includes(r),
+      );
+      if (!isPrivileged) {
+        qb.andWhere(
+          '(claim.broker_organization_id = :orgId OR claim.carrier_organization_id = :orgId OR claim.record_owner_organization_id = :orgId)',
+          { orgId: params.organizationId },
+        );
+      }
     }
 
     qb.orderBy('claim.created_at', 'DESC')
@@ -354,6 +526,52 @@ export class ClaimsService {
         ...params.payload,
       },
     });
+
+    await publisher.publish({
+      topic: 'insurance.claim.status_updated',
+      eventType: 'ClaimStatusUpdated',
+      eventVersion: 1,
+      correlationId: params.correlationId,
+      subject: {
+        claimId: params.claim.claimId,
+        claimNumber: params.claim.claimNumber,
+        policyId: params.claim.policyId,
+        tenantId: params.tenantId ?? params.claim.tenantId,
+      },
+      payload: {
+        claimId: params.claim.claimId,
+        claimNumber: params.claim.claimNumber,
+        status: params.claim.status,
+        brokerOrganizationId: params.claim.brokerOrganizationId || null,
+        updatedAt: params.claim.updatedAt?.toISOString?.() ?? new Date().toISOString(),
+      },
+    });
+
+    if (params.claim.brokerOrganizationId) {
+      await publisher.publish({
+        topic: 'insurance.claim.status.broker-notification',
+        eventType: 'BrokerClaimStatusNotification',
+        eventVersion: 1,
+        correlationId: params.correlationId,
+        subject: {
+          claimId: params.claim.claimId,
+          claimNumber: params.claim.claimNumber,
+          policyId: params.claim.policyId,
+          brokerOrganizationId: params.claim.brokerOrganizationId,
+          tenantId: params.tenantId ?? params.claim.tenantId,
+        },
+        payload: {
+          claimId: params.claim.claimId,
+          claimNumber: params.claim.claimNumber,
+          policyId: params.claim.policyId,
+          status: params.claim.status,
+          brokerOrganizationId: params.claim.brokerOrganizationId,
+          notificationType: 'claim_status_change',
+          updatedAt: params.claim.updatedAt?.toISOString?.() ?? new Date().toISOString(),
+          ...params.payload,
+        },
+      });
+    }
   }
 
   async assessClaim(params: {
@@ -618,8 +836,32 @@ export class ClaimsService {
 
       this.assertSoD(claim, params.actorUserId, 'pay');
 
+      let paymentReference = params.paymentReference || null;
+      if (!paymentReference && this.serviceClient) {
+        const invoice = await this.serviceClient.createClaimPayoutInvoice({
+          correlationId: params.correlationId,
+          tenantId: claim.tenantId,
+          claimId: claim.claimId,
+          customerPartyId: claim.claimantPartyId,
+          amount: paidAmount,
+          currency: claim.currency || 'IRR',
+        });
+        if (invoice?.invoiceId) {
+          const payment = await this.serviceClient.initiateClaimPayout({
+            correlationId: params.correlationId,
+            tenantId: claim.tenantId,
+            invoiceId: invoice.invoiceId,
+            customerPartyId: claim.claimantPartyId,
+            description: `Claim payout for ${claim.claimNumber || claim.claimId}`,
+          });
+          if (payment.paymentId) {
+            paymentReference = payment.paymentId;
+          }
+        }
+      }
+
       claim.paidAmount = paidAmount;
-      claim.paymentReference = params.paymentReference || null;
+      claim.paymentReference = paymentReference;
       claim.status = 'paid';
       this.recordActor(claim, params.actorUserId, 'paid');
       await claimRepo.save(claim);
@@ -685,6 +927,134 @@ export class ClaimsService {
     });
   }
 
+  private recordHistory(claim: Claim, actorUserId: string | undefined, action: string, metadata?: Record<string, any>): void {
+    const history = (claim.metadata?.history as any[]) || [];
+    history.push({
+      action,
+      actor: actorUserId,
+      timestamp: new Date().toISOString(),
+      fromStatus: claim.status,
+      ...(metadata || {}),
+    });
+    claim.metadata = claim.metadata || {};
+    claim.metadata.history = history;
+  }
+
+  async acknowledgeClaim(params: {
+    correlationId: string;
+    tenantId?: string;
+    actorUserId?: string;
+    claimId: string;
+  }): Promise<Claim | null> {
+    return await this.dataSource.transaction(async (manager) => {
+      const claimRepo = manager.getRepository(Claim);
+
+      const where: any = { claimId: params.claimId };
+      if (params.tenantId) where.tenantId = params.tenantId;
+      const claim = await claimRepo.findOne({ where, lock: { mode: 'pessimistic_write' } });
+      if (!claim) return null;
+
+      this.assertTenantMatch(claim, params.tenantId);
+      this.assertAllowedStates('claims:acknowledge', claim.status, ['reported', 'registered']);
+
+      this.recordHistory(claim, params.actorUserId, 'acknowledge');
+      claim.status = 'acknowledged';
+      this.recordActor(claim, params.actorUserId, 'acknowledged');
+      await claimRepo.save(claim);
+
+      await this.publishClaimEvent({
+        correlationId: params.correlationId,
+        topic: 'insurance.claim.acknowledged',
+        eventType: 'ClaimAcknowledged',
+        tenantId: params.tenantId,
+        claim,
+        manager,
+        payload: { acknowledgedBy: params.actorUserId },
+      });
+
+      return claim;
+    });
+  }
+
+  async submitClaimToCarrier(params: {
+    correlationId: string;
+    tenantId?: string;
+    actorUserId?: string;
+    claimId: string;
+    externalClaimId?: string;
+  }): Promise<Claim | null> {
+    return await this.dataSource.transaction(async (manager) => {
+      const claimRepo = manager.getRepository(Claim);
+
+      const where: any = { claimId: params.claimId };
+      if (params.tenantId) where.tenantId = params.tenantId;
+      const claim = await claimRepo.findOne({ where, lock: { mode: 'pessimistic_write' } });
+      if (!claim) return null;
+
+      this.assertTenantMatch(claim, params.tenantId);
+      this.assertAllowedStates('claims:submit_to_carrier', claim.status, ['reported', 'registered', 'acknowledged']);
+
+      if (params.externalClaimId) claim.externalClaimId = params.externalClaimId;
+      this.recordHistory(claim, params.actorUserId, 'submit_to_carrier', { externalClaimId: params.externalClaimId });
+      claim.status = 'under_review';
+      this.recordActor(claim, params.actorUserId, 'submittedToCarrier');
+      await claimRepo.save(claim);
+
+      await this.publishClaimEvent({
+        correlationId: params.correlationId,
+        topic: 'insurance.claim.submitted_to_carrier',
+        eventType: 'ClaimSubmittedToCarrier',
+        tenantId: params.tenantId,
+        claim,
+        manager,
+        payload: { externalClaimId: claim.externalClaimId, submittedBy: params.actorUserId },
+      });
+
+      return claim;
+    });
+  }
+
+  async appealClaim(params: {
+    correlationId: string;
+    tenantId?: string;
+    actorUserId?: string;
+    claimId: string;
+    reason: string;
+  }): Promise<Claim | null> {
+    return await this.dataSource.transaction(async (manager) => {
+      const claimRepo = manager.getRepository(Claim);
+
+      const where: any = { claimId: params.claimId };
+      if (params.tenantId) where.tenantId = params.tenantId;
+      const claim = await claimRepo.findOne({ where, lock: { mode: 'pessimistic_write' } });
+      if (!claim) return null;
+
+      this.assertTenantMatch(claim, params.tenantId);
+      this.assertAllowedStates('claims:appeal', claim.status, ['rejected', 'denied', 'closed']);
+
+      this.recordHistory(claim, params.actorUserId, 'appeal', { reason: params.reason });
+      claim.status = 'appealed';
+      this.recordActor(claim, params.actorUserId, 'appealed');
+      await claimRepo.save(claim);
+
+      await this.publishClaimEvent({
+        correlationId: params.correlationId,
+        topic: 'insurance.claim.appealed',
+        eventType: 'ClaimAppealed',
+        tenantId: params.tenantId,
+        claim,
+        manager,
+        payload: { reason: params.reason, appealedBy: params.actorUserId },
+      });
+
+      return claim;
+    });
+  }
+
+  getClaimHistory(claim: Claim): Array<{ action: string; actor?: string; timestamp: string; fromStatus: string; [k: string]: any }> {
+    return (claim.metadata?.history as any[]) || [];
+  }
+
   async referToAdjuster(params: {
     correlationId: string;
     tenantId?: string;
@@ -708,7 +1078,7 @@ export class ClaimsService {
 
       this.assertAllowedStates('claims:refer_adjuster', claim.status, ['registered', 'assessed']);
 
-      claim.status = 'adjuster_review';
+      claim.status = 'adjuster_assigned';
       claim.metadata = claim.metadata || {};
       claim.metadata.adjusterId = params.adjusterId;
       claim.metadata.adjusterReferralReason = params.reason;
@@ -1022,7 +1392,7 @@ export class ClaimsService {
     }
 
     params.claim.autoAssignedAdjusterId = assignedAdjusterId;
-    params.claim.status = assignedAdjusterId ? 'adjuster_review' : 'registered';
+    params.claim.status = assignedAdjusterId ? 'adjuster_assigned' : 'registered';
     params.claim.metadata = params.claim.metadata || {};
     params.claim.metadata.autoAssignedAt = new Date().toISOString();
     params.claim.metadata.assignmentReason = assignmentReason;

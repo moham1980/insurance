@@ -1,13 +1,16 @@
-import { Controller, Get, Post, Body, Param, Headers, Query, Req, UseGuards, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Headers, Query, Req, UseGuards, BadRequestException, Delete } from '@nestjs/common';
 import { NotificationService } from './notification.service';
+import { CredentialVaultService } from './credential-vault.service';
 import { NotificationChannel, NotificationType } from './entities/NotificationLog';
 import { EmailTemplateType } from './entities/EmailTemplate';
 import { SmsTemplateType } from './entities/SmsTemplate';
+import { CredentialProvider, CredentialType } from './entities/Credential';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { PermissionsGuard } from './permissions.guard';
 import { RequirePermissions } from './permissions.decorator';
 import { TenantGuard } from './tenant.guard';
 import { CallbackAuthGuard } from './callback-auth.guard';
+import { PushChannel } from './push-channel';
 
 interface RequestWithTenant {
   tenantId?: string;
@@ -16,7 +19,11 @@ interface RequestWithTenant {
 
 @Controller('notifications')
 export class NotificationController {
-  constructor(private readonly notificationService: NotificationService) {}
+  constructor(
+    private readonly notificationService: NotificationService,
+    private readonly credentialVault: CredentialVaultService,
+    private readonly pushChannel: PushChannel,
+  ) {}
 
   private toSummary(log: any) {
     return {
@@ -466,5 +473,170 @@ export class NotificationController {
   async seedDefaultTemplates(@Req() req: RequestWithTenant) {
     const result = await this.notificationService.seedDefaultTemplates(req.tenantId!);
     return { success: true, data: result };
+  }
+
+  // Push notification endpoint
+  @Post('push')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, TenantGuard)
+  @RequirePermissions('notification:send')
+  async sendPush(
+    @Req() req: RequestWithTenant,
+    @Headers() headers: Record<string, any>,
+    @Body() body: {
+      subscription: { endpoint: string; keys: { p256dh: string; auth: string } };
+      title: string;
+      body: string;
+      type?: NotificationType;
+      metadata?: Record<string, any>;
+      userId?: string;
+      correlationId?: string;
+    },
+  ) {
+    if (!body.subscription?.endpoint || !body.subscription?.keys?.p256dh || !body.subscription?.keys?.auth) {
+      throw new BadRequestException('Valid push subscription (endpoint, keys.p256dh, keys.auth) is required');
+    }
+    if (!body.title || !body.body) {
+      throw new BadRequestException('title and body are required');
+    }
+    const correlationId = headers['x-correlation-id'] || body.correlationId || `push-${Date.now()}`;
+    const result = await this.notificationService.sendPushNotification({
+      tenantId: req.tenantId!,
+      userId: body.userId,
+      correlationId,
+      subscription: body.subscription,
+      title: body.title,
+      body: body.body,
+      type: body.type,
+      metadata: body.metadata,
+    });
+    return { success: true, data: this.toSummary(result), correlationId };
+  }
+
+  // Provider health-check endpoints
+  @Get('health/providers')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, TenantGuard)
+  @RequirePermissions('notification:view')
+  async checkProvidersHealth() {
+    const smsProviderName = process.env.SMS_PROVIDER || 'kavenegar';
+    const emailProviderName = process.env.EMAIL_PROVIDER || 'sendgrid';
+    const fallbackSmsProviderName = process.env.SMS_FALLBACK_PROVIDER || null;
+
+    return {
+      success: true,
+      data: {
+        sms: {
+          provider: smsProviderName,
+          configured: !!(process.env.KAVENEGAR_API_KEY || process.env.TWILIO_ACCOUNT_SID || process.env.MELLIPAYAMAK_USERNAME),
+        },
+        email: {
+          provider: emailProviderName,
+          configured: !!(process.env.SENDGRID_API_KEY || process.env.AWS_ACCESS_KEY_ID),
+        },
+        fallbackSms: {
+          provider: fallbackSmsProviderName,
+          configured: !!fallbackSmsProviderName,
+        },
+        push: {
+          enabled: this.pushChannel.isEnabled(),
+          vapidConfigured: !!(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY),
+        },
+      },
+    };
+  }
+
+  // Credential Vault endpoints
+  @Get('credentials')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, TenantGuard)
+  @RequirePermissions('notification:credentials:view')
+  async listCredentials(
+    @Req() req: RequestWithTenant,
+    @Query('provider') provider?: string,
+  ) {
+    const rows = await this.credentialVault.listCredentials(req.tenantId!, provider);
+    return {
+      success: true,
+      data: rows.map((r) => ({
+        credentialId: r.credentialId,
+        tenantId: r.tenantId,
+        provider: r.provider,
+        credentialType: r.credentialType,
+        maskedValue: r.maskedValue,
+        isActive: r.isActive,
+        expiresAt: r.expiresAt,
+        createdAt: r.createdAt,
+      })),
+    };
+  }
+
+  @Post('credentials')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, TenantGuard)
+  @RequirePermissions('notification:credentials:manage')
+  async setCredential(
+    @Req() req: RequestWithTenant,
+    @Body() body: { provider: CredentialProvider; credentialType: CredentialType; value: string; extra?: Record<string, string>; expiresAt?: string },
+  ) {
+    const record = await this.credentialVault.setCredential({
+      tenantId: req.tenantId!,
+      provider: body.provider,
+      credentialType: body.credentialType,
+      value: body.value,
+      extra: body.extra,
+      expiresAt: body.expiresAt ? new Date(body.expiresAt) : undefined,
+    });
+    return {
+      success: true,
+      data: {
+        credentialId: record.credentialId,
+        provider: record.provider,
+        credentialType: record.credentialType,
+        maskedValue: record.maskedValue,
+        isActive: record.isActive,
+        expiresAt: record.expiresAt,
+      },
+    };
+  }
+
+  @Post('credentials/:credentialId/rotate')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, TenantGuard)
+  @RequirePermissions('notification:credentials:manage')
+  async rotateCredential(
+    @Req() req: RequestWithTenant,
+    @Param('credentialId') credentialId: string,
+    @Body() body: { provider: CredentialProvider; credentialType: CredentialType; value: string; extra?: Record<string, string>; expiresAt?: string },
+  ) {
+    const existing = await this.credentialVault.getCredential(req.tenantId!, body.provider, body.credentialType);
+    if (!existing || existing.credentialId !== credentialId) {
+      return { success: false, error: { code: 'NOT_FOUND', message: 'Credential not found' } };
+    }
+    const record = await this.credentialVault.rotateCredential({
+      tenantId: req.tenantId!,
+      provider: existing.provider,
+      credentialType: existing.credentialType,
+      value: body.value,
+      extra: body.extra,
+      expiresAt: body.expiresAt ? new Date(body.expiresAt) : undefined,
+    });
+    return {
+      success: true,
+      data: {
+        credentialId: record.credentialId,
+        provider: record.provider,
+        credentialType: record.credentialType,
+        maskedValue: record.maskedValue,
+        isActive: record.isActive,
+        expiresAt: record.expiresAt,
+      },
+    };
+  }
+
+  @Delete('credentials/:credentialId')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, TenantGuard)
+  @RequirePermissions('notification:credentials:manage')
+  async deleteCredential(
+    @Req() req: RequestWithTenant,
+    @Param('credentialId') credentialId: string,
+  ) {
+    const deleted = await this.credentialVault.deleteCredential(credentialId);
+    return { success: deleted, data: { credentialId, deleted } };
   }
 }

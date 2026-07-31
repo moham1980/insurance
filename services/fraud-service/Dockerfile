@@ -26,7 +26,7 @@ COPY package.json bun.lock ./
 COPY packages/shared/package.json ./packages/shared/
 COPY services/fraud-service/package.json ./services/fraud-service/
 
-RUN for i in 1 2 3; do NODE_TLS_REJECT_UNAUTHORIZED=0 bun install --network-concurrency=8 && break || sleep 10; done --no-frozen-lockfile
+RUN for i in 1 2 3; do NODE_TLS_REJECT_UNAUTHORIZED=0 bun install --network-concurrency=8 --no-frozen-lockfile && break || sleep 10; done
 
 COPY packages/shared ./packages/shared
 COPY services/fraud-service ./services/fraud-service

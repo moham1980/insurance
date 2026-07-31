@@ -9,7 +9,7 @@ import { RegulatoryFailureLog } from './entities/RegulatoryFailureLog';
 import { ISanhabClient } from './sanhab-clients/sanhab-client.interface';
 import { MockSanhabClient } from './sanhab-clients/mock-sanhab.client';
 import { RealSanhabClient } from './sanhab-clients/real-sanhab.client';
-import { CircuitBreaker, CircuitBreakerConfig } from './circuit-breaker';
+import { CircuitBreaker, CircuitBreakerConfig, CircuitBreakerStats, CircuitState } from './circuit-breaker';
 
 export interface SanhabWebhookBody {
   externalEventId?: string;
@@ -67,11 +67,44 @@ export class RegulatoryService implements OnModuleInit, OnModuleDestroy {
       timeoutMs: parseInt(process.env.CIRCUIT_BREAKER_TIMEOUT_MS || '60000', 10),
       halfOpenMaxCalls: parseInt(process.env.CIRCUIT_BREAKER_HALF_OPEN_CALLS || '3', 10),
     };
-    this.sanhabCircuitBreaker = new CircuitBreaker(circuitBreakerConfig);
-    this.logger.info('Sanhab Circuit Breaker initialized', { config: circuitBreakerConfig });
+
+    // Per-inquiry-type circuit breakers
+    this.sanhabCircuitBreaker = new CircuitBreaker(circuitBreakerConfig, 'sanhab-default');
+    this.circuitBreakers.set('default', this.sanhabCircuitBreaker);
+    this.circuitBreakers.set('nationalId_uniqueCode', new CircuitBreaker(circuitBreakerConfig, 'sanhab-nationalId'));
+    this.circuitBreakers.set('policyNumber', new CircuitBreaker(circuitBreakerConfig, 'sanhab-policyNumber'));
+    this.circuitBreakers.set('vin', new CircuitBreaker(circuitBreakerConfig, 'sanhab-vin'));
+    this.circuitBreakers.set('warehouseFire', new CircuitBreaker(circuitBreakerConfig, 'sanhab-warehouseFire'));
+    this.circuitBreakers.set('sms', new CircuitBreaker(circuitBreakerConfig, 'sanhab-sms'));
+    this.circuitBreakers.set('brokerLicense', new CircuitBreaker(circuitBreakerConfig, 'sanhab-brokerLicense'));
+
+    // Set up alerting on circuit breaker open for all breakers
+    for (const [type, breaker] of this.circuitBreakers) {
+      breaker.onOpen((name, stats) => {
+        this.logger.error(
+          `CIRCUIT_BREAKER_OPEN alert: ${name} opened after ${stats.failureCount} failures (type=${type}, state=${stats.state}, lastFailureAt=${stats.lastFailureAt?.toISOString() || 'null'})`,
+        );
+      });
+    }
+
+    this.logger.info(`Sanhab Circuit Breakers initialized (per inquiry type): failureThreshold=${circuitBreakerConfig.failureThreshold}, successThreshold=${circuitBreakerConfig.successThreshold}, timeoutMs=${circuitBreakerConfig.timeoutMs}`);
   }
 
   private sanhabCircuitBreaker: CircuitBreaker;
+  private circuitBreakers = new Map<string, CircuitBreaker>();
+
+  getCircuitBreakerStatsByType(type: string): CircuitBreakerStats {
+    const breaker = this.circuitBreakers.get(type);
+    return breaker ? breaker.getStats() : { state: CircuitState.CLOSED, failureCount: 0, successCount: 0, lastFailureAt: null, lastSuccessAt: null, openedAt: null };
+  }
+
+  getAllCircuitBreakerStats(): Record<string, CircuitBreakerStats> {
+    const result: Record<string, CircuitBreakerStats> = {};
+    for (const [type, breaker] of this.circuitBreakers) {
+      result[type] = breaker.getStats();
+    }
+    return result;
+  }
 
   private async sleep(ms: number): Promise<void> {
     await new Promise((r) => setTimeout(r, ms));
@@ -219,6 +252,7 @@ export class RegulatoryService implements OnModuleInit, OnModuleDestroy {
         eventType: 'SanhabEventReceived',
         eventVersion: 1,
         correlationId,
+        tenantId: result.tenantId || 'unknown',
         subject: { externalEventId: result.externalEventId },
         payload: {
           externalEventId: result.externalEventId,
@@ -276,6 +310,7 @@ export class RegulatoryService implements OnModuleInit, OnModuleDestroy {
         eventType: 'SanhabEventReceived',
         eventVersion: 1,
         correlationId,
+        tenantId: result.tenantId || 'unknown',
         subject: { externalEventId: result.externalEventId },
         payload: {
           externalEventId: result.externalEventId,
@@ -540,6 +575,7 @@ export class RegulatoryService implements OnModuleInit, OnModuleDestroy {
           eventType: 'SanhabEventReceived',
           eventVersion: 1,
           correlationId,
+          tenantId: result.tenantId || 'unknown',
           subject: { externalEventId: result.externalEventId },
           payload: {
             externalEventId: result.externalEventId,

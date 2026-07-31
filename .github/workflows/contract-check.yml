@@ -1,0 +1,87 @@
+name: Contract Compatibility Check
+
+on:
+  pull_request:
+    paths:
+      - 'contracts/**'
+      - 'ecosystem/contracts/**'
+      - 'doc/openapi/**'
+      - 'doc/asyncapi/**'
+      - 'services/*/src/**/*.controller.ts'
+      - 'packages/shared/src/events/**'
+    branches: [main, develop]
+
+jobs:
+  contract-compatibility:
+    name: API/Event Contract Compatibility
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check for breaking contract changes
+        run: |
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          echo "Comparing $BASE_SHA..$HEAD_SHA for contract changes"
+
+          CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" -- \
+            'contracts/asyncapi/**' \
+            'contracts/openapi/**' \
+            'ecosystem/contracts/asyncapi/**' \
+            'ecosystem/contracts/openapi/**' \
+            'doc/openapi/**' \
+            'doc/asyncapi/**' \
+            'packages/shared/src/events/**' || true)
+
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "No contract files changed. Skipping."
+            exit 0
+          fi
+
+          echo "Changed contract files:"
+          echo "$CHANGED_FILES"
+
+          # Check for removal of fields or change of type (breaking changes)
+          BREAKING=0
+          for FILE in $CHANGED_FILES; do
+            if [ ! -f "$FILE" ]; then continue; fi
+
+            REMOVED=$(git diff "$BASE_SHA" "$HEAD_SHA" -- "$FILE" | grep -E '^\-.*event_type:|^\-.*const:|^\-.*type:.*string|^\-.*type:.*integer|^\-.*type:.*object|^\-.*required:' || true)
+            if [ -n "$REMOVED" ]; then
+              echo "POTENTIAL BREAKING CHANGE in $FILE:"
+              echo "$REMOVED"
+              BREAKING=1
+            fi
+          done
+
+          if [ "$BREAKING" -eq 1 ]; then
+            echo "::error::Breaking contract changes detected. API owner approval required."
+            echo "To override: add 'contract-breaking-change-approved' label to this PR."
+            exit 1
+          fi
+
+          echo "No breaking changes detected."
+
+      - name: Validate AsyncAPI spec
+        run: |
+          if [ -f ecosystem/contracts/asyncapi/insurance-service/asyncapi.yaml ]; then
+            npx -y @asyncapi/cli validate ecosystem/contracts/asyncapi/insurance-service/asyncapi.yaml || \
+              echo "Warning: AsyncAPI validation requires internet access for schema download"
+          fi
+
+      - name: Run contract tests
+        run: npm run test:contract
+        env:
+          NODE_ENV: test

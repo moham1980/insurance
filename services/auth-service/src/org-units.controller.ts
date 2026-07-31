@@ -31,11 +31,11 @@ export class OrgUnitsController {
     const actor = req?.user as any;
     auditLogger.info('iam.org_units.create.request', { correlationId, tenantId, action: 'org_units:create', actorUserId: actor?.userId });
 
-    if (!body?.type || !body?.name || !body?.code) {
+    if (!body?.name || !body?.code) {
       auditLogger.warn('iam.org_units.create.validation_failed', { correlationId, tenantId, action: 'org_units:create', actorUserId: actor?.userId });
       return {
         success: false,
-        error: { code: 'VALIDATION_ERROR', message: 'type, name, code are required' },
+        error: { code: 'VALIDATION_ERROR', message: 'name, code are required' },
         correlationId,
       };
     }
@@ -74,12 +74,15 @@ export class OrgUnitsController {
       }
 
       const orgUnit = await this.orgUnitsService.create({
-        type: body.type as OrganizationUnitType,
+        type: (body.type as OrganizationUnitType) || 'branch',
         name: body.name,
         code: body.code,
         parentOrgUnitId: body.parentOrgUnitId,
         tenantId,
-        metadata: body.metadata,
+        metadata: {
+          ...(body.metadata || {}),
+          ...(body.capabilities ? { capabilities: body.capabilities } : {}),
+        },
       });
 
       return {

@@ -5,6 +5,7 @@ import './globals.css'
 import { PortalShell } from '@/components/portal-shell'
 import { ThemeProvider } from '@/components/theme-provider'
 import { ToastProvider, ToastViewport } from '@/components/toast-provider'
+import { BrandProvider } from '@/config/brand-provider'
 
 export const metadata: Metadata = {
   title: 'پرتال مشتری بیمه',
@@ -45,25 +46,14 @@ export default function RootLayout({
       </head>
       <body>
         <ThemeProvider>
-          <ToastProvider>
-            <PortalShell>{children}</PortalShell>
-            <ToastViewport />
-          </ToastProvider>
+          <BrandProvider>
+            <ToastProvider>
+              <PortalShell>{children}</PortalShell>
+              <ToastViewport />
+            </ToastProvider>
+          </BrandProvider>
         </ThemeProvider>
       </body>
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `
-            if ('serviceWorker' in navigator) {
-              navigator.serviceWorker.register('/sw.js').then((registration) => {
-                console.log('Service Worker registered:', registration);
-              }).catch((error) => {
-                console.log('Service Worker registration failed:', error);
-              });
-            }
-          `,
-        }}
-      />
     </html>
   )
 }

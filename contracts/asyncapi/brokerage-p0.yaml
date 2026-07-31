@@ -1,0 +1,201 @@
+asyncapi: '2.6.0'
+info:
+  title: Insurance Brokerage P0 Event Contracts
+  version: '1.0.0'
+  description: AsyncAPI contract for P0 brokerage events.
+channels:
+  insurance.organization.created:
+    publish:
+      message:
+        $ref: '#/components/messages/OrganizationCreated'
+  insurance.organization.capability.assigned:
+    publish:
+      message:
+        $ref: '#/components/messages/OrganizationCapabilityAssigned'
+  insurance.tenant.created:
+    publish:
+      message:
+        $ref: '#/components/messages/TenantCreated'
+  insurance.brand.configured:
+    publish:
+      message:
+        $ref: '#/components/messages/BrandConfigured'
+  insurance.party.role.assigned:
+    publish:
+      message:
+        $ref: '#/components/messages/PartyRoleAssigned'
+  insurance.broker.license.verified:
+    publish:
+      message:
+        $ref: '#/components/messages/BrokerLicenseVerified'
+  insurance.distribution.agreement.activated:
+    publish:
+      message:
+        $ref: '#/components/messages/DistributionAgreementActivated'
+components:
+  messages:
+    OrganizationCreated:
+      name: OrganizationCreated
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventId, eventType, organizationId, legalType, country, timestamp]
+        properties:
+          eventId:
+            type: string
+            format: uuid
+          eventType:
+            type: string
+            const: insurance.organization.created
+          organizationId:
+            type: string
+            format: uuid
+          legalType:
+            type: string
+          country:
+            type: string
+          timestamp:
+            type: string
+            format: date-time
+    OrganizationCapabilityAssigned:
+      name: OrganizationCapabilityAssigned
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventId, eventType, organizationId, capability, tenantId, timestamp]
+        properties:
+          eventId:
+            type: string
+            format: uuid
+          eventType:
+            type: string
+            const: insurance.organization.capability.assigned
+          organizationId:
+            type: string
+            format: uuid
+          tenantId:
+            type: string
+          capability:
+            type: string
+          timestamp:
+            type: string
+            format: date-time
+    TenantCreated:
+      name: TenantCreated
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventId, eventType, tenantId, organizationId, deploymentMode, timestamp]
+        properties:
+          eventId:
+            type: string
+            format: uuid
+          eventType:
+            type: string
+            const: insurance.tenant.created
+          tenantId:
+            type: string
+            format: uuid
+          organizationId:
+            type: string
+            format: uuid
+          deploymentMode:
+            type: string
+          timestamp:
+            type: string
+            format: date-time
+    BrandConfigured:
+      name: BrandConfigured
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventId, eventType, tenantId, brandKey, timestamp]
+        properties:
+          eventId:
+            type: string
+            format: uuid
+          eventType:
+            type: string
+            const: insurance.brand.configured
+          tenantId:
+            type: string
+            format: uuid
+          brandKey:
+            type: string
+          timestamp:
+            type: string
+            format: date-time
+    PartyRoleAssigned:
+      name: PartyRoleAssigned
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventId, eventType, partyId, roleType, organizationId, tenantId, timestamp]
+        properties:
+          eventId:
+            type: string
+            format: uuid
+          eventType:
+            type: string
+            const: insurance.party.role.assigned
+          partyId:
+            type: string
+            format: uuid
+          roleType:
+            type: string
+          organizationId:
+            type: string
+            format: uuid
+          tenantId:
+            type: string
+          timestamp:
+            type: string
+            format: date-time
+    BrokerLicenseVerified:
+      name: BrokerLicenseVerified
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventId, eventType, licenseId, brokerCentralCode, status, timestamp]
+        properties:
+          eventId:
+            type: string
+            format: uuid
+          eventType:
+            type: string
+            const: insurance.broker.license.verified
+          licenseId:
+            type: string
+            format: uuid
+          brokerCentralCode:
+            type: string
+          status:
+            type: string
+          timestamp:
+            type: string
+            format: date-time
+    DistributionAgreementActivated:
+      name: DistributionAgreementActivated
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventId, eventType, agreementId, carrierOrganizationId, distributorOrganizationId, timestamp]
+        properties:
+          eventId:
+            type: string
+            format: uuid
+          eventType:
+            type: string
+            const: insurance.distribution.agreement.activated
+          agreementId:
+            type: string
+            format: uuid
+          carrierOrganizationId:
+            type: string
+            format: uuid
+          distributorOrganizationId:
+            type: string
+            format: uuid
+          timestamp:
+            type: string
+            format: date-time

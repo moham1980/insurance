@@ -54,6 +54,9 @@ export class PaymentsService {
     correlationId: string;
     idempotencyKey: string;
     claimId: string;
+    policyId?: string;
+    brokerOrganizationId?: string;
+    paymentType?: string;
     amount: number;
     currency?: string;
     preparedByUserId?: string;
@@ -83,6 +86,9 @@ export class PaymentsService {
         paymentIntentId: uuidv4(),
         tenantId: params.tenantId,
         claimId: params.claimId,
+        policyId: params.policyId || null,
+        brokerOrganizationId: params.brokerOrganizationId || null,
+        paymentType: (params.paymentType as any) || null,
         amount: params.amount,
         currency: params.currency || 'IRR',
         beneficiaryPartyId: params.beneficiaryPartyId || null,
@@ -114,6 +120,9 @@ export class PaymentsService {
           tenantId: intent.tenantId,
           paymentIntentId: intent.paymentIntentId,
           claimId: intent.claimId,
+          policyId: intent.policyId,
+          brokerOrganizationId: intent.brokerOrganizationId,
+          paymentType: intent.paymentType,
           amount: intent.amount,
           currency: intent.currency,
           status: intent.status,
@@ -369,6 +378,9 @@ export class PaymentsService {
         tenantId: params.tenantId,
         paymentId: uuidv4(),
         paymentIntentId: intent.paymentIntentId,
+        policyId: intent.policyId || null,
+        brokerOrganizationId: intent.brokerOrganizationId || null,
+        paymentType: (params.paymentType as Payment['paymentType']) || intent.paymentType || null,
         status: 'executed',
         provider,
         providerRef,
@@ -392,6 +404,8 @@ export class PaymentsService {
           paymentIntentId: intent.paymentIntentId,
           paymentId: payment.paymentId,
           claimId: intent.claimId,
+          policyId: payment.policyId,
+          brokerOrganizationId: payment.brokerOrganizationId,
           amount: payment.amount,
           currency: payment.currency,
           status: intent.status,
@@ -824,6 +838,29 @@ export class PaymentsService {
         });
       }
 
+      if (intent.brokerOrganizationId) {
+        await outbox.publish({
+          topic: 'insurance.payment.gateway-callback.broker-notification',
+          eventType: 'BrokerPaymentCallbackNotification',
+          eventVersion: 1,
+          correlationId: (intent.executionResult as any)?.correlationId || `${Date.now()}`,
+          subject: { paymentIntentId: intent.paymentIntentId, paymentId: payment.paymentId, brokerOrganizationId: intent.brokerOrganizationId, tenantId: intent.tenantId },
+          payload: {
+            tenantId: intent.tenantId,
+            paymentIntentId: intent.paymentIntentId,
+            paymentId: payment.paymentId,
+            claimId: intent.claimId,
+            policyId: intent.policyId,
+            brokerOrganizationId: intent.brokerOrganizationId,
+            amount: payment.amount,
+            currency: payment.currency,
+            status: paymentStatus,
+            gatewayRef: params.gatewayRef,
+            notificationType: paymentStatus === 'executed' ? 'payment_completed' : 'payment_failed',
+          },
+        });
+      }
+
       return { intent, payment };
     });
   }
@@ -855,11 +892,13 @@ export class PaymentsService {
     return await this.paymentRepo.findOne({ where: { tenantId, paymentId } });
   }
 
-  async listIntents(params: { tenantId: string; claimId?: string; status?: string; limit: number; offset: number }): Promise<{ rows: PaymentIntent[]; total: number }> {
+  async listIntents(params: { tenantId: string; claimId?: string; status?: string; paymentType?: string; brokerOrganizationId?: string; limit: number; offset: number }): Promise<{ rows: PaymentIntent[]; total: number }> {
     const qb = this.intentRepo.createQueryBuilder('pi');
     qb.andWhere('pi.tenantId = :tenantId', { tenantId: params.tenantId });
     if (params.claimId) qb.andWhere('pi.claimId = :claimId', { claimId: params.claimId });
     if (params.status) qb.andWhere('pi.status = :status', { status: params.status });
+    if (params.paymentType) qb.andWhere('pi.paymentType = :paymentType', { paymentType: params.paymentType });
+    if (params.brokerOrganizationId) qb.andWhere('pi.brokerOrganizationId = :brokerOrgId', { brokerOrgId: params.brokerOrganizationId });
     qb.orderBy('pi.updatedAt', 'DESC').limit(params.limit).offset(params.offset);
     const [rows, total] = await qb.getManyAndCount();
     return { rows, total };
@@ -920,12 +959,17 @@ export class PaymentsService {
       if (!payment) {
         return { success: false, error: 'Payment not found' };
       }
-      if (payment.status !== 'executed') {
-        return { success: false, error: 'Only executed payments can be refunded' };
+      if (payment.status !== 'executed' && payment.status !== 'partially_refunded') {
+        return { success: false, error: 'Only executed or partially_refunded payments can be refunded' };
       }
 
       if (!payment.providerRef) {
         return { success: false, error: 'Cannot refund payment without providerRef' };
+      }
+
+      const remainingAmount = Number(payment.amount) - Number(payment.refundedAmount || 0);
+      if (params.amount > remainingAmount) {
+        return { success: false, error: `Refund amount ${params.amount} exceeds remaining refundable amount ${remainingAmount}` };
       }
 
       const pspResult = await this.pspProvider!.refund({
@@ -935,11 +979,16 @@ export class PaymentsService {
       });
 
       if (pspResult.success) {
-        payment.status = 'refunded';
+        const newRefundedAmount = Number(payment.refundedAmount || 0) + params.amount;
+        const isFullRefund = newRefundedAmount >= Number(payment.amount);
+
+        payment.status = isFullRefund ? 'refunded' : 'partially_refunded';
+        payment.refundedAmount = newRefundedAmount;
         payment.metadata = {
           ...payment.metadata,
           refundRef: pspResult.refundRef,
           refundAmount: params.amount,
+          totalRefundedAmount: newRefundedAmount,
           refundReason: params.reason,
           refundedAt: new Date().toISOString(),
         };
@@ -959,6 +1008,8 @@ export class PaymentsService {
             paymentIntentId: payment.paymentIntentId,
             refundRef: pspResult.refundRef,
             refundAmount: params.amount,
+            totalRefundedAmount: newRefundedAmount,
+            isPartial: !isFullRefund,
             refundReason: params.reason,
             refundedAt: new Date().toISOString(),
           },
@@ -1029,6 +1080,67 @@ export class PaymentsService {
       });
 
       return { success: true, disputeId };
+    });
+  }
+
+  async resolveDispute(params: {
+    tenantId: string;
+    correlationId: string;
+    disputeId: string;
+    resolution: 'resolved' | 'rejected';
+    resolutionNotes: string;
+  }): Promise<{ success: boolean; dispute?: PaymentDispute; error?: string }> {
+    return await this.dataSource.transaction(async (manager) => {
+      const disputeRepo = manager.getRepository(PaymentDispute);
+      const dispute = await disputeRepo.findOne({ where: { tenantId: params.tenantId, disputeId: params.disputeId } });
+      if (!dispute) {
+        return { success: false, error: 'Dispute not found' };
+      }
+
+      if (dispute.status === 'resolved' || dispute.status === 'rejected') {
+        return { success: false, error: 'Dispute already closed' };
+      }
+
+      dispute.status = params.resolution;
+      dispute.resolutionNotes = params.resolutionNotes;
+      dispute.resolvedAt = new Date();
+      dispute.updatedAt = new Date();
+      await disputeRepo.save(dispute);
+
+      const paymentRepo = manager.getRepository(Payment);
+      const payment = await paymentRepo.findOne({ where: { tenantId: params.tenantId, paymentId: dispute.paymentId } });
+      if (payment) {
+        payment.metadata = {
+          ...payment.metadata,
+          disputeStatus: params.resolution,
+          disputeResolutionNotes: params.resolutionNotes,
+          disputeResolvedAt: dispute.resolvedAt.toISOString(),
+        };
+        if (params.resolution === 'resolved') {
+          payment.status = 'executed';
+        }
+        payment.updatedAt = new Date();
+        await paymentRepo.save(payment);
+      }
+
+      const outbox = new OutboxPublisher(manager);
+      await outbox.publish({
+        topic: 'insurance.payment.dispute.resolved',
+        eventType: 'PaymentDisputeResolved',
+        eventVersion: 1,
+        correlationId: params.correlationId,
+        subject: { paymentId: dispute.paymentId, disputeId: dispute.disputeId, tenantId: params.tenantId },
+        payload: {
+          tenantId: params.tenantId,
+          disputeId: dispute.disputeId,
+          paymentId: dispute.paymentId,
+          resolution: params.resolution,
+          resolutionNotes: params.resolutionNotes,
+          resolvedAt: dispute.resolvedAt.toISOString(),
+        },
+      });
+
+      return { success: true, dispute };
     });
   }
 }

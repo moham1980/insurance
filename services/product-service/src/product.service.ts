@@ -1,9 +1,10 @@
 import { BadRequestException, Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, In } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { Product, type ProductStatus } from './entities/Product';
 import { ProductVersion } from './entities/ProductVersion';
+import { ProductVisibility } from './entities/ProductVisibility';
 import { Coverage, type CoverageStatus } from './entities/Coverage';
 import { Deductible, type DeductibleStatus } from './entities/Deductible';
 import { PricingRule, type PricingRuleStatus, type PricingRuleType } from './entities/PricingRule';
@@ -163,7 +164,8 @@ export class ProductService {
     @InjectRepository(Coverage) private readonly coveragesRepo: Repository<Coverage>,
     @InjectRepository(Deductible) private readonly deductiblesRepo: Repository<Deductible>,
     @InjectRepository(PricingRule) private readonly pricingRulesRepo: Repository<PricingRule>,
-    @InjectRepository(ProductVersion) private readonly productVersionsRepo: Repository<ProductVersion>
+    @InjectRepository(ProductVersion) private readonly productVersionsRepo: Repository<ProductVersion>,
+    @InjectRepository(ProductVisibility) private readonly productVisibilitiesRepo: Repository<ProductVisibility>,
   ) {}
 
   normalizePaging(limit: any, offset: any): { limit: number; offset: number } {
@@ -337,15 +339,16 @@ export class ProductService {
       }
       if (params.metadata !== undefined) p.metadata = params.metadata ?? null;
       if (params.status !== undefined) {
-        const allowed: ProductStatus[] = ['draft', 'active', 'archived'];
+        const allowed: ProductStatus[] = ['draft', 'active', 'archived', 'retired'];
         if (!allowed.includes(params.status)) {
           throw new BadRequestException({ success: false, error: { code: 'INVALID_STATUS', message: 'Invalid product status' } });
         }
-        // State machine: archived is terminal; draft may become active; active may become archived
+        // State machine: archived/retired are terminal; draft may become active; active may become archived or retired
         const transitions: Record<ProductStatus, ProductStatus[]> = {
           draft: ['draft', 'active'],
-          active: ['active', 'archived'],
-          archived: [],
+          active: ['active', 'archived', 'retired'],
+          archived: ['archived', 'retired'],
+          retired: [],
         };
         if (!transitions[p.status].includes(params.status)) {
           throw new BadRequestException({
@@ -1203,6 +1206,7 @@ export class ProductService {
     includeVersions?: boolean;
     limit?: number;
     offset?: number;
+    organizationId?: string;
   }): Promise<{
     products: Product[];
     coverages: Coverage[];
@@ -1213,13 +1217,27 @@ export class ProductService {
     const tenantId = requireTenant(params.tenantId);
     const paging = this.normalizePaging(params.limit, params.offset);
 
+    // If organizationId is provided, filter products by visibility for that organization
+    let visibleProductIds: string[] | undefined;
+    if (params.organizationId) {
+      const visibilities = await this.productVisibilitiesRepo.find({
+        where: { tenantId, distributorOrganizationId: params.organizationId, status: 'active' },
+      });
+      visibleProductIds = visibilities.map(v => v.productId);
+      if (visibleProductIds.length === 0) {
+        return { products: [], coverages: [], deductibles: [], pricingRules: [], productVersions: [] };
+      }
+    }
+
     const baseWhere: any = { tenantId };
     if (params.productId) baseWhere.productId = params.productId;
     if (params.status) baseWhere.status = params.status;
+    if (visibleProductIds) baseWhere.productId = In(visibleProductIds);
 
     const childWhere: any = { tenantId };
     if (params.productId) childWhere.productId = params.productId;
     if (params.status) childWhere.status = params.status;
+    if (visibleProductIds) childWhere.productId = In(visibleProductIds);
 
     const [products, coverages, deductibles, pricingRules] = await Promise.all([
       this.productsRepo.find({ where: baseWhere, order: { createdAt: 'DESC' as any }, take: paging.limit, skip: paging.offset }),
@@ -1251,6 +1269,13 @@ export class ProductService {
     region?: string;
     effectiveDate?: Date | string;
     version?: number;
+    brokerAdjustments?: Array<{
+      code: string;
+      nameFa?: string;
+      type: 'add' | 'multiplier' | 'percent';
+      value: number;
+      reasonCode?: string;
+    }>;
   }): Promise<any> {
     const tenantId = requireTenant(params.tenantId);
     const productId = (params.productId || '').trim();
@@ -1305,6 +1330,7 @@ export class ProductService {
       exposure: params.exposure,
       region: params.region,
       effectiveDate,
+      brokerAdjustments: params.brokerAdjustments,
     });
   }
 
@@ -1319,6 +1345,46 @@ export class ProductService {
     version?: number;
   }): Promise<any> {
     return this.computeQuote(params);
+  }
+
+  async computeMultiQuote(params: {
+    tenantId: string;
+    productIds: string[];
+    currency: Currency;
+    exposure?: Record<string, any>;
+    region?: string;
+    effectiveDate?: Date | string;
+  }): Promise<{ quotes: Array<{ productId: string; quote: any | null; error?: string }>; totalPremiumMinor: number; currency: Currency }> {
+    const tenantId = requireTenant(params.tenantId);
+    if (!Array.isArray(params.productIds) || params.productIds.length === 0) {
+      throw new BadRequestException({ success: false, error: { code: 'VALIDATION_ERROR', message: 'productIds array is required' } });
+    }
+
+    const currency = validateCurrency(params.currency);
+    const quotes: Array<{ productId: string; quote: any | null; error?: string }> = [];
+    let totalPremiumMinor = 0;
+
+    for (const productId of params.productIds) {
+      try {
+        const quote = await this.computeQuote({
+          tenantId,
+          productId,
+          currency,
+          exposure: params.exposure,
+          region: params.region,
+          effectiveDate: params.effectiveDate,
+        });
+        quotes.push({ productId, quote });
+        if (quote?.totalPremiumMinor) {
+          totalPremiumMinor += Number(quote.totalPremiumMinor);
+        }
+      } catch (err: any) {
+        const msg = err?.response?.error?.message || err?.message || 'Quote computation failed';
+        quotes.push({ productId, quote: null, error: msg });
+      }
+    }
+
+    return { quotes, totalPremiumMinor, currency };
   }
 
   // Product Versioning

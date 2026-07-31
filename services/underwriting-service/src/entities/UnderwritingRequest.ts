@@ -5,6 +5,7 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, Update
 @Index(['tenantId', 'createdAt'])
 @Index(['policyId', 'createdAt'])
 @Index(['status', 'createdAt'])
+@Index(['carrierOrganizationId'])
 export class UnderwritingRequest {
   @PrimaryGeneratedColumn('uuid', { name: 'underwriting_request_id' })
   underwritingRequestId!: string;
@@ -16,7 +17,7 @@ export class UnderwritingRequest {
   policyId!: string;
 
   @Column({ name: 'status', type: 'text', default: 'pending' })
-  status!: 'pending' | 'in_review' | 'approved' | 'rejected' | 'escalated';
+  status!: 'pending' | 'in_review' | 'approved' | 'rejected' | 'escalated' | 'conditionally_approved' | 'appealed';
 
   @Column({ name: 'reason_code', type: 'text' })
   reasonCode!: string;
@@ -34,7 +35,7 @@ export class UnderwritingRequest {
   assignedUnderwriterId!: string | null;
 
   @Column({ name: 'decision', type: 'text', nullable: true })
-  decision!: 'approved' | 'rejected' | 'escalated' | null;
+  decision!: 'approved' | 'rejected' | 'escalated' | 'conditionally_approved' | null;
 
   @Column({ name: 'decision_notes', type: 'text', nullable: true })
   decisionNotes!: string | null;
@@ -62,6 +63,12 @@ export class UnderwritingRequest {
 
   @Column({ name: 'source', type: 'text', nullable: true })
   source!: string | null;
+
+  @Column({ name: 'broker_organization_id', type: 'uuid', nullable: true })
+  brokerOrganizationId!: string | null;
+
+  @Column({ name: 'carrier_organization_id', type: 'uuid', nullable: true })
+  carrierOrganizationId!: string | null;
 
   @Column({ name: 'version', type: 'int', default: 1 })
   version!: number;

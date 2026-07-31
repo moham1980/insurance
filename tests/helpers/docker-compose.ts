@@ -89,6 +89,21 @@ export class DockerComposeHelper {
         'document-ai-service': 18021,
         'sales-network-service': 18022,
         'regulatory-gateway-service': 18024,
+        'collections-service': 18025,
+        'customer-portal-service': 18027,
+        'agent-portal-service': 18031,
+        'notification-service': 18037,
+        'billing-service': 18039,
+        'copilot-service': 18030,
+        'customer-360-service': 18026,
+        'workflow-service': 18028,
+        'rule-engine-service': 18038,
+        'knowledge-service': 18033,
+        'model-switchboard-service': 18035,
+        'outbox-relay': 18041,
+        'ai-governance-service': 18036,
+        'broker-portal-bff': 3030,
+        'channel-workspace-bff': 3020,
       };
       const port = portMap[service];
       if (!port) return false;

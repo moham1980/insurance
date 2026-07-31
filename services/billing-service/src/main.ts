@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { DataSource } from 'typeorm';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
@@ -74,6 +75,7 @@ async function bootstrap() {
         const res = await consumeOnce({
           dataSource,
           consumerName,
+          tenantId,
           topic: String(topic),
           eventId: String(eventId),
           handler: async () => {

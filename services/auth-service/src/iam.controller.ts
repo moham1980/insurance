@@ -70,10 +70,14 @@ export class IamController {
     @Param('userId') userId: string,
     @Query('limit') limit = 50,
     @Query('offset') offset = 0,
+    @Query('organizationId') organizationId?: string,
+    @Query('agreementId') agreementId?: string,
   ) {
     const result = await this.accessAuditService.getUserAccessLogs(userId, {
       limit: Math.min(parseInt(String(limit)), 100),
       offset: parseInt(String(offset)),
+      organizationId,
+      agreementId,
     });
     return result;
   }
@@ -88,6 +92,8 @@ export class IamController {
     @Query('resourceId') resourceId: string,
     @Query('limit') limit = 50,
     @Query('offset') offset = 0,
+    @Query('organizationId') organizationId?: string,
+    @Query('agreementId') agreementId?: string,
   ) {
     if (!resourceType || !resourceId) {
       return { success: false, error: { code: 'VALIDATION_ERROR', message: 'resourceType and resourceId are required' } };
@@ -96,6 +102,8 @@ export class IamController {
     const result = await this.accessAuditService.getResourceAccessLogs(resourceType, resourceId, {
       limit: Math.min(parseInt(String(limit)), 100),
       offset: parseInt(String(offset)),
+      organizationId,
+      agreementId,
     });
     return result;
   }
@@ -110,12 +118,16 @@ export class IamController {
     @Query('offset') offset = 0,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
+    @Query('organizationId') organizationId?: string,
+    @Query('agreementId') agreementId?: string,
   ) {
     const result = await this.accessAuditService.getDeniedAccessAttempts({
       limit: Math.min(parseInt(String(limit)), 100),
       offset: parseInt(String(offset)),
       startDate: startDate ? new Date(startDate) : undefined,
       endDate: endDate ? new Date(endDate) : undefined,
+      organizationId,
+      agreementId,
     });
     return result;
   }
@@ -128,10 +140,14 @@ export class IamController {
   async getAccessStats(
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
+    @Query('organizationId') organizationId?: string,
+    @Query('agreementId') agreementId?: string,
   ) {
     const result = await this.accessAuditService.getAccessStats({
       startDate: startDate ? new Date(startDate) : undefined,
       endDate: endDate ? new Date(endDate) : undefined,
+      organizationId,
+      agreementId,
     });
     return result;
   }

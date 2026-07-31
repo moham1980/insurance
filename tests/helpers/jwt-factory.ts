@@ -4,6 +4,7 @@ export interface JwtPayload {
   sub: string;
   tenantId: string;
   roles: string[];
+  organizationId?: string;
   exp?: number;
   iss?: string;
   aud?: string | string[];
@@ -21,6 +22,7 @@ export class JwtFactory {
         sub: payload.sub,
         tenantId: payload.tenantId,
         roles: payload.roles,
+        ...(payload.organizationId && { organizationId: payload.organizationId }),
         iss: payload.iss ?? this.ISSUER,
         aud: payload.aud ?? this.AUDIENCE,
         ...(payload.scope && { scope: payload.scope }),
@@ -28,6 +30,15 @@ export class JwtFactory {
       this.SECRET,
       { expiresIn: expiresIn as any },
     );
+  }
+
+  static createTokenWithRole(tenantId: string, role: string, organizationId?: string): string {
+    return this.createToken({
+      sub: `${role}-user`,
+      tenantId,
+      roles: [role],
+      organizationId,
+    });
   }
 
   static createAdminToken(tenantId: string = 'default-tenant'): string {

@@ -1,0 +1,246 @@
+asyncapi: '2.6.0'
+info:
+  title: Insurance Brokerage P4 Payments & Settlement Events
+  version: 1.0.0
+  description: |
+    Event contracts for P4 Payments & Settlement in the insurance brokerage system.
+    All events are published via the outbox pattern to Kafka and follow the
+    mandatory envelope defined in the BROKERAGE_IMPLEMENTATION_PLAN.
+  contact:
+    name: Insurance Brokerage Team
+
+channels:
+  insurance.billing.premium_invoice.created:
+    publish:
+      message:
+        $ref: '#/components/messages/PremiumInvoiceCreated'
+
+  insurance.billing.premium_invoice.issued:
+    publish:
+      message:
+        $ref: '#/components/messages/PremiumInvoiceIssued'
+
+  insurance.billing.premium_invoice.cancelled:
+    publish:
+      message:
+        $ref: '#/components/messages/PremiumInvoiceCancelled'
+
+  insurance.billing.installment_plan.created:
+    publish:
+      message:
+        $ref: '#/components/messages/InstallmentPlanCreated'
+
+  insurance.billing.payment.initiated:
+    publish:
+      message:
+        $ref: '#/components/messages/PaymentInitiated'
+
+  insurance.billing.payment.settled:
+    publish:
+      message:
+        $ref: '#/components/messages/PaymentSettled'
+
+  insurance.billing.payment.failed:
+    publish:
+      message:
+        $ref: '#/components/messages/PaymentFailed'
+
+  insurance.billing.escrow.held:
+    publish:
+      message:
+        $ref: '#/components/messages/EscrowHeld'
+
+  insurance.billing.escrow.released:
+    publish:
+      message:
+        $ref: '#/components/messages/EscrowReleased'
+
+  insurance.billing.refund.initiated:
+    publish:
+      message:
+        $ref: '#/components/messages/RefundInitiated'
+
+  insurance.billing.refund.approved:
+    publish:
+      message:
+        $ref: '#/components/messages/RefundApproved'
+
+  insurance.billing.refund.sent:
+    publish:
+      message:
+        $ref: '#/components/messages/RefundSent'
+
+  insurance.billing.refund.settled:
+    publish:
+      message:
+        $ref: '#/components/messages/RefundSettled'
+
+  insurance.billing.clawback.applied:
+    publish:
+      message:
+        $ref: '#/components/messages/ClawbackApplied'
+
+  insurance.billing.settlement_batch.created:
+    publish:
+      message:
+        $ref: '#/components/messages/SettlementBatchCreated'
+
+  insurance.billing.settlement_batch.paid:
+    publish:
+      message:
+        $ref: '#/components/messages/SettlementBatchPaid'
+
+components:
+  messages:
+    PremiumInvoiceCreated:
+      name: PremiumInvoiceCreated
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/EventEnvelope'
+
+    PremiumInvoiceIssued:
+      name: PremiumInvoiceIssued
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/EventEnvelope'
+
+    PremiumInvoiceCancelled:
+      name: PremiumInvoiceCancelled
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/EventEnvelope'
+
+    InstallmentPlanCreated:
+      name: InstallmentPlanCreated
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/EventEnvelope'
+
+    PaymentInitiated:
+      name: PaymentInitiated
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/EventEnvelope'
+
+    PaymentSettled:
+      name: PaymentSettled
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/EventEnvelope'
+
+    PaymentFailed:
+      name: PaymentFailed
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/EventEnvelope'
+
+    EscrowHeld:
+      name: EscrowHeld
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/EventEnvelope'
+
+    EscrowReleased:
+      name: EscrowReleased
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/EventEnvelope'
+
+    RefundInitiated:
+      name: RefundInitiated
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/EventEnvelope'
+
+    RefundApproved:
+      name: RefundApproved
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/EventEnvelope'
+
+    RefundSent:
+      name: RefundSent
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/EventEnvelope'
+
+    RefundSettled:
+      name: RefundSettled
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/EventEnvelope'
+
+    ClawbackApplied:
+      name: ClawbackApplied
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/EventEnvelope'
+
+    SettlementBatchCreated:
+      name: SettlementBatchCreated
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/EventEnvelope'
+
+    SettlementBatchPaid:
+      name: SettlementBatchPaid
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/EventEnvelope'
+
+  schemas:
+    EventEnvelope:
+      type: object
+      required:
+        - eventId
+        - eventType
+        - eventVersion
+        - correlationId
+        - timestamp
+        - tenantId
+        - organizationId
+        - subject
+        - payload
+      properties:
+        eventId:
+          type: string
+          format: uuid
+        eventType:
+          type: string
+        eventVersion:
+          type: integer
+          minimum: 1
+        correlationId:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        tenantId:
+          type: string
+        organizationId:
+          type: string
+        subject:
+          type: object
+          required:
+            - type
+            - id
+          properties:
+            type:
+              type: string
+            id:
+              type: string
+        payload:
+          type: object
+
+    Money:
+      type: object
+      required:
+        - amountMinor
+        - currency
+      properties:
+        amountMinor:
+          type: string
+          description: Amount in smallest currency unit, as a string to avoid floating-point errors.
+        currency:
+          type: string
+          example: IRR

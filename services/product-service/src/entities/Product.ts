@@ -1,6 +1,6 @@
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 
-export type ProductStatus = 'draft' | 'active' | 'archived';
+export type ProductStatus = 'draft' | 'active' | 'archived' | 'retired';
 
 @Entity({ name: 'products' })
 @Index(['tenantId', 'code'], { unique: true })
@@ -10,6 +10,12 @@ export class Product {
 
   @Column('uuid', { name: 'tenant_id' })
   tenantId!: string;
+
+  @Column('uuid', { name: 'owner_tenant_id', nullable: true })
+  ownerTenantId!: string | null;
+
+  @Column('uuid', { name: 'owner_organization_id', nullable: true })
+  ownerOrganizationId!: string | null;
 
   @Column({ name: 'code', type: 'varchar', length: 64 })
   code!: string;
@@ -28,6 +34,15 @@ export class Product {
 
   @Column({ name: 'version', type: 'int', default: 1 })
   version!: number;
+
+  @Column({ name: 'current_version', type: 'int', default: 1 })
+  currentVersion!: number;
+
+  @Column({ name: 'effective_from', type: 'timestamptz', nullable: true })
+  effectiveFrom!: Date | null;
+
+  @Column({ name: 'effective_to', type: 'timestamptz', nullable: true })
+  effectiveTo!: Date | null;
 
   @Column({ name: 'metadata', type: 'jsonb', nullable: true })
   metadata!: any | null;

@@ -8,6 +8,9 @@ export class UsageRecord {
   @Column()
   modelId: string;
 
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  modelVersion: string;
+
   @Column({ nullable: true })
   tenantId: string;
 

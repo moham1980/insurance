@@ -1,0 +1,493 @@
+asyncapi: '2.6.0'
+info:
+  title: Federation Events API
+  version: '1.0.0'
+  description: |
+    AsyncAPI specification for cross-tenant federation events.
+    All events are JWS-signed and validated by the EventSignatureValidator.
+servers:
+  kafka:
+    url: localhost:19092
+    protocol: kafka
+    description: Kafka broker for federation events
+
+channels:
+  federation.policy.projection.synced:
+    description: Policy projection synchronized from insurer tenant to broker/customer tenant
+    publish:
+      message:
+        $ref: '#/components/messages/PolicyProjectionSynchronized'
+
+  federation.claim.projection.synced:
+    description: Claim projection synchronized from insurer tenant to broker/customer tenant
+    publish:
+      message:
+        $ref: '#/components/messages/ClaimProjectionSynchronized'
+
+  federation.partner.registered:
+    description: Partner registration created
+    publish:
+      message:
+        $ref: '#/components/messages/PartnerRegistered'
+
+  federation.partner.revoked:
+    description: Partner registration revoked
+    publish:
+      message:
+        $ref: '#/components/messages/PartnerRevoked'
+
+  federation.consent.granted:
+    description: Federation consent granted by customer
+    publish:
+      message:
+        $ref: '#/components/messages/ConsentGranted'
+
+  federation.consent.revoked:
+    description: Federation consent revoked
+    publish:
+      message:
+        $ref: '#/components/messages/ConsentRevoked'
+
+  federation.token.exchanged:
+    description: Token exchange completed via RFC 8693
+    publish:
+      message:
+        $ref: '#/components/messages/TokenExchanged'
+
+  federation.certificate.rotated:
+    description: Partner certificate rotated
+    publish:
+      message:
+        $ref: '#/components/messages/CertificateRotated'
+
+  federation.certificate.expiring:
+    description: Partner certificate expiring soon (within 30 days)
+    publish:
+      message:
+        $ref: '#/components/messages/CertificateExpiring'
+
+  federation.event.signed:
+    description: Federation event has been signed with JWS
+    publish:
+      message:
+        $ref: '#/components/messages/FederationEventSigned'
+
+  federation.event.rejected:
+    description: Federation event rejected due to invalid signature or validation failure
+    publish:
+      message:
+        $ref: '#/components/messages/FederationEventRejected'
+
+  federation.projection.reconciled:
+    description: Projection reconciliation completed
+    publish:
+      message:
+        $ref: '#/components/messages/ProjectionReconciled'
+
+  federation.partner.health-changed:
+    description: Partner health status changed (healthy/degraded/unreachable)
+    publish:
+      message:
+        $ref: '#/components/messages/PartnerHealthChanged'
+
+  federation.dlq:
+    description: Dead letter queue for rejected federation events
+    publish:
+      message:
+        $ref: '#/components/messages/FederationDLQEvent'
+
+components:
+  messages:
+    PolicyProjectionSynchronized:
+      name: PolicyProjectionSynchronized
+      version: 1
+      payload:
+        type: object
+        properties:
+          eventId:
+            type: string
+            format: uuid
+          eventType:
+            type: string
+          eventVersion:
+            type: integer
+          occurredAt:
+            type: string
+            format: date-time
+          producer:
+            type: string
+          correlationId:
+            type: string
+          tenantId:
+            type: string
+          organizationId:
+            type: string
+          idempotencyKey:
+            type: string
+          dataClassification:
+            type: string
+            enum: [PUBLIC, INTERNAL, CONFIDENTIAL, PII]
+          subject:
+            type: object
+            properties:
+              policyId:
+                type: string
+          payload:
+            type: object
+            properties:
+              policyId:
+                type: string
+              policyNumber:
+                type: string
+              projectionId:
+                type: string
+              sourceTenantId:
+                type: string
+              targetTenantId:
+                type: string
+              sourceVersion:
+                type: integer
+          signature:
+            type: string
+          signingKeyId:
+            type: string
+          signerOrganizationId:
+            type: string
+
+    ClaimProjectionSynchronized:
+      name: ClaimProjectionSynchronized
+      version: 1
+      payload:
+        type: object
+        properties:
+          eventId:
+            type: string
+          eventType:
+            type: string
+          correlationId:
+            type: string
+          tenantId:
+            type: string
+          payload:
+            type: object
+            properties:
+              claimId:
+                type: string
+              projectionId:
+                type: string
+              sourceTenantId:
+                type: string
+              targetTenantId:
+                type: string
+          signature:
+            type: string
+          signingKeyId:
+            type: string
+          signerOrganizationId:
+            type: string
+
+    PartnerRegistered:
+      name: PartnerRegistered
+      version: 1
+      payload:
+        type: object
+        properties:
+          eventId:
+            type: string
+          correlationId:
+            type: string
+          payload:
+            type: object
+            properties:
+              partnerId:
+                type: string
+              tenantId:
+                type: string
+              partnerTenantId:
+                type: string
+              relationshipType:
+                type: string
+              mTlsCertSubject:
+                type: string
+
+    PartnerRevoked:
+      name: PartnerRevoked
+      version: 1
+      payload:
+        type: object
+        properties:
+          eventId:
+            type: string
+          correlationId:
+            type: string
+          payload:
+            type: object
+            properties:
+              partnerId:
+                type: string
+              reason:
+                type: string
+
+    ConsentGranted:
+      name: ConsentGranted
+      version: 1
+      payload:
+        type: object
+        properties:
+          eventId:
+            type: string
+          correlationId:
+            type: string
+          payload:
+            type: object
+            properties:
+              consentId:
+                type: string
+              globalSubjectId:
+                type: string
+              sourceTenantId:
+                type: string
+              targetTenantId:
+                type: string
+              consentType:
+                type: string
+              dataCategories:
+                type: array
+                items:
+                  type: string
+
+    ConsentRevoked:
+      name: ConsentRevoked
+      version: 1
+      payload:
+        type: object
+        properties:
+          eventId:
+            type: string
+          correlationId:
+            type: string
+          payload:
+            type: object
+            properties:
+              consentId:
+                type: string
+              globalSubjectId:
+                type: string
+              reason:
+                type: string
+
+    TokenExchanged:
+      name: TokenExchanged
+      version: 1
+      payload:
+        type: object
+        properties:
+          eventId:
+            type: string
+          correlationId:
+            type: string
+          payload:
+            type: object
+            properties:
+              partnerId:
+                type: string
+              audience:
+                type: string
+              scope:
+                type: string
+              issuedTokenType:
+                type: string
+              expiresIn:
+                type: integer
+
+    CertificateRotated:
+      name: CertificateRotated
+      version: 1
+      payload:
+        type: object
+        properties:
+          eventId:
+            type: string
+          correlationId:
+            type: string
+          payload:
+            type: object
+            properties:
+              partnerId:
+                type: string
+              oldCertId:
+                type: string
+              newCertId:
+                type: string
+              expiresAt:
+                type: string
+                format: date-time
+
+    FederationDLQEvent:
+      name: FederationDLQEvent
+      version: 1
+      payload:
+        type: object
+        properties:
+          eventId:
+            type: string
+          originalTopic:
+            type: string
+          reason:
+            type: string
+          originalEvent:
+            type: object
+
+    CertificateExpiring:
+      name: CertificateExpiring
+      version: 1
+      payload:
+        type: object
+        properties:
+          eventId:
+            type: string
+            format: uuid
+          correlationId:
+            type: string
+          occurredAt:
+            type: string
+            format: date-time
+          producer:
+            type: string
+          payload:
+            type: object
+            properties:
+              partnerId:
+                type: string
+              certId:
+                type: string
+              daysUntilExpiry:
+                type: integer
+              expiresAt:
+                type: string
+                format: date-time
+
+    FederationEventSigned:
+      name: FederationEventSigned
+      version: 1
+      payload:
+        type: object
+        properties:
+          eventId:
+            type: string
+            format: uuid
+          correlationId:
+            type: string
+          occurredAt:
+            type: string
+            format: date-time
+          producer:
+            type: string
+          payload:
+            type: object
+            properties:
+              signedEventId:
+                type: string
+              signingKeyId:
+                type: string
+              signerOrganizationId:
+                type: string
+              signatureAlgorithm:
+                type: string
+
+    FederationEventRejected:
+      name: FederationEventRejected
+      version: 1
+      payload:
+        type: object
+        properties:
+          eventId:
+            type: string
+            format: uuid
+          correlationId:
+            type: string
+          occurredAt:
+            type: string
+            format: date-time
+          producer:
+            type: string
+          payload:
+            type: object
+            properties:
+              originalEventId:
+                type: string
+              reason:
+                type: string
+              rejectionCode:
+                type: string
+                enum: [INVALID_SIGNATURE, MISSING_SIGNATURE, KEY_NOT_FOUND, EXPIRED_KEY]
+              targetTenantId:
+                type: string
+
+    ProjectionReconciled:
+      name: ProjectionReconciled
+      version: 1
+      payload:
+        type: object
+        properties:
+          eventId:
+            type: string
+            format: uuid
+          correlationId:
+            type: string
+          occurredAt:
+            type: string
+            format: date-time
+          producer:
+            type: string
+          payload:
+            type: object
+            properties:
+              tenantId:
+                type: string
+              totalProjections:
+                type: integer
+              matched:
+                type: integer
+              mismatched:
+                type: integer
+              missing:
+                type: integer
+              repaired:
+                type: integer
+              reconciliationId:
+                type: string
+
+    PartnerHealthChanged:
+      name: PartnerHealthChanged
+      version: 1
+      payload:
+        type: object
+        properties:
+          eventId:
+            type: string
+            format: uuid
+          correlationId:
+            type: string
+          occurredAt:
+            type: string
+            format: date-time
+          producer:
+            type: string
+          payload:
+            type: object
+            properties:
+              partnerId:
+                type: string
+              tenantId:
+                type: string
+              previousStatus:
+                type: string
+                enum: [healthy, degraded, unreachable]
+              currentStatus:
+                type: string
+                enum: [healthy, degraded, unreachable]
+              details:
+                type: string
+              certExpiryDays:
+                type: integer

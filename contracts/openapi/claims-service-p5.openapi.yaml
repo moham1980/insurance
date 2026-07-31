@@ -1,0 +1,1446 @@
+openapi: 3.0.3
+info:
+  title: Claims Service P5 API — Claims Advocacy
+  version: '1.0.0'
+  description: |
+    OpenAPI contract for P5 Claims Advocacy endpoints.
+    Covers claim lifecycle management, advocacy cases, adjuster referrals,
+    claim projections, document management, and recovery/subrogation.
+servers:
+  - url: http://localhost:18010
+    description: Local development
+security:
+  - BearerAuth: []
+paths:
+  /claims:
+    post:
+      tags: [Claims]
+      summary: Register a new claim
+      operationId: createClaim
+      security:
+        - BearerAuth: ['claims:register']
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateClaimRequest'
+      responses:
+        '201':
+          description: Claim registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    get:
+      tags: [Claims]
+      summary: List claims with filters
+      operationId: listClaims
+      security:
+        - BearerAuth: ['claims:list']
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string }
+        - name: policyId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: carrierOrganizationId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: brokerOrganizationId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: claimantPartyId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20, maximum: 100 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        '200':
+          description: List of claims
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimListResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /claims/{claimId}:
+    get:
+      tags: [Claims]
+      summary: Get claim by ID
+      operationId: getClaim
+      security:
+        - BearerAuth: ['claims:view']
+      parameters:
+        - $ref: '#/components/parameters/ClaimId'
+      responses:
+        '200':
+          description: Claim details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Claims]
+      summary: Update claim details
+      operationId: updateClaim
+      security:
+        - BearerAuth: ['claims:edit']
+      parameters:
+        - $ref: '#/components/parameters/ClaimId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateClaimRequest'
+      responses:
+        '200':
+          description: Updated claim
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /claims/{claimId}/acknowledge:
+    post:
+      tags: [Claims]
+      summary: Acknowledge a claim
+      operationId: acknowledgeClaim
+      security:
+        - BearerAuth: ['claims:view']
+      parameters:
+        - $ref: '#/components/parameters/ClaimId'
+      responses:
+        '200':
+          description: Claim acknowledged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /claims/{claimId}/submit-to-carrier:
+    post:
+      tags: [Claims]
+      summary: Submit claim to carrier
+      operationId: submitToCarrier
+      security:
+        - BearerAuth: ['claims:register']
+      parameters:
+        - $ref: '#/components/parameters/ClaimId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                externalClaimId:
+                  type: string
+      responses:
+        '200':
+          description: Claim submitted to carrier
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /claims/{claimId}/assess:
+    post:
+      tags: [Claims]
+      summary: Assess a claim
+      operationId: assessClaim
+      security:
+        - BearerAuth: ['claims:assess']
+      parameters:
+        - $ref: '#/components/parameters/ClaimId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assessedAmount]
+              properties:
+                assessedAmount:
+                  type: number
+                currency:
+                  type: string
+                  default: IRR
+                notes:
+                  type: string
+      responses:
+        '200':
+          description: Claim assessed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /claims/{claimId}/approve:
+    post:
+      tags: [Claims]
+      summary: Approve a claim
+      operationId: approveClaim
+      security:
+        - BearerAuth: ['claims:approve']
+      parameters:
+        - $ref: '#/components/parameters/ClaimId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [approvedAmount]
+              properties:
+                approvedAmount:
+                  type: number
+                currency:
+                  type: string
+                  default: IRR
+                notes:
+                  type: string
+      responses:
+        '200':
+          description: Claim approved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /claims/{claimId}/reject:
+    post:
+      tags: [Claims]
+      summary: Reject a claim
+      operationId: rejectClaim
+      security:
+        - BearerAuth: ['claims:reject']
+      parameters:
+        - $ref: '#/components/parameters/ClaimId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rejectionReason]
+              properties:
+                rejectionReason:
+                  type: string
+      responses:
+        '200':
+          description: Claim rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /claims/{claimId}/pay:
+    post:
+      tags: [Claims]
+      summary: Pay a claim
+      operationId: payClaim
+      security:
+        - BearerAuth: ['claims:pay']
+      parameters:
+        - $ref: '#/components/parameters/ClaimId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [paidAmount]
+              properties:
+                paidAmount:
+                  type: number
+                currency:
+                  type: string
+                  default: IRR
+                paymentReference:
+                  type: string
+                destinationAccountRef:
+                  type: string
+      responses:
+        '200':
+          description: Claim paid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /claims/{claimId}/close:
+    post:
+      tags: [Claims]
+      summary: Close a claim
+      operationId: closeClaim
+      security:
+        - BearerAuth: ['claims:close']
+      parameters:
+        - $ref: '#/components/parameters/ClaimId'
+      responses:
+        '200':
+          description: Claim closed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /claims/{claimId}/appeal:
+    post:
+      tags: [Claims]
+      summary: Appeal a claim decision
+      operationId: appealClaim
+      security:
+        - BearerAuth: ['claims:reject']
+      parameters:
+        - $ref: '#/components/parameters/ClaimId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [appealReason]
+              properties:
+                appealReason:
+                  type: string
+      responses:
+        '200':
+          description: Claim appealed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /claims/{claimId}/refer-to-adjuster:
+    post:
+      tags: [Claims]
+      summary: Refer claim to loss adjuster
+      operationId: referToAdjuster
+      security:
+        - BearerAuth: ['claims:refer_adjuster']
+      parameters:
+        - $ref: '#/components/parameters/ClaimId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [adjusterOrganizationId, adjusterPartyId]
+              properties:
+                adjusterOrganizationId:
+                  type: string
+                  format: uuid
+                adjusterPartyId:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Claim referred to adjuster
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /claims/{claimId}/history:
+    get:
+      tags: [Claims]
+      summary: Get claim history
+      operationId: getClaimHistory
+      security:
+        - BearerAuth: ['claims:view']
+      parameters:
+        - $ref: '#/components/parameters/ClaimId'
+      responses:
+        '200':
+          description: Claim history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        action: { type: string }
+                        timestamp: { type: string, format: date-time }
+                        actorUserId: { type: string }
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /claims/{claimId}/calculate-deductible:
+    post:
+      tags: [Claims]
+      summary: Calculate deductible for claim
+      operationId: calculateDeductible
+      security:
+        - BearerAuth: ['claims:assess']
+      parameters:
+        - $ref: '#/components/parameters/ClaimId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [grossClaimAmount]
+              properties:
+                grossClaimAmount:
+                  type: number
+                currency:
+                  type: string
+                  default: IRR
+      responses:
+        '200':
+          description: Deductible calculated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      deductibleAmount: { type: number }
+                      franchiseAmount: { type: number }
+                      netClaimAmount: { type: number }
+
+  /claims/fnol:
+    post:
+      tags: [Claims]
+      summary: Submit FNOL (First Notification of Loss)
+      operationId: submitFnol
+      security:
+        - BearerAuth: ['claims:register']
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FnolRequest'
+      responses:
+        '201':
+          description: FNOL submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /claims/fnol/form-defaults:
+    get:
+      tags: [Claims]
+      summary: Get FNOL form defaults
+      operationId: getFnolFormDefaults
+      security:
+        - BearerAuth: ['claims:register']
+      responses:
+        '200':
+          description: Form defaults
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      claimTypes:
+                        type: array
+                        items: { type: string }
+                      lossTypes:
+                        type: array
+                        items: { type: string }
+                      notificationChannels:
+                        type: array
+                        items: { type: string }
+
+  /claims/{claimId}/validate-policy:
+    post:
+      tags: [Claims]
+      summary: Validate policy for claim
+      operationId: validatePolicyForClaim
+      security:
+        - BearerAuth: ['claims:assess']
+      parameters:
+        - $ref: '#/components/parameters/ClaimId'
+      responses:
+        '200':
+          description: Policy validation result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      valid: { type: boolean }
+                      policyStatus: { type: string }
+                      coverageActive: { type: boolean }
+
+  /claims/{claimId}/advocacy-cases:
+    post:
+      tags: [Advocacy]
+      summary: Open an advocacy case for a claim
+      operationId: openAdvocacyCase
+      security:
+        - BearerAuth: ['claims:advocacy:manage']
+      parameters:
+        - $ref: '#/components/parameters/ClaimId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpenAdvocacyCaseRequest'
+      responses:
+        '201':
+          description: Advocacy case opened
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdvocacyCaseResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /advocacy-cases:
+    get:
+      tags: [Advocacy]
+      summary: List advocacy cases
+      operationId: listAdvocacyCases
+      security:
+        - BearerAuth: ['claims:advocacy:view']
+      parameters:
+        - name: scope
+          in: query
+          schema: { type: string, enum: [mine, all] }
+        - name: customerPartyId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: status
+          in: query
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20, maximum: 100 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        '200':
+          description: List of advocacy cases
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdvocacyCaseListResponse'
+
+  /advocacy-cases/{caseId}:
+    get:
+      tags: [Advocacy]
+      summary: Get advocacy case by ID
+      operationId: getAdvocacyCase
+      security:
+        - BearerAuth: ['claims:advocacy:view']
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+      responses:
+        '200':
+          description: Advocacy case details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdvocacyCaseResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /advocacy-cases/{caseId}/tasks:
+    post:
+      tags: [Advocacy]
+      summary: Create an advocacy task
+      operationId: createAdvocacyTask
+      security:
+        - BearerAuth: ['claims:advocacy:manage']
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskRequest'
+      responses:
+        '201':
+          description: Task created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      taskId: { type: string, format: uuid }
+                      status: { type: string }
+
+  /advocacy-cases/{caseId}/tasks/{taskId}:
+    patch:
+      tags: [Advocacy]
+      summary: Update an advocacy task
+      operationId: updateAdvocacyTask
+      security:
+        - BearerAuth: ['claims:advocacy:manage']
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+        - name: taskId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [pending, in_progress, done, overdue]
+                outcome:
+                  type: string
+      responses:
+        '200':
+          description: Task updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      taskId: { type: string, format: uuid }
+                      status: { type: string }
+
+  /advocacy-cases/{caseId}/communications:
+    post:
+      tags: [Advocacy]
+      summary: Add a communication to an advocacy case
+      operationId: addCommunication
+      security:
+        - BearerAuth: ['claims:advocacy:manage']
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddCommunicationRequest'
+      responses:
+        '201':
+          description: Communication added
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      communicationId: { type: string, format: uuid }
+
+  /advocacy-cases/{caseId}/escalate:
+    post:
+      tags: [Advocacy]
+      summary: Escalate an advocacy case
+      operationId: escalateCase
+      security:
+        - BearerAuth: ['claims:advocacy:manage']
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Case escalated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      caseId: { type: string, format: uuid }
+                      status: { type: string }
+
+  /advocacy-cases/{caseId}/close:
+    post:
+      tags: [Advocacy]
+      summary: Close an advocacy case
+      operationId: closeAdvocacyCase
+      security:
+        - BearerAuth: ['claims:advocacy:manage']
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+      responses:
+        '200':
+          description: Case closed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      caseId: { type: string, format: uuid }
+                      status: { type: string }
+                      closedAt: { type: string, format: date-time }
+
+  /claims/{claimId}/adjuster-referrals:
+    post:
+      tags: [Adjuster]
+      summary: Create an adjuster referral
+      operationId: createAdjusterReferral
+      security:
+        - BearerAuth: ['claims:adjuster:refer']
+      parameters:
+        - $ref: '#/components/parameters/ClaimId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAdjusterReferralRequest'
+      responses:
+        '201':
+          description: Referral created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      referralId: { type: string, format: uuid }
+                      status: { type: string }
+    get:
+      tags: [Adjuster]
+      summary: List adjuster referrals for a claim
+      operationId: listAdjusterReferrals
+      security:
+        - BearerAuth: ['claims:adjuster:refer']
+      parameters:
+        - $ref: '#/components/parameters/ClaimId'
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20, maximum: 100 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        '200':
+          description: List of referrals
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      rows:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/AdjusterReferral'
+                      total: { type: integer }
+
+  /adjuster-referrals/{referralId}/accept:
+    post:
+      tags: [Adjuster]
+      summary: Accept an adjuster referral
+      operationId: acceptReferral
+      security:
+        - BearerAuth: ['claims:adjuster:respond']
+      parameters:
+        - $ref: '#/components/parameters/ReferralId'
+      responses:
+        '200':
+          description: Referral accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      referralId: { type: string, format: uuid }
+                      status: { type: string }
+
+  /adjuster-referrals/{referralId}/reject:
+    post:
+      tags: [Adjuster]
+      summary: Reject an adjuster referral
+      operationId: rejectReferral
+      security:
+        - BearerAuth: ['claims:adjuster:respond']
+      parameters:
+        - $ref: '#/components/parameters/ReferralId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Referral rejected
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      referralId: { type: string, format: uuid }
+                      status: { type: string }
+
+  /adjuster-referrals/{referralId}/submit-report:
+    post:
+      tags: [Adjuster]
+      summary: Submit adjuster report
+      operationId: submitAdjusterReport
+      security:
+        - BearerAuth: ['claims:adjuster:submit_report']
+      parameters:
+        - $ref: '#/components/parameters/ReferralId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reportRef, reportChecksum]
+              properties:
+                reportRef:
+                  type: string
+                reportChecksum:
+                  type: string
+                reportMetadata:
+                  type: object
+      responses:
+        '200':
+          description: Report submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      referralId: { type: string, format: uuid }
+                      status: { type: string }
+                      reportReceivedAt: { type: string, format: date-time }
+
+  /claims/{claimId}/projections:
+    get:
+      tags: [Projection]
+      summary: List claim projections
+      operationId: listClaimProjections
+      security:
+        - BearerAuth: ['claims:projection:view']
+      parameters:
+        - $ref: '#/components/parameters/ClaimId'
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20, maximum: 100 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        '200':
+          description: List of projections
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      rows:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ClaimProjection'
+                      total: { type: integer }
+    post:
+      tags: [Projection]
+      summary: Add a claim projection
+      operationId: addClaimProjection
+      security:
+        - BearerAuth: ['claims:projection:write']
+      parameters:
+        - $ref: '#/components/parameters/ClaimId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddProjectionRequest'
+      responses:
+        '201':
+          description: Projection added
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      projectionId: { type: string, format: uuid }
+                      status: { type: string }
+
+  /claims/{claimId}/recovery:
+    post:
+      tags: [Recovery]
+      summary: Create a recovery/subrogation case
+      operationId: createRecoveryCase
+      security:
+        - BearerAuth: ['claims:recovery:manage']
+      parameters:
+        - $ref: '#/components/parameters/ClaimId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expectedRecoveryAmount]
+              properties:
+                responsiblePartyId:
+                  type: string
+                  format: uuid
+                expectedRecoveryAmount:
+                  type: number
+                expectedRecoveryCurrency:
+                  type: string
+                  default: IRR
+      responses:
+        '201':
+          description: Recovery case created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      recoveryId: { type: string, format: uuid }
+                      status: { type: string }
+
+  /claims/{claimId}/documents:
+    post:
+      tags: [Documents]
+      summary: Attach a document to a claim
+      operationId: attachClaimDocument
+      security:
+        - BearerAuth: ['claims:document:attach']
+      parameters:
+        - $ref: '#/components/parameters/ClaimId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttachDocumentRequest'
+      responses:
+        '201':
+          description: Document attached
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      documentId: { type: string }
+                      documentType: { type: string }
+                      virusScanStatus: { type: string }
+                      piiScanStatus: { type: string }
+                      classification: { type: string }
+    get:
+      tags: [Documents]
+      summary: List documents for a claim
+      operationId: listClaimDocuments
+      security:
+        - BearerAuth: ['claims:document:view']
+      parameters:
+        - $ref: '#/components/parameters/ClaimId'
+      responses:
+        '200':
+          description: List of documents
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      rows:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ClaimDocument'
+                      total: { type: integer }
+
+  /claims/{claimId}/documents/{documentId}/download:
+    get:
+      tags: [Documents]
+      summary: Get download URL for a claim document
+      operationId: getDocumentDownloadUrl
+      security:
+        - BearerAuth: ['claims:document:download']
+      parameters:
+        - $ref: '#/components/parameters/ClaimId'
+        - name: documentId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Download URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      downloadUrl: { type: string }
+                      expiresAt: { type: string, format: date-time }
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    ClaimId:
+      name: claimId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    CaseId:
+      name: caseId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ReferralId:
+      name: referralId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        success: { type: boolean, default: false }
+        error:
+          type: object
+          properties:
+            code: { type: string }
+            message: { type: string }
+        correlationId: { type: string }
+
+    CreateClaimRequest:
+      type: object
+      required: [policyId, claimantPartyId, lossType, lossDate]
+      properties:
+        policyId: { type: string, format: uuid }
+        policyNumber: { type: string }
+        carrierOrganizationId: { type: string, format: uuid }
+        distributionOrganizationId: { type: string, format: uuid }
+        brokerOrganizationId: { type: string, format: uuid }
+        claimantPartyId: { type: string, format: uuid }
+        representativePartyId: { type: string, format: uuid }
+        claimType: { type: string, default: first_party }
+        lossType: { type: string }
+        lossDate: { type: string, format: date-time }
+        description: { type: string }
+        currency: { type: string, default: IRR }
+        notificationChannel: { type: string, enum: [web, mobile_app, sms, email, call_center] }
+        idempotencyKey: { type: string }
+
+    UpdateClaimRequest:
+      type: object
+      properties:
+        description: { type: string }
+        status: { type: string }
+        assessedAmount: { type: number }
+        approvedAmount: { type: number }
+        paidAmount: { type: number }
+        reserveAmount: { type: number }
+        settlementAmount: { type: number }
+
+    FnolRequest:
+      type: object
+      required: [policyId, lossType, lossDate, contactPhone]
+      properties:
+        policyId: { type: string, format: uuid }
+        claimantPartyId: { type: string, format: uuid }
+        lossType: { type: string }
+        lossDate: { type: string, format: date-time }
+        description: { type: string }
+        notificationChannel: { type: string, enum: [web, mobile_app, sms, email, call_center] }
+        notificationSource: { type: string }
+        contactPhone: { type: string }
+        contactEmail: { type: string }
+        locationAddress: { type: string }
+        locationCity: { type: string }
+        locationProvince: { type: string }
+        witnesses:
+          type: array
+          items: { type: object }
+        attachedDocuments:
+          type: array
+          items: { type: object }
+
+    Claim:
+      type: object
+      properties:
+        claimId: { type: string, format: uuid }
+        tenantId: { type: string, format: uuid }
+        claimNumber: { type: string }
+        recordOwnerOrganizationId: { type: string, format: uuid }
+        carrierOrganizationId: { type: string, format: uuid }
+        distributionOrganizationId: { type: string, format: uuid }
+        brokerOrganizationId: { type: string, format: uuid }
+        policyId: { type: string, format: uuid }
+        policyNumber: { type: string }
+        externalClaimId: { type: string }
+        claimantPartyId: { type: string, format: uuid }
+        representativePartyId: { type: string, format: uuid }
+        claimType: { type: string }
+        lossType: { type: string }
+        lossDate: { type: string, format: date-time }
+        reportedDate: { type: string, format: date-time }
+        description: { type: string }
+        status:
+          type: string
+          enum: [reported, registered, acknowledged, under_review, adjuster_assigned, assessed, approved, rejected, denied, paid, settled, closed, appealed]
+        assessedAmount: { type: number }
+        approvedAmount: { type: number }
+        paidAmount: { type: number }
+        reserveAmount: { type: number }
+        settlementAmount: { type: number }
+        currency: { type: string }
+        notificationChannel: { type: string }
+        requiresHumanTriage: { type: boolean }
+        version: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    ClaimResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          $ref: '#/components/schemas/Claim'
+        correlationId: { type: string }
+
+    ClaimListResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          type: object
+          properties:
+            rows:
+              type: array
+              items:
+                $ref: '#/components/schemas/Claim'
+            total: { type: integer }
+        correlationId: { type: string }
+
+    OpenAdvocacyCaseRequest:
+      type: object
+      required: [customerPartyId, carrierOrganizationId]
+      properties:
+        brokerOrganizationId: { type: string, format: uuid }
+        customerPartyId: { type: string, format: uuid }
+        carrierOrganizationId: { type: string, format: uuid }
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+          default: medium
+
+    AdvocacyCase:
+      type: object
+      properties:
+        caseId: { type: string, format: uuid }
+        tenantId: { type: string, format: uuid }
+        brokerOrganizationId: { type: string, format: uuid }
+        claimId: { type: string, format: uuid }
+        customerPartyId: { type: string, format: uuid }
+        carrierOrganizationId: { type: string, format: uuid }
+        status:
+          type: string
+          enum: [open, waiting_carrier, adjuster_review, escalated, resolved, closed]
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+        assignedPartyId: { type: string, format: uuid }
+        escalationReason: { type: string }
+        openedAt: { type: string, format: date-time }
+        closedAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    AdvocacyCaseResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          $ref: '#/components/schemas/AdvocacyCase'
+        correlationId: { type: string }
+
+    AdvocacyCaseListResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          type: object
+          properties:
+            rows:
+              type: array
+              items:
+                $ref: '#/components/schemas/AdvocacyCase'
+            total: { type: integer }
+        correlationId: { type: string }
+
+    CreateTaskRequest:
+      type: object
+      required: [taskType, assignedToPartyId, dueDate]
+      properties:
+        taskType:
+          type: string
+          enum: [follow_up, document_request, carrier_call, customer_update, adjuster_referral, payment_check]
+        assignedToPartyId: { type: string, format: uuid }
+        dueDate: { type: string, format: date-time }
+
+    AddCommunicationRequest:
+      type: object
+      required: [channel, direction, contentRef]
+      properties:
+        channel:
+          type: string
+          enum: [email, sms, call, web, mobile_app]
+        direction:
+          type: string
+          enum: [inbound, outbound]
+        contentRef: { type: string }
+        partyId: { type: string, format: uuid }
+        subject: { type: string }
+        summary: { type: string }
+        isPii: { type: boolean }
+        timestamp: { type: string, format: date-time }
+
+    CreateAdjusterReferralRequest:
+      type: object
+      required: [caseId, adjusterOrganizationId, adjusterPartyId]
+      properties:
+        caseId: { type: string, format: uuid }
+        adjusterOrganizationId: { type: string, format: uuid }
+        adjusterPartyId: { type: string, format: uuid }
+        estimatedFeeAmount: { type: number }
+        estimatedFeeCurrency: { type: string, default: IRR }
+
+    AdjusterReferral:
+      type: object
+      properties:
+        referralId: { type: string, format: uuid }
+        tenantId: { type: string, format: uuid }
+        claimId: { type: string, format: uuid }
+        caseId: { type: string, format: uuid }
+        adjusterOrganizationId: { type: string, format: uuid }
+        adjusterPartyId: { type: string, format: uuid }
+        referralDate: { type: string, format: date-time }
+        status:
+          type: string
+          enum: [pending, accepted, rejected, assigned, report_received, closed]
+        estimatedFeeAmount: { type: number }
+        estimatedFeeCurrency: { type: string }
+        reportRef: { type: string }
+        reportChecksum: { type: string }
+        reportReceivedAt: { type: string, format: date-time }
+        rejectionReason: { type: string }
+
+    AddProjectionRequest:
+      type: object
+      required: [brokerOrganizationId, carrierOrganizationId, externalClaimId, sourceSystemId, payload]
+      properties:
+        brokerOrganizationId: { type: string, format: uuid }
+        carrierOrganizationId: { type: string, format: uuid }
+        externalClaimId: { type: string }
+        sourceSystemId: { type: string }
+        sourceVersion: { type: integer, default: 1 }
+        payload: { type: object }
+
+    ClaimProjection:
+      type: object
+      properties:
+        projectionId: { type: string, format: uuid }
+        tenantId: { type: string, format: uuid }
+        brokerOrganizationId: { type: string, format: uuid }
+        carrierOrganizationId: { type: string, format: uuid }
+        claimId: { type: string, format: uuid }
+        externalClaimId: { type: string }
+        sourceSystemId: { type: string }
+        sourceVersion: { type: integer }
+        payload: { type: object }
+        receivedAt: { type: string, format: date-time }
+        status:
+          type: string
+          enum: [active, superseded, revoked]
+
+    AttachDocumentRequest:
+      type: object
+      required: [documentId, uploadedByPartyId]
+      properties:
+        documentId: { type: string }
+        caseId: { type: string, format: uuid }
+        documentType:
+          type: string
+          enum: [police_report, medical_report, repair_estimate, invoice, photo, video, other]
+        uploadedByPartyId: { type: string, format: uuid }
+
+    ClaimDocument:
+      type: object
+      properties:
+        documentId: { type: string }
+        tenantId: { type: string, format: uuid }
+        claimId: { type: string, format: uuid }
+        caseId: { type: string, format: uuid }
+        uploadedByPartyId: { type: string, format: uuid }
+        documentType: { type: string }
+        storageRef: { type: string }
+        fileName: { type: string }
+        fileSize: { type: integer }
+        mimeType: { type: string }
+        checksum: { type: string }
+        classification:
+          type: string
+          enum: [PUBLIC, INTERNAL, CONFIDENTIAL, PII]
+        virusScanStatus:
+          type: string
+          enum: [pending, clean, infected, error]
+        piiScanStatus:
+          type: string
+          enum: [pending, clean, detected, error]
+        uploadedAt: { type: string, format: date-time }

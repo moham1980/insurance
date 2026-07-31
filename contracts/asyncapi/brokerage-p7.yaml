@@ -1,0 +1,499 @@
+asyncapi: '2.6.0'
+info:
+  title: P7 AI & Experience Domain Events
+  version: 1.0.0
+  description: P7 events for Copilot NBA actions, document AI OCR/redaction/classification, customer consent/portfolio, notification credential rotation, and model switchboard governance.
+servers:
+  dev:
+    url: kafka://localhost:19092
+    protocol: kafka
+    description: Dev Kafka broker
+  prod:
+    url: kafka://kafka-1:29092,kafka-2:29092,kafka-3:29092
+    protocol: kafka
+    description: Prod Kafka cluster
+channels:
+  insurance.copilot.nba.action_offered:
+    publish:
+      message:
+        $ref: '#/components/messages/NbaActionOffered'
+  insurance.copilot.nba.action_executed:
+    publish:
+      message:
+        $ref: '#/components/messages/NbaActionExecuted'
+  insurance.copilot.nba.action_opted_out:
+    publish:
+      message:
+        $ref: '#/components/messages/NbaActionOptedOut'
+  insurance.document_ai.redaction_completed:
+    publish:
+      message:
+        $ref: '#/components/messages/DocumentRedactionCompleted'
+  insurance.document_ai.classification_completed:
+    publish:
+      message:
+        $ref: '#/components/messages/DocumentClassificationCompleted'
+  insurance.document_ai.fields_confirmed:
+    publish:
+      message:
+        $ref: '#/components/messages/DocumentFieldsConfirmed'
+  insurance.customer.consent.granted:
+    publish:
+      message:
+        $ref: '#/components/messages/ConsentGranted'
+  insurance.customer.consent.revoked:
+    publish:
+      message:
+        $ref: '#/components/messages/ConsentRevoked'
+  insurance.notification.credential.rotated:
+    publish:
+      message:
+        $ref: '#/components/messages/NotificationCredentialRotated'
+  insurance.ai.model.governance_check_rejected:
+    publish:
+      message:
+        $ref: '#/components/messages/ModelGovernanceCheckRejected'
+  insurance.ai.model.card_approved:
+    publish:
+      message:
+        $ref: '#/components/messages/ModelCardApproved'
+  insurance.channel.workspace_created:
+    publish:
+      message:
+        $ref: '#/components/messages/WorkspaceCreated'
+  insurance.customer.portal_page_viewed:
+    publish:
+      message:
+        $ref: '#/components/messages/CustomerPortalPageViewed'
+  insurance.copilot.question_asked:
+    publish:
+      message:
+        $ref: '#/components/messages/CopilotQuestionAsked'
+  insurance.copilot.response_generated:
+    publish:
+      message:
+        $ref: '#/components/messages/CopilotResponseGenerated'
+  insurance.document_ai.ocr_job_started:
+    publish:
+      message:
+        $ref: '#/components/messages/OcrJobStarted'
+  insurance.document_ai.ocr_job_completed:
+    publish:
+      message:
+        $ref: '#/components/messages/OcrJobCompleted'
+  insurance.ai.model.deployed:
+    publish:
+      message:
+        $ref: '#/components/messages/ModelDeployed'
+  insurance.ai.model.retired:
+    publish:
+      message:
+        $ref: '#/components/messages/ModelRetired'
+  insurance.notification.sent:
+    publish:
+      message:
+        $ref: '#/components/messages/NotificationSent'
+  insurance.notification.otp_verified:
+    publish:
+      message:
+        $ref: '#/components/messages/OtpVerified'
+components:
+  messages:
+    NbaActionOffered:
+      name: NbaActionOffered.v1
+      payload:
+        $ref: '#/components/schemas/NbaActionEvent'
+    NbaActionExecuted:
+      name: NbaActionExecuted.v1
+      payload:
+        $ref: '#/components/schemas/NbaActionEvent'
+    NbaActionOptedOut:
+      name: NbaActionOptedOut.v1
+      payload:
+        $ref: '#/components/schemas/NbaActionEvent'
+    DocumentRedactionCompleted:
+      name: DocumentRedactionCompleted.v1
+      payload:
+        $ref: '#/components/schemas/DocumentRedactionEvent'
+    DocumentClassificationCompleted:
+      name: DocumentClassificationCompleted.v1
+      payload:
+        $ref: '#/components/schemas/DocumentClassificationEvent'
+    DocumentFieldsConfirmed:
+      name: DocumentFieldsConfirmed.v1
+      payload:
+        $ref: '#/components/schemas/DocumentFieldsConfirmedEvent'
+    ConsentGranted:
+      name: ConsentGranted.v1
+      payload:
+        $ref: '#/components/schemas/ConsentEvent'
+    ConsentRevoked:
+      name: ConsentRevoked.v1
+      payload:
+        $ref: '#/components/schemas/ConsentEvent'
+    NotificationCredentialRotated:
+      name: NotificationCredentialRotated.v1
+      payload:
+        $ref: '#/components/schemas/NotificationCredentialEvent'
+    ModelGovernanceCheckRejected:
+      name: ModelGovernanceCheckRejected.v1
+      payload:
+        $ref: '#/components/schemas/ModelGovernanceEvent'
+    ModelCardApproved:
+      name: ModelCardApproved.v1
+      payload:
+        $ref: '#/components/schemas/ModelCardEvent'
+    ModelDeployed:
+      name: ModelDeployed.v1
+      payload:
+        $ref: '#/components/schemas/ModelDeployedEvent'
+    WorkspaceCreated:
+      name: WorkspaceCreated.v1
+      payload:
+        $ref: '#/components/schemas/WorkspaceCreatedEvent'
+    CustomerPortalPageViewed:
+      name: CustomerPortalPageViewed.v1
+      payload:
+        $ref: '#/components/schemas/PortalPageViewedEvent'
+    CopilotQuestionAsked:
+      name: CopilotQuestionAsked.v1
+      payload:
+        $ref: '#/components/schemas/CopilotQuestionEvent'
+    CopilotResponseGenerated:
+      name: CopilotResponseGenerated.v1
+      payload:
+        $ref: '#/components/schemas/CopilotResponseEvent'
+    OcrJobStarted:
+      name: OCRJobStarted.v1
+      payload:
+        $ref: '#/components/schemas/OcrJobEvent'
+    OcrJobCompleted:
+      name: OCRJobCompleted.v1
+      payload:
+        $ref: '#/components/schemas/OcrJobEvent'
+    ModelRetired:
+      name: ModelRetired.v1
+      payload:
+        $ref: '#/components/schemas/ModelRetiredEvent'
+    NotificationSent:
+      name: NotificationSent.v1
+      payload:
+        $ref: '#/components/schemas/NotificationSentEvent'
+    OtpVerified:
+      name: OTPVerified.v1
+      payload:
+        $ref: '#/components/schemas/OtpVerifiedEvent'
+  schemas:
+    DomainEventEnvelope:
+      type: object
+      required: [eventId, eventType, eventVersion, correlationId, timestamp]
+      properties:
+        eventId:
+          type: string
+          format: uuid
+        eventType:
+          type: string
+        eventVersion:
+          type: integer
+        correlationId:
+          type: string
+        tenantId:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        payload:
+          type: object
+    NbaActionEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            payload:
+              type: object
+              properties:
+                logId:
+                  type: string
+                action:
+                  type: string
+                contextType:
+                  type: string
+                resourceId:
+                  type: string
+                reason:
+                  type: string
+                actorUserId:
+                  type: string
+    DocumentRedactionEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            payload:
+              type: object
+              properties:
+                documentId:
+                  type: string
+                spanCount:
+                  type: integer
+                redacted:
+                  type: boolean
+    DocumentClassificationEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            payload:
+              type: object
+              properties:
+                documentId:
+                  type: string
+                documentType:
+                  type: string
+                confidence:
+                  type: number
+    DocumentFieldsConfirmedEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            payload:
+              type: object
+              properties:
+                documentId:
+                  type: string
+                documentType:
+                  type: string
+                confirmationStatus:
+                  type: string
+                missingFields:
+                  type: array
+                  items:
+                    type: string
+    ConsentEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            payload:
+              type: object
+              properties:
+                consentId:
+                  type: string
+                customerId:
+                  type: string
+                purpose:
+                  type: string
+                status:
+                  type: string
+                reason:
+                  type: string
+    NotificationCredentialEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            payload:
+              type: object
+              properties:
+                credentialId:
+                  type: string
+                tenantId:
+                  type: string
+                provider:
+                  type: string
+                credentialType:
+                  type: string
+                rotatedBy:
+                  type: string
+    ModelGovernanceEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            payload:
+              type: object
+              properties:
+                modelKey:
+                  type: string
+                modelId:
+                  type: string
+                reason:
+                  type: string
+                riskLevel:
+                  type: string
+    ModelCardEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            payload:
+              type: object
+              properties:
+                cardId:
+                  type: string
+                modelId:
+                  type: string
+                modelName:
+                  type: string
+                approvedBy:
+                  type: string
+    WorkspaceCreatedEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            payload:
+              type: object
+              properties:
+                workspaceId:
+                  type: string
+                channelType:
+                  type: string
+                brandKey:
+                  type: string
+                createdBy:
+                  type: string
+    PortalPageViewedEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            payload:
+              type: object
+              properties:
+                customerId:
+                  type: string
+                page:
+                  type: string
+                brandKey:
+                  type: string
+                sessionId:
+                  type: string
+    CopilotQuestionEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            payload:
+              type: object
+              properties:
+                questionId:
+                  type: string
+                contextType:
+                  type: string
+                resourceId:
+                  type: string
+                actorUserId:
+                  type: string
+                provider:
+                  type: string
+    CopilotResponseEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            payload:
+              type: object
+              properties:
+                questionId:
+                  type: string
+                model:
+                  type: string
+                provider:
+                  type: string
+                tokensUsed:
+                  type: integer
+                piiRedacted:
+                  type: boolean
+    OcrJobEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            payload:
+              type: object
+              properties:
+                jobId:
+                  type: string
+                documentId:
+                  type: string
+                status:
+                  type: string
+                provider:
+                  type: string
+                processingTimeMs:
+                  type: integer
+    ModelRetiredEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            payload:
+              type: object
+              properties:
+                modelId:
+                  type: string
+                modelKey:
+                  type: string
+                retiredBy:
+                  type: string
+                reason:
+                  type: string
+    ModelDeployedEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            payload:
+              type: object
+              properties:
+                modelId:
+                  type: string
+                modelName:
+                  type: string
+                modelKey:
+                  type: string
+                version:
+                  type: string
+                deployedBy:
+                  type: string
+                riskLevel:
+                  type: string
+                previousStatus:
+                  type: string
+    NotificationSentEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            payload:
+              type: object
+              properties:
+                notificationId:
+                  type: string
+                channel:
+                  type: string
+                  enum: [sms, email, push]
+                recipient:
+                  type: string
+                template:
+                  type: string
+                status:
+                  type: string
+    OtpVerifiedEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            payload:
+              type: object
+              properties:
+                reference:
+                  type: string
+                recipient:
+                  type: string
+                verified:
+                  type: boolean
+                tenantId:
+                  type: string

@@ -51,6 +51,9 @@ export class PaymentsController {
       tenantId: actor.tenantId,
       idempotencyKey: String(body.idempotencyKey),
       claimId: String(body.claimId),
+      policyId: body.policyId,
+      brokerOrganizationId: body.brokerOrganizationId,
+      paymentType: body.paymentType,
       amount: body.amount,
       currency: body.currency,
       preparedByUserId: actor.userId,
@@ -400,6 +403,8 @@ export class PaymentsController {
     @Headers() headers: Record<string, any>,
     @Query('claimId') claimId?: string,
     @Query('status') status?: string,
+    @Query('paymentType') paymentType?: string,
+    @Query('brokerOrganizationId') brokerOrganizationId?: string,
     @Query('limit') limit: string = '50',
     @Query('offset') offset: string = '0'
   ) {
@@ -419,6 +424,8 @@ export class PaymentsController {
       tenantId: actor.tenantId,
       claimId,
       status,
+      paymentType,
+      brokerOrganizationId,
       limit: Number.isFinite(lim) ? lim : 50,
       offset: Number.isFinite(off) ? off : 0,
     });
@@ -597,6 +604,42 @@ export class PaymentsController {
       paymentId,
       reason: body.reason,
       evidence: body.evidence,
+    });
+
+    return { ...result, correlationId };
+  }
+
+  @Post('/payments/disputes/:disputeId/resolve')
+  @RequirePermissions('payments:dispute')
+  async resolveDispute(
+    @Req() req: any,
+    @Headers() headers: Record<string, any>,
+    @Param('disputeId') disputeId: string,
+    @Body() body: { resolution: 'resolved' | 'rejected'; resolutionNotes: string },
+  ) {
+    const correlationId = this.getCorrelationId(headers);
+    const actor = this.getActor(req);
+
+    auditLogger.info('payments.dispute.resolve.request', { correlationId, tenantId: actor.tenantId, actorUserId: actor.userId, action: 'payments:dispute', disputeId });
+
+    if (!actor.tenantId) {
+      return { success: false, error: { code: 'FORBIDDEN', message: 'Tenant identifier required' }, correlationId };
+    }
+
+    if (!disputeId || !body?.resolution || !body?.resolutionNotes) {
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'disputeId, resolution, and resolutionNotes are required' }, correlationId };
+    }
+
+    if (body.resolution !== 'resolved' && body.resolution !== 'rejected') {
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'resolution must be "resolved" or "rejected"' }, correlationId };
+    }
+
+    const result = await this.paymentsService.resolveDispute({
+      correlationId,
+      tenantId: actor.tenantId,
+      disputeId,
+      resolution: body.resolution,
+      resolutionNotes: body.resolutionNotes,
     });
 
     return { ...result, correlationId };

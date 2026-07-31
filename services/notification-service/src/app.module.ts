@@ -6,6 +6,7 @@ import { HealthController } from './health.controller';
 import { NotificationLog } from './entities/NotificationLog';
 import { EmailTemplate } from './entities/EmailTemplate';
 import { SmsTemplate } from './entities/SmsTemplate';
+import { Credential } from './entities/Credential';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { PermissionsGuard } from './permissions.guard';
 import { TenantGuard } from './tenant.guard';
@@ -17,6 +18,11 @@ import { TwilioProvider } from './sms-providers/twilio.provider';
 import { MelliPayamakProvider } from './sms-providers/melli-payamak.provider';
 import { SendGridProvider } from './email-providers/sendgrid.provider';
 import { AwsSesProvider } from './email-providers/aws-ses.provider';
+import { PaymentNotificationService } from './payment-notification.service';
+import { CredentialVaultService } from './credential-vault.service';
+import { PushChannel } from './push-channel';
+import { PaymentSmsTemplate } from './templates/payment-sms-template';
+import { PaymentEmailTemplate } from './templates/payment-email-template';
 
 function createSmsProvider(): any {
   const provider = process.env.SMS_PROVIDER || 'kavenegar';
@@ -86,18 +92,23 @@ function createEmailProvider(): any {
       database: process.env.DB_DATABASE || process.env.DB_NAME || 'postgres',
       schema: process.env.DB_SCHEMA || 'notification',
       synchronize: process.env.NODE_ENV !== 'production' && process.env.DB_SYNC === 'true',
-      entities: [NotificationLog, EmailTemplate, SmsTemplate, OutboxEvent],
+      entities: [NotificationLog, EmailTemplate, SmsTemplate, OutboxEvent, Credential],
     }),
-    TypeOrmModule.forFeature([NotificationLog, EmailTemplate, SmsTemplate, OutboxEvent]),
+    TypeOrmModule.forFeature([NotificationLog, EmailTemplate, SmsTemplate, OutboxEvent, Credential]),
   ],
   controllers: [NotificationController, HealthController],
   providers: [
     TenantGuard,
     NotificationService,
+    CredentialVaultService,
     JwtAuthGuard,
+    PaymentSmsTemplate,
+    PaymentEmailTemplate,
+    PaymentNotificationService,
     PermissionsGuard,
     RedisService,
     CallbackAuthGuard,
+    PushChannel,
     { provide: 'SMS_PROVIDER', useFactory: createSmsProvider },
     { provide: 'SMS_FALLBACK_PROVIDER', useFactory: createFallbackSmsProvider },
     { provide: 'EMAIL_PROVIDER', useFactory: createEmailProvider },

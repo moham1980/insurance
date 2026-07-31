@@ -14,6 +14,7 @@ export class CreateOutboxEvents1700000000604 implements MigrationInterface {
         event_type TEXT NOT NULL,
         event_version INT NOT NULL,
         correlation_id TEXT NOT NULL,
+        tenant_id TEXT,
         subject_json JSONB NOT NULL,
         payload_json JSONB NOT NULL,
         status TEXT NOT NULL DEFAULT 'pending',
@@ -23,6 +24,7 @@ export class CreateOutboxEvents1700000000604 implements MigrationInterface {
       );
     `);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_outbox_events_status_occurred_at ON ${schema}.outbox_events(status, occurred_at);`);
+    await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_outbox_events_tenant_id ON ${schema}.outbox_events(tenant_id);`);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_outbox_events_correlation_id ON ${schema}.outbox_events(correlation_id);`);
   }
 

@@ -42,6 +42,8 @@ export class UnderwritingService {
     authorization?: string;
     source?: string;
     assignedUnderwriterId?: string;
+    brokerOrganizationId?: string;
+    carrierOrganizationId?: string;
   }): Promise<UnderwritingRequest> {
     if (!params.tenantId) {
       const err: any = new Error('tenantId is required');
@@ -71,6 +73,8 @@ export class UnderwritingService {
         dueDate: params.dueDate ? new Date(params.dueDate) : null,
         correlationId: params.correlationId || null,
         source: params.source || null,
+        brokerOrganizationId: params.brokerOrganizationId || null,
+        carrierOrganizationId: params.carrierOrganizationId || null,
         version: 1,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -89,6 +93,8 @@ export class UnderwritingService {
           policyId: params.policyId,
           reasonCode: params.reasonCode,
           status: r.status,
+          brokerOrganizationId: r.brokerOrganizationId || null,
+          carrierOrganizationId: r.carrierOrganizationId || null,
           dueDate: r.dueDate?.toISOString?.() ?? null,
         },
       });
@@ -140,7 +146,7 @@ export class UnderwritingService {
     return await this.reqRepo.findOne({ where: { underwritingRequestId, tenantId } });
   }
 
-  async listRequests(params: { status?: string; policyId?: string; tenantId: string; limit: number; offset: number }): Promise<{ rows: UnderwritingRequest[]; total: number }> {
+  async listRequests(params: { status?: string; policyId?: string; tenantId: string; brokerOrganizationId?: string; limit: number; offset: number }): Promise<{ rows: UnderwritingRequest[]; total: number }> {
     const take = Math.min(params.limit || 50, 200);
     const skip = params.offset || 0;
 
@@ -148,6 +154,7 @@ export class UnderwritingService {
     qb.andWhere('r.tenant_id = :tenantId', { tenantId: params.tenantId });
     if (params.status) qb.andWhere('r.status = :status', { status: params.status });
     if (params.policyId) qb.andWhere('r.policy_id = :policyId', { policyId: params.policyId });
+    if (params.brokerOrganizationId) qb.andWhere('r.broker_organization_id = :brokerOrgId', { brokerOrgId: params.brokerOrganizationId });
 
     qb.orderBy('r.created_at', 'DESC').take(take).skip(skip);
     const [rows, total] = await qb.getManyAndCount();
@@ -171,10 +178,11 @@ export class UnderwritingService {
 
   async decide(params: {
     underwritingRequestId: string;
-    decision: 'approved' | 'rejected' | 'escalated';
+    decision: 'approved' | 'rejected' | 'escalated' | 'conditionally_approved';
     decidedBy: string;
     notes?: string;
     result?: Record<string, any>;
+    conditions?: Record<string, any>;
     correlationId?: string;
     tenantId: string;
     actorUserId?: string | null;
@@ -238,6 +246,9 @@ export class UnderwritingService {
       r.result = params.result || null;
       r.status = params.decision;
       r.updatedAt = new Date();
+      if (params.decision === 'conditionally_approved' && params.conditions) {
+        r.result = { ...(r.result || {}), conditions: params.conditions };
+      }
       const saved = await manager.save(r);
 
       await outbox.publish({
@@ -254,7 +265,99 @@ export class UnderwritingService {
           decidedBy: r.decidedBy,
           status: r.status,
           notes: r.decisionNotes,
+          brokerOrganizationId: r.brokerOrganizationId || null,
+          carrierOrganizationId: r.carrierOrganizationId || null,
+          ...(params.decision === 'conditionally_approved' && params.conditions ? { conditions: params.conditions } : {}),
         },
+      });
+
+      if (r.brokerOrganizationId) {
+        await outbox.publish({
+          topic: 'insurance.underwriting.broker.notification',
+          eventType: 'UnderwritingBrokerNotification',
+          eventVersion: 1,
+          correlationId: params.correlationId || uuidv4(),
+          subject: { underwritingRequestId: r.underwritingRequestId, policyId: r.policyId, brokerOrganizationId: r.brokerOrganizationId },
+          payload: {
+            underwritingRequestId: r.underwritingRequestId,
+            tenantId: r.tenantId,
+            policyId: r.policyId,
+            brokerOrganizationId: r.brokerOrganizationId,
+            carrierOrganizationId: r.carrierOrganizationId || null,
+            decision: r.decision,
+            status: r.status,
+            notes: r.decisionNotes,
+            notificationType: 'underwriting_decision',
+            message: `Underwriting decision for policy ${r.policyId}: ${r.decision}${r.decisionNotes ? ` — ${r.decisionNotes}` : ''}`,
+            ...(params.decision === 'conditionally_approved' && params.conditions ? { conditions: params.conditions } : {}),
+          },
+        });
+      }
+
+      return saved;
+    });
+  }
+
+  async appealDecision(params: {
+    underwritingRequestId: string;
+    reason: string;
+    additionalData?: Record<string, any>;
+    correlationId?: string;
+    tenantId: string;
+    actorUserId?: string | null;
+  }): Promise<UnderwritingRequest | null> {
+    if (!params.tenantId) {
+      const err: any = new Error('tenantId is required');
+      err.code = 'TENANT_REQUIRED';
+      throw err;
+    }
+
+    return await this.dataSource.transaction(async (manager) => {
+      const outbox = new OutboxPublisher(manager);
+      const r = await manager.findOne(UnderwritingRequest, { where: { underwritingRequestId: params.underwritingRequestId, tenantId: params.tenantId } });
+      if (!r) return null;
+
+      if (r.status !== 'rejected' && r.status !== 'conditionally_approved') {
+        const err: any = new Error('Can only appeal a rejected or conditionally approved decision');
+        err.code = 'INVALID_STATE';
+        throw err;
+      }
+
+      const previousDecision = r.decision;
+      const previousStatus = r.status;
+
+      r.status = 'appealed';
+      r.decisionNotes = `Appeal: ${params.reason}${r.decisionNotes ? ' | Previous: ' + r.decisionNotes : ''}`;
+      r.result = { ...(r.result || {}), appealReason: params.reason, appealAdditionalData: params.additionalData || null, previousDecision, previousStatus, appealedAt: new Date().toISOString() };
+      r.updatedAt = new Date();
+      const saved = await manager.save(r);
+
+      await outbox.publish({
+        topic: 'insurance.underwriting.appeal.submitted',
+        eventType: 'UnderwritingAppealSubmitted',
+        eventVersion: 1,
+        correlationId: params.correlationId || uuidv4(),
+        subject: { underwritingRequestId: r.underwritingRequestId, policyId: r.policyId, tenantId: r.tenantId },
+        payload: {
+          underwritingRequestId: r.underwritingRequestId,
+          tenantId: r.tenantId,
+          policyId: r.policyId,
+          reason: params.reason,
+          previousDecision,
+          previousStatus,
+          brokerOrganizationId: r.brokerOrganizationId || null,
+          appealedBy: params.actorUserId || null,
+          appealedAt: new Date().toISOString(),
+        },
+      });
+
+      auditLogger.info('underwriting.appeal.submitted', {
+        underwritingRequestId: r.underwritingRequestId,
+        policyId: r.policyId,
+        tenantId: r.tenantId,
+        actorUserId: params.actorUserId,
+        reason: params.reason,
+        previousDecision,
       });
 
       return saved;
@@ -331,60 +434,105 @@ export class UnderwritingService {
     tenantId: string;
     fromDate?: string;
     toDate?: string;
+    carrierOrganizationId?: string;
+    brokerOrganizationId?: string;
   }): Promise<{
     totalPending: number;
     overdueCount: number;
     escalatedCount: number;
     avgResolutionHours: number | null;
     resolutionRate: number;
+    perCarrier?: Array<{
+      carrierOrganizationId: string;
+      totalPending: number;
+      overdueCount: number;
+      escalatedCount: number;
+      avgResolutionHours: number | null;
+      resolutionRate: number;
+    }>;
   }> {
     const now = new Date();
     const fromDate = params.fromDate ? new Date(params.fromDate) : null;
     const toDate = params.toDate ? new Date(params.toDate) : null;
 
-    const totalPending = await this.reqRepo.count({
-      where: { tenantId: params.tenantId, status: 'pending' },
-    });
+    const baseFilter = (qb: any) => {
+      qb.andWhere('r.tenant_id = :tenantId', { tenantId: params.tenantId });
+      if (params.carrierOrganizationId) {
+        qb.andWhere('r.carrier_organization_id = :carrierOrgId', { carrierOrgId: params.carrierOrganizationId });
+      }
+      if (params.brokerOrganizationId) {
+        qb.andWhere('r.broker_organization_id = :brokerOrgId', { brokerOrgId: params.brokerOrganizationId });
+      }
+      if (fromDate) {
+        qb.andWhere('r.created_at >= :fromDate', { fromDate });
+      }
+      if (toDate) {
+        qb.andWhere('r.created_at <= :toDate', { toDate });
+      }
+      return qb;
+    };
 
-    const overdueCount = await this.reqRepo
-      .createQueryBuilder('r')
-      .where('r.tenant_id = :tenantId', { tenantId: params.tenantId })
-      .andWhere('r.status = :status', { status: 'pending' })
+    const totalPendingQb = baseFilter(this.reqRepo.createQueryBuilder('r'));
+    totalPendingQb.andWhere('r.status = :status', { status: 'pending' });
+    const totalPending = await totalPendingQb.getCount();
+
+    const overdueQb = baseFilter(this.reqRepo.createQueryBuilder('r'));
+    overdueQb.andWhere('r.status = :status', { status: 'pending' })
       .andWhere('r.due_date IS NOT NULL')
-      .andWhere('r.due_date < :now', { now })
-      .getCount();
+      .andWhere('r.due_date < :now', { now });
+    const overdueCount = await overdueQb.getCount();
 
-    const escalatedCount = await this.reqRepo.count({
-      where: { tenantId: params.tenantId, status: 'escalated' },
-    });
+    const escalatedQb = baseFilter(this.reqRepo.createQueryBuilder('r'));
+    escalatedQb.andWhere('r.status = :status', { status: 'escalated' });
+    const escalatedCount = await escalatedQb.getCount();
 
-    const completedQb = this.reqRepo
+    const completedQb = baseFilter(this.reqRepo
       .createQueryBuilder('r')
       .select('AVG(EXTRACT(EPOCH FROM (r.decided_at - r.created_at))/3600)::float', 'avgResolutionHours')
       .addSelect('COUNT(*) FILTER (WHERE r.status IN (:...statuses))::float / NULLIF(COUNT(*), 0)', 'resolutionRate')
-      .where('r.tenant_id = :tenantId', { tenantId: params.tenantId })
       .setParameter('statuses', ['approved', 'rejected', 'escalated'])
       .andWhere('r.decided_at IS NOT NULL')
-      .andWhere('r.created_at IS NOT NULL');
-
-    if (fromDate) {
-      completedQb.andWhere('r.created_at >= :fromDate', { fromDate });
-    }
-    if (toDate) {
-      completedQb.andWhere('r.created_at <= :toDate', { toDate });
-    }
+      .andWhere('r.created_at IS NOT NULL'));
 
     const raw: any = await completedQb.getRawOne();
     const avgResolutionHours = raw?.avgResolutionHours ? Math.round(parseFloat(raw.avgResolutionHours) * 100) / 100 : null;
     const resolutionRate = raw?.resolutionRate ? Math.round(parseFloat(raw.resolutionRate) * 10000) / 100 : 0;
 
-    return {
+    const result: any = {
       totalPending,
       overdueCount,
       escalatedCount,
       avgResolutionHours,
       resolutionRate,
     };
+
+    if (!params.carrierOrganizationId) {
+      const perCarrierRaw: any[] = await baseFilter(this.reqRepo
+        .createQueryBuilder('r')
+        .select('r.carrier_organization_id', 'carrierOrganizationId')
+        .addSelect('COUNT(*) FILTER (WHERE r.status = :pendingStatus)', 'totalPending')
+        .addSelect('COUNT(*) FILTER (WHERE r.status = :pendingStatus AND r.due_date IS NOT NULL AND r.due_date < :now)', 'overdueCount')
+        .addSelect('COUNT(*) FILTER (WHERE r.status = :escalatedStatus)', 'escalatedCount')
+        .addSelect('AVG(EXTRACT(EPOCH FROM (r.decided_at - r.created_at))/3600)::float', 'avgResolutionHours')
+        .addSelect('COUNT(*) FILTER (WHERE r.status IN (:...completedStatuses))::float / NULLIF(COUNT(*), 0)', 'resolutionRate')
+        .setParameter('pendingStatus', 'pending')
+        .setParameter('escalatedStatus', 'escalated')
+        .setParameter('completedStatuses', ['approved', 'rejected', 'escalated'])
+        .setParameter('now', now)
+        .groupBy('r.carrier_organization_id'))
+        .getRawMany();
+
+      result.perCarrier = perCarrierRaw.map((row: any) => ({
+        carrierOrganizationId: row.carrierOrganizationId || 'unknown',
+        totalPending: parseInt(row.totalPending || '0', 10),
+        overdueCount: parseInt(row.overdueCount || '0', 10),
+        escalatedCount: parseInt(row.escalatedCount || '0', 10),
+        avgResolutionHours: row.avgResolutionHours ? Math.round(parseFloat(row.avgResolutionHours) * 100) / 100 : null,
+        resolutionRate: row.resolutionRate ? Math.round(parseFloat(row.resolutionRate) * 10000) / 100 : 0,
+      }));
+    }
+
+    return result;
   }
 
   // Risk Assessment Tools

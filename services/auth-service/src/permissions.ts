@@ -7,6 +7,18 @@ export type PermissionKey =
   | 'org_units:create'
   | 'org_units:list'
   | 'org_units:get'
+  | 'organization:manage'
+  | 'tenant:manage'
+  | 'brand:manage'
+  | 'workspaces:manage'
+  | 'workspaces:view'
+  | 'channel_portals:manage'
+  | 'broker:license:verify'
+  | 'broker:agreements:manage'
+  | 'broker:agreements:view'
+  | 'insurer:agreements:approve'
+  | 'party:manage'
+  | 'party:role:manage'
   | 'roles:catalog'
   | 'policy:quote'
   | 'policy:submit_docs'
@@ -47,7 +59,23 @@ export type PermissionKey =
   | 'abac:policy:delete'
   | 'abac:policy:read'
   | 'federation:read'
-  | 'federation:manage';
+  | 'federation:manage'
+  | 'broker:carriers:view'
+  | 'broker:carriers:manage'
+  | 'broker:submissions:create'
+  | 'broker:quotes:compare'
+  | 'broker:placement:bind'
+  | 'broker:commissions:view'
+  | 'broker:settlements:manage'
+  | 'broker:settlements:view'
+  | 'broker:sub_agents:manage'
+  | 'broker:brand:manage'
+  | 'submission:placement:create'
+  | 'insurer:agreements:view'
+  | 'insurer:products:publish'
+  | 'insurer:projections:receive'
+  | 'customer:quotes:compare'
+  | 'customer:policies:view_all_carriers';
 
 const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
   insurer_admin: [
@@ -57,6 +85,21 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     'org_units:create',
     'org_units:list',
     'org_units:get',
+    'organization:manage',
+    'tenant:manage',
+    'brand:manage',
+    'workspaces:manage',
+    'workspaces:view',
+    'channel_portals:manage',
+    'broker:license:verify',
+    'broker:agreements:manage',
+    'broker:agreements:view',
+    'insurer:agreements:approve',
+    'insurer:agreements:view',
+    'insurer:products:publish',
+    'insurer:projections:receive',
+    'party:manage',
+    'party:role:manage',
     'roles:catalog',
     'policy:quote',
     'policy:submit_docs',
@@ -149,8 +192,15 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
   reinsurance_ops: ['reinsurance:manage_program', 'reinsurance:reconcile'],
   agency_owner: ['policy:quote', 'policy:submit_docs', 'policy:view', 'policy:list', 'policy:sanhab_inquiry', 'policy:sanhab_inquiries_view', 'policy:changes_view', 'claims:register'],
   agency_staff: ['policy:quote', 'policy:submit_docs', 'policy:view', 'policy:list', 'policy:sanhab_inquiry', 'policy:sanhab_inquiries_view', 'policy:changes_view', 'claims:register'],
-  broker_owner: ['policy:quote', 'policy:submit_docs', 'policy:view', 'policy:list', 'policy:sanhab_inquiry', 'policy:sanhab_inquiries_view', 'policy:changes_view', 'claims:register'],
-  broker_staff: ['policy:quote', 'policy:submit_docs', 'policy:view', 'policy:list', 'policy:sanhab_inquiry', 'policy:sanhab_inquiries_view', 'policy:changes_view', 'claims:register'],
+  broker_owner: ['policy:quote', 'policy:submit_docs', 'policy:view', 'policy:list', 'policy:sanhab_inquiry', 'policy:sanhab_inquiries_view', 'policy:changes_view', 'claims:register', 'broker:agreements:manage', 'broker:agreements:view', 'broker:carriers:view', 'broker:carriers:manage', 'broker:commissions:view', 'broker:settlements:view', 'broker:sub_agents:manage', 'broker:brand:manage', 'broker:submissions:create', 'broker:quotes:compare', 'broker:placement:bind', 'submission:placement:create'],
+  broker_staff: ['policy:quote', 'policy:submit_docs', 'policy:view', 'policy:list', 'policy:sanhab_inquiry', 'policy:sanhab_inquiries_view', 'policy:changes_view', 'claims:register', 'broker:agreements:view', 'broker:carriers:view', 'broker:submissions:create', 'broker:quotes:compare'],
+  broker_admin: ['policy:quote', 'policy:submit_docs', 'policy:view', 'policy:list', 'policy:sanhab_inquiry', 'policy:sanhab_inquiries_view', 'policy:changes_view', 'claims:register', 'broker:agreements:manage', 'broker:agreements:view', 'broker:carriers:view', 'broker:carriers:manage', 'broker:commissions:view', 'broker:settlements:manage', 'broker:settlements:view', 'broker:sub_agents:manage', 'broker:brand:manage', 'broker:submissions:create', 'broker:quotes:compare', 'broker:placement:bind', 'submission:placement:create', 'workspaces:manage', 'workspaces:view'],
+  broker_ops: ['policy:quote', 'policy:submit_docs', 'policy:view', 'policy:list', 'policy:sanhab_inquiry', 'policy:sanhab_inquiries_view', 'policy:changes_view', 'claims:register', 'broker:agreements:view', 'broker:carriers:view', 'broker:submissions:create', 'broker:quotes:compare'],
+  broker_sales: ['policy:quote', 'policy:submit_docs', 'policy:view', 'policy:list', 'policy:sanhab_inquiry', 'policy:sanhab_inquiries_view', 'policy:changes_view', 'claims:register', 'broker:submissions:create', 'broker:quotes:compare'],
+  broker_finance: ['policy:view', 'policy:list', 'policy:changes_view', 'broker:commissions:view', 'broker:settlements:view', 'broker:settlements:manage', 'broker:agreements:view'],
+  sub_agent: ['policy:quote', 'policy:submit_docs', 'policy:view', 'policy:list', 'policy:sanhab_inquiry', 'policy:sanhab_inquiries_view', 'policy:changes_view', 'claims:register', 'broker:submissions:create', 'broker:quotes:compare'],
+  mga_underwriter: ['policy:quote', 'policy:submit_docs', 'policy:risk_assess', 'policy:underwriting_decide', 'policy:view', 'policy:list', 'policy:sanhab_inquiry', 'policy:sanhab_inquiries_view', 'policy:changes_view', 'broker:agreements:view', 'broker:placement:bind', 'broker:submissions:create', 'broker:quotes:compare'],
+  carrier_relationship_manager: ['policy:view', 'policy:list', 'policy:changes_view', 'broker:agreements:manage', 'broker:agreements:view', 'broker:carriers:view', 'broker:carriers:manage', 'broker:commissions:view'],
   call_center: ['policy:quote', 'policy:submit_docs', 'policy:view', 'policy:sanhab_inquiry', 'policy:sanhab_inquiries_view', 'policy:changes_view', 'claims:register', 'complaints:create'],
   auditor: ['reporting:view', 'policy:view', 'policy:list', 'policy:sanhab_inquiries_view', 'policy:changes_view'],
   regulatory_view: ['regulatory:view'],
@@ -173,4 +223,34 @@ export function permissionsForRoles(roles: string[] | undefined | null): Permiss
     for (const p of perms) out.add(p);
   }
   return Array.from(out);
+}
+
+export const AGREEMENT_SCOPED_PERMISSIONS: PermissionKey[] = [
+  'broker:carriers:view',
+  'broker:carriers:manage',
+  'broker:submissions:create',
+  'broker:quotes:compare',
+  'broker:placement:bind',
+  'broker:commissions:view',
+  'broker:settlements:manage',
+  'broker:settlements:view',
+  'submission:placement:create',
+  'policy:quote',
+  'policy:submit_docs',
+  'policy:view',
+  'policy:list',
+];
+
+export function isAgreementScopedPermission(permission: string): boolean {
+  return (AGREEMENT_SCOPED_PERMISSIONS as string[]).includes(permission);
+}
+
+export function filterPermissionsByAgreement(
+  permissions: string[],
+  agreementIds: string[] | undefined | null,
+): string[] {
+  if (!agreementIds || agreementIds.length === 0) {
+    return permissions.filter((p) => !isAgreementScopedPermission(p));
+  }
+  return permissions;
 }

@@ -1,10 +1,12 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
-export type SalesPartnerKind = 'agency' | 'brokerage';
+export type SalesPartnerKind = 'agency' | 'brokerage' | 'broker' | 'agent' | 'branch';
 export type SalesPartnerStatus = 'pending' | 'verified' | 'active' | 'suspended' | 'terminated';
 
 @Entity('sales_partners')
 @Index(['orgUnitId'], { unique: true })
+@Index(['organizationId'])
+@Index(['parentPartnerId'])
 @Index(['kind', 'status', 'updatedAt'])
 export class SalesPartner {
   @PrimaryGeneratedColumn('uuid', { name: 'partner_id' })
@@ -12,6 +14,12 @@ export class SalesPartner {
 
   @Column({ name: 'org_unit_id', type: 'uuid' })
   orgUnitId!: string;
+
+  @Column({ name: 'organization_id', type: 'uuid', nullable: true })
+  organizationId!: string | null;
+
+  @Column({ name: 'parent_partner_id', type: 'uuid', nullable: true })
+  parentPartnerId!: string | null;
 
   @Column({ name: 'kind', type: 'text' })
   kind!: SalesPartnerKind;

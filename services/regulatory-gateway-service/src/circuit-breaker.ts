@@ -32,6 +32,8 @@ interface PersistedState {
   halfOpenCalls: number;
 }
 
+export type CircuitBreakerOpenCallback = (name: string, stats: CircuitBreakerStats) => void;
+
 export class CircuitBreaker {
   private state: CircuitState = CircuitState.CLOSED;
   private failureCount: number = 0;
@@ -42,8 +44,11 @@ export class CircuitBreaker {
   private halfOpenCalls: number = 0;
   private redis: Redis | null = null;
   private readonly redisKey: string;
+  private readonly name: string;
+  private onOpenCallback: CircuitBreakerOpenCallback | null = null;
 
   constructor(private readonly config: CircuitBreakerConfig, name = 'sanhab') {
+    this.name = name;
     this.redisKey = `circuit-breaker:${name}`;
     const redisUrl = process.env.REDIS_URL;
     if (redisUrl) {
@@ -67,6 +72,10 @@ export class CircuitBreaker {
       lastSuccessAt: this.lastSuccessAt,
       openedAt: this.openedAt,
     };
+  }
+
+  onOpen(callback: CircuitBreakerOpenCallback): void {
+    this.onOpenCallback = callback;
   }
 
   async execute<T>(fn: () => Promise<T>): Promise<T> {
@@ -135,6 +144,14 @@ export class CircuitBreaker {
     this.openedAt = new Date();
     this.halfOpenCalls = 0;
     this.saveState().catch(() => {});
+    if (this.onOpenCallback) {
+      try {
+        this.onOpenCallback(this.name, this.getStats());
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error(`Circuit breaker onOpen callback failed for ${this.name}:`, e);
+      }
+    }
   }
 
   private transitionToClosed(): void {

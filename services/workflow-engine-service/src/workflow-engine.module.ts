@@ -9,6 +9,8 @@ import { ProcessToken } from './entities/process-token.entity';
 import { ProcessVariable } from './entities/process-variable.entity';
 import { ProcessHistory } from './entities/process-history.entity';
 import { ProcessTimer } from './entities/process-timer.entity';
+import { ManualQuoteProcess } from './processes/manual-quote.process';
+import { RenewalProcess } from './processes/renewal.process';
 
 @Module({
   imports: [
@@ -23,7 +25,7 @@ import { ProcessTimer } from './entities/process-timer.entity';
     HttpModule,
   ],
   controllers: [WorkflowEngineController],
-  providers: [WorkflowEngineService],
-  exports: [WorkflowEngineService],
+  providers: [WorkflowEngineService, ManualQuoteProcess, RenewalProcess],
+  exports: [WorkflowEngineService, ManualQuoteProcess, RenewalProcess],
 })
 export class WorkflowEngineModule {}

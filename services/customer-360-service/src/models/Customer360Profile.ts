@@ -258,3 +258,47 @@ export interface ProfileMetadata {
   completeness: number; // 0-100 percentage
   confidence: number; // 0-100 percentage
 }
+
+export interface PortfolioSummary {
+  customerId: string;
+  totalPolicies: number;
+  activePolicies: number;
+  totalPremium: number;
+  totalCoverage: number;
+  totalClaims: number;
+  openClaims: number;
+  totalClaimAmount: number;
+  paidClaims: number;
+  outstandingClaims: number;
+  totalPayments: number;
+  netPosition: number;
+  assets: {
+    vehicles: VehicleInfo[];
+    properties: PropertyInfo[];
+    lifeSumAssured: number;
+  };
+  riskMetrics: {
+    overallRiskScore: number;
+    riskCategory: 'low' | 'medium' | 'high';
+    amlStatus: string;
+    kycStatus: string;
+  };
+}
+
+export interface ConsentRecord {
+  consentId: string;
+  customerId: string;
+  purpose: string;
+  status: 'granted' | 'denied' | 'revoked' | 'expired';
+  grantedAt?: Date;
+  expiresAt?: Date;
+  revokedAt?: Date;
+  revocationReason?: string;
+  version: string;
+  source: string;
+  channel: string;
+  actorUserId?: string;
+  tenantId?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}

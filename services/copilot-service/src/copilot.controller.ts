@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Headers, Param, Post, Put, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { CopilotService } from './copilot.service';
+import { RagService } from './rag/rag.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { PermissionsGuard } from './permissions.guard';
 import { RequirePermissions } from './permissions.decorator';
@@ -9,7 +10,10 @@ import { TenantGuard } from './tenant.guard';
 
 @Controller()
 export class CopilotController {
-  constructor(private readonly copilotService: CopilotService) {}
+  constructor(
+    private readonly copilotService: CopilotService,
+    private readonly ragService: RagService,
+  ) {}
 
   private getCorrelationId(headers: Record<string, any>): string {
     const cid = headers['x-correlation-id'] || headers['X-Correlation-Id'];
@@ -1134,6 +1138,224 @@ export class CopilotController {
       return res.status(500).json({
         success: false,
         error: { code: 'ECOSYSTEM_AI_ERROR', message: error.message },
+        correlationId,
+      });
+    }
+  }
+
+  // Next Best Action (NBA) engine endpoints
+  @Post('/copilot/nba/:contextType/:resourceId/actions')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('copilot:next-best-action')
+  async generateNbaActions(
+    @Param('contextType') contextType: string,
+    @Param('resourceId') resourceId: string,
+    @Headers() headers: Record<string, any>,
+    @Req() req: any,
+    @Res() res: any,
+  ) {
+    const correlationId = this.getCorrelationId(headers);
+    const tenantId = req?.user?.tenantId as string | undefined;
+    const actor = req?.user?.userId as string | undefined;
+
+    auditLogger.info('copilot.nba.generate.request', {
+      correlationId,
+      tenantId,
+      actor,
+      action: 'copilot:next-best-action',
+      contextType,
+      resourceId,
+    });
+
+    if (!['claim', 'policy', 'complaint'].includes(contextType)) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Unsupported contextType' },
+        correlationId,
+      });
+    }
+
+    const result = await this.copilotService.getNextBestAction({
+      contextType: contextType as any,
+      resourceId,
+      headers,
+      correlationId,
+      tenantId,
+      actorUserId: actor,
+    });
+    return res.status(result.status).json(result.body);
+  }
+
+  @Post('/copilot/nba/:logId/execute')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('copilot:next-best-action')
+  async executeNbaAction(
+    @Param('logId') logId: string,
+    @Headers() headers: Record<string, any>,
+    @Req() req: any,
+    @Res() res: any,
+  ) {
+    const correlationId = this.getCorrelationId(headers);
+    const actor = req?.user?.userId as string | undefined;
+
+    auditLogger.info('copilot.nba.execute.request', {
+      correlationId,
+      actor,
+      action: 'copilot:next-best-action',
+      logId,
+    });
+
+    const result = await this.copilotService.executeNbaAction(logId, actor);
+    return res.status(result.status).json({ ...result.body, correlationId });
+  }
+
+  @Post('/copilot/nba/:logId/opt-out')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('copilot:next-best-action')
+  async optOutNbaAction(
+    @Param('logId') logId: string,
+    @Body() body: { reason?: string },
+    @Headers() headers: Record<string, any>,
+    @Req() req: any,
+    @Res() res: any,
+  ) {
+    const correlationId = this.getCorrelationId(headers);
+    const actor = req?.user?.userId as string | undefined;
+
+    auditLogger.info('copilot.nba.opt_out.request', {
+      correlationId,
+      actor,
+      action: 'copilot:next-best-action',
+      logId,
+      reason: body?.reason,
+    });
+
+    const result = await this.copilotService.optOutNbaAction(logId, body?.reason);
+    return res.status(result.status).json({ ...result.body, correlationId });
+  }
+
+  @Get('/copilot/nba/actions')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('copilot:view')
+  async listNbaActions(
+    @Query('contextType') contextType: string,
+    @Query('resourceId') resourceId: string,
+    @Query('limit') limit: string = '50',
+    @Query('offset') offset: string = '0',
+    @Headers() headers: Record<string, any>,
+    @Req() req: any,
+    @Res() res: any,
+  ) {
+    const correlationId = this.getCorrelationId(headers);
+    const tenantId = req?.user?.tenantId as string | undefined;
+    const actor = req?.user?.userId as string | undefined;
+
+    const result = await this.copilotService.listNbaActionLogs({
+      contextType,
+      resourceId,
+      tenantId,
+      actorUserId: actor,
+      limit: parseInt(limit, 10),
+      offset: parseInt(offset, 10),
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: result.rows,
+      pagination: { total: result.total, limit: parseInt(limit, 10), offset: parseInt(offset, 10) },
+      correlationId,
+    });
+  }
+
+  // Recommend Product endpoint
+  @Post('/copilot/recommend-product')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('copilot:qa')
+  async recommendProduct(@Body() body: any, @Headers() headers: Record<string, any>, @Req() req: any, @Res() res: any) {
+    const correlationId = this.getCorrelationId(headers);
+    const tenantId = req?.user?.tenantId as string | undefined;
+    const actor = req?.user?.userId as string | undefined;
+
+    auditLogger.info('copilot.recommend-product.request', {
+      correlationId,
+      tenantId,
+      actor,
+      action: 'copilot:qa',
+      customerId: body?.customerId,
+      productType: body?.productType,
+    });
+
+    try {
+      const result = await this.ragService.recommendProduct({
+        customerId: body?.customerId,
+        customerProfile: body?.customerProfile,
+        productType: body?.productType,
+        budget: body?.budget,
+        riskFactors: body?.riskFactors,
+        tenantId,
+        actorUserId: actor,
+        correlationId,
+        headers,
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: result,
+        correlationId,
+      });
+    } catch (e: any) {
+      auditLogger.error('copilot.recommend-product.error', e, { correlationId });
+      return res.status(500).json({
+        success: false,
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to recommend product' },
+        correlationId,
+      });
+    }
+  }
+
+  // Draft Communication endpoint
+  @Post('/copilot/draft-communication')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('copilot:qa')
+  async draftCommunication(@Body() body: any, @Headers() headers: Record<string, any>, @Req() req: any, @Res() res: any) {
+    const correlationId = this.getCorrelationId(headers);
+    const tenantId = req?.user?.tenantId as string | undefined;
+    const actor = req?.user?.userId as string | undefined;
+
+    auditLogger.info('copilot.draft-communication.request', {
+      correlationId,
+      tenantId,
+      actor,
+      action: 'copilot:qa',
+      type: body?.type,
+      contextType: body?.contextType,
+    });
+
+    try {
+      const result = await this.ragService.draftCommunication({
+        type: body?.type || 'email',
+        recipient: body?.recipient,
+        subject: body?.subject,
+        context: body?.context,
+        contextType: body?.contextType,
+        tone: body?.tone,
+        language: body?.language,
+        tenantId,
+        actorUserId: actor,
+        correlationId,
+        headers,
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: result,
+        correlationId,
+      });
+    } catch (e: any) {
+      auditLogger.error('copilot.draft-communication.error', e, { correlationId });
+      return res.status(500).json({
+        success: false,
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to draft communication' },
         correlationId,
       });
     }

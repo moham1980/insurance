@@ -17,8 +17,8 @@ export class PaymentTransaction {
   @Column({ type: 'uuid' })
   invoiceId!: string;
 
-  @Column({ type: 'decimal', precision: 15, scale: 2 })
-  amount!: number;
+  @Column({ type: 'numeric', precision: 20, scale: 0 })
+  amount!: string;
 
   @Column({ type: 'enum', enum: ['ZARINPAL', 'IDPAY', 'PAYIR', 'BEHPARDAKHT', 'SAMAN', 'MELLAT', 'PASARGAD', 'ECOSYSTEM'] })
   provider!: PaymentProvider;
@@ -44,6 +44,9 @@ export class PaymentTransaction {
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   idempotencyKey!: string | null;
+
+  @Column({ name: 'payment_state', type: 'text', nullable: true })
+  paymentState!: string | null;
 
   @CreateDateColumn({ type: 'timestamp' })
   createdAt!: Date;

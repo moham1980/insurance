@@ -53,4 +53,13 @@
 - Ran `npx tsc --noEmit -p tsconfig.json` in `packages/shared`; TypeScript compilation succeeds.
 - New `ConsentRecordEntity` and `LineageEventEntity` are wired into `createDataSource()` along with the migration.
 - `src/index.ts` exports the fixed modules. Renamed conflicting `ConsentRecord` (→ `GdprConsentRecord`) and `RetentionPolicy` (→ `EventRetentionPolicy`) to avoid re-export clashes.
+- Rebuilt `packages/shared` (`npm run build`) so `TenantGuard` and other new exports are present in `dist`.
+- Verified downstream services compile: `rule-engine-service`, `regulatory-gateway-service`, `orchestrator-service`, `reporting-service`, `reinsurance-service`.
+- Ran `npx jest --passWithNoTests` in `packages/shared`; 10 tests passed across 2 suites.
+
+## Additional fixes found during verification
+
+- `orchestrator-service`, `reporting-service`, and `reinsurance-service` still had custom `tenant.guard.ts` copies; replaced with `export { TenantGuard } from '@insurance/shared';`.
+- `OutboxPublisher.publish` had `tenantId` as a required `PublishOptions` field, which broke services that publish events without passing it explicitly. Made `tenantId` optional and added `resolveTenantId()` to derive it from `subject`/`payload` or default to `'unknown'`.
+- Rebuilt the `dist` output so service-level re-exports of `TenantGuard` resolve and the updated `OutboxPublisher` types are available.
 

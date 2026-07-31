@@ -28,8 +28,20 @@ export class DocumentEntity {
   @Column({ name: 'extracted_text', type: 'text', nullable: true })
   extractedText: string | null;
 
+  @Column({ name: 'redacted_text', type: 'text', nullable: true })
+  redactedText: string | null;
+
+  @Column({ name: 'redacted_spans', type: 'jsonb', nullable: true })
+  redactedSpans: object | null;
+
   @Column({ name: 'extracted_fields', type: 'jsonb', nullable: true })
   extractedFields: object | null;
+
+  @Column({ name: 'classification_confidence', type: 'double precision', nullable: true })
+  classificationConfidence: number | null;
+
+  @Column({ name: 'confirmation_status', type: 'text', nullable: true })
+  confirmationStatus: string | null;
 
   @Column({ name: 'status', type: 'text', default: 'pending' })
   status: string;

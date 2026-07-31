@@ -35,11 +35,15 @@ export class CreateUnderwritingRequestDto {
   @IsOptional()
   @IsString()
   source?: string;
+
+  @IsOptional()
+  @IsUUID('all')
+  brokerOrganizationId?: string;
 }
 
 export class DecideDto {
-  @IsEnum(['approved', 'rejected', 'escalated'] as const)
-  decision!: 'approved' | 'rejected' | 'escalated';
+  @IsEnum(['approved', 'rejected', 'escalated', 'conditionally_approved'] as const)
+  decision!: 'approved' | 'rejected' | 'escalated' | 'conditionally_approved';
 
   @IsOptional()
   @IsString()
@@ -52,6 +56,19 @@ export class DecideDto {
   @IsOptional()
   @IsObject()
   result?: Record<string, any>;
+
+  @IsOptional()
+  @IsObject()
+  conditions?: Record<string, any>;
+}
+
+export class AppealDto {
+  @IsString()
+  reason!: string;
+
+  @IsOptional()
+  @IsObject()
+  additionalData?: Record<string, any>;
 }
 
 export class EscalateDto {
@@ -229,6 +246,10 @@ export class ListRequestsQueryDto {
   policyId?: string;
 
   @IsOptional()
+  @IsUUID('all')
+  brokerOrganizationId?: string;
+
+  @IsOptional()
   @IsNumber()
   @Min(1)
   @Max(200)
@@ -299,4 +320,12 @@ export class SlaMetricsQueryDto {
   @IsOptional()
   @IsDateString()
   to?: string;
+
+  @IsOptional()
+  @IsUUID()
+  carrierOrganizationId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  brokerOrganizationId?: string;
 }

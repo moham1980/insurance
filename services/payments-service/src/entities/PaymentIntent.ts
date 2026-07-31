@@ -16,6 +16,15 @@ export class PaymentIntent {
   @Column({ name: 'claim_id', type: 'text' })
   claimId!: string;
 
+  @Column({ name: 'policy_id', type: 'text', nullable: true })
+  policyId!: string | null;
+
+  @Column({ name: 'broker_organization_id', type: 'uuid', nullable: true })
+  brokerOrganizationId!: string | null;
+
+  @Column({ name: 'payment_type', type: 'text', nullable: true })
+  paymentType!: 'claim_payment' | 'commission_settlement' | 'premium_payment' | 'refund' | 'transfer' | 'card_to_card' | 'bill_payment' | null;
+
   @Column({ name: 'amount', type: 'numeric' })
   amount!: number;
 

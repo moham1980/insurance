@@ -1,0 +1,207 @@
+# System-of-Record (SoR) Matrix
+# Defines the owning service for each entity and where it is projected/federated.
+# Every new entity MUST be added to this matrix before merge.
+
+version: 1
+updated: 2025-01-15
+
+entities:
+  Organization:
+    owner: homeTenant
+    ownerService: auth-service
+    projectedIn: []
+    notes: Organization is always owned by its home tenant.
+
+  Tenant:
+    owner: homeTenant
+    ownerService: auth-service
+    projectedIn: []
+    notes: Tenant metadata is owned by auth-service.
+
+  BrandConfig:
+    owner: homeTenant
+    ownerService: auth-service
+    projectedIn: []
+    notes: Brand configuration is owned by auth-service.
+
+  OrganizationCapability:
+    owner: homeTenant
+    ownerService: auth-service
+    projectedIn: []
+    notes: Capabilities are owned by auth-service.
+
+  Party:
+    owner: customerHomeTenant
+    ownerService: party-kyc-service
+    projectedIn: []
+    notes: Party (customer) is owned by the tenant where the customer was first registered.
+
+  PiiReference:
+    owner: customerHomeTenant
+    ownerService: party-kyc-service
+    projectedIn: []
+    notes: PII references are always owned by party-kyc-service.
+
+  BrokerLicense:
+    owner: homeTenant
+    ownerService: party-kyc-service
+    projectedIn: []
+    notes: Broker licenses are owned by the tenant that registered the broker.
+
+  KycReview:
+    owner: customerHomeTenant
+    ownerService: party-kyc-service
+    projectedIn: []
+    notes: KYC reviews are owned by party-kyc-service.
+
+  Policy:
+    owner: issuerTenant
+    ownerService: policy-service
+    projectedIn:
+      - brokerTenant
+      - customerTenant
+    notes: Policy is owned by the issuing insurer tenant. Broker and customer tenants receive projections.
+
+  PolicyChange:
+    owner: issuerTenant
+    ownerService: policy-service
+    projectedIn:
+      - brokerTenant
+    notes: Policy changes (endorsements) are owned by the issuer.
+
+  PolicyRenewal:
+    owner: issuerTenant
+    ownerService: policy-service
+    projectedIn:
+      - brokerTenant
+    notes: Renewals are owned by the issuer.
+
+  Claim:
+    owner: issuerTenant
+    ownerService: claims-service
+    projectedIn:
+      - brokerTenant
+      - customerTenant
+    notes: Claims are owned by the insurer that issued the underlying policy.
+
+  Submission:
+    owner: brokerTenant
+    ownerService: policy-service
+    projectedIn:
+      - issuerTenant
+    notes: Submissions are owned by the broker tenant and sent to insurers.
+
+  QuoteRequest:
+    owner: brokerTenant
+    ownerService: policy-service
+    projectedIn:
+      - issuerTenant
+    notes: Quote requests originate from the broker and are sent to insurers.
+
+  QuoteResponse:
+    owner: issuerTenant
+    ownerService: policy-service
+    projectedIn:
+      - brokerTenant
+    notes: Quote responses are owned by the insurer and sent back to the broker.
+
+  Placement:
+    owner: brokerTenant
+    ownerService: sales-network-service
+    projectedIn:
+      - issuerTenant
+    notes: Placements are owned by the broker and shared with insurers.
+
+  Payment:
+    owner: paymentServiceTenant
+    ownerService: payments-service
+    projectedIn:
+      - issuerTenant
+      - brokerTenant
+    notes: Payments are owned by the payment service tenant.
+
+  DistributionAgreement:
+    owner: carrierTenant
+    ownerService: sales-network-service
+    projectedIn:
+      - distributorTenant
+    notes: Distribution agreements are owned by the carrier (insurer) and shared with the distributor (broker/agency).
+
+  CommissionTier:
+    owner: carrierTenant
+    ownerService: sales-network-service
+    projectedIn:
+      - distributorTenant
+    notes: Commission tiers belong to the distribution agreement.
+
+  BonusTier:
+    owner: carrierTenant
+    ownerService: sales-network-service
+    projectedIn:
+      - distributorTenant
+    notes: Bonus tiers belong to the distribution agreement.
+
+  MarkupRule:
+    owner: carrierTenant
+    ownerService: sales-network-service
+    projectedIn:
+      - distributorTenant
+    notes: Markup rules belong to the distribution agreement.
+
+  AuditRecord:
+    owner: actingTenant
+    ownerService: policy-service
+    projectedIn: []
+    notes: Audit records are owned by the tenant that performed the action.
+
+  TransitionAudit:
+    owner: actingTenant
+    ownerService: policy-service
+    projectedIn: []
+    notes: Transition audits are owned by the tenant that performed the transition.
+
+  IdempotencyRecord:
+    owner: actingTenant
+    ownerService: any
+    projectedIn: []
+    notes: Idempotency records are local to each service and tenant.
+
+  FederationConsent:
+    owner: customerHomeTenant
+    ownerService: party-kyc-service
+    projectedIn: [targetTenant]
+    notes: Consent is owned by the customer home tenant; target tenant receives a projection for enforcement.
+
+  PartnerRegistration:
+    owner: homeTenant
+    ownerService: partner-gateway
+    projectedIn: []
+    notes: Partner registration is owned by the tenant that initiated the partnership.
+
+  PartnerCertificate:
+    owner: homeTenant
+    ownerService: partner-gateway
+    projectedIn: []
+
+  FederationNonce:
+    owner: homeTenant
+    ownerService: partner-gateway
+    projectedIn: []
+
+  GlobalSubject:
+    owner: customerHomeTenant
+    ownerService: party-kyc-service
+    projectedIn: [brokerTenant, issuerTenant]
+    notes: Global subject identity is owned by customer home tenant; broker and insurer receive projections for identity linking.
+
+  IdentityLink:
+    owner: hostTenant
+    ownerService: party-kyc-service
+    projectedIn: []
+    notes: Identity link is owned by the tenant where the link was established.
+
+rules:
+  - No entity may be written by a tenant that is not its owner (or a designated projection target for read-only copies).
+  - Projections are read-only federated copies. The owner service is the single source of truth.
+  - New entities must be added to this matrix before the pull request is merged.
+  - Federation reads must check this matrix to determine which tenant to query.

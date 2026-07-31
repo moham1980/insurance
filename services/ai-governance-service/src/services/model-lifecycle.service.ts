@@ -191,6 +191,26 @@ export class ModelLifecycleService {
           transitionedAt: new Date().toISOString(),
         },
       });
+      if (targetStatus === 'production') {
+        await outbox.publish({
+          topic: 'insurance.ai.model.deployed',
+          eventType: 'ModelDeployed',
+          eventVersion: 1,
+          correlationId,
+          subject: {
+            modelId: model.modelId,
+          },
+          payload: {
+            modelId: model.modelId,
+            modelName: model.modelName,
+            modelKey: model.modelId,
+            version: model.version,
+            deployedBy: approvedBy || null,
+            riskLevel: model.riskLevel,
+            previousStatus,
+          },
+        });
+      }
     });
 
     return {

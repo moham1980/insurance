@@ -9,6 +9,7 @@ import { UnderwritingService } from './underwriting.service';
 import { UnderwritingRequest } from './entities/UnderwritingRequest';
 import { UnderwritingAppetite } from './entities/UnderwritingAppetite';
 import { TenantGuard } from './tenant.guard';
+import { AbacGuard } from './abac.guard';
 import { IdempotencyService } from './idempotency.service';
 import { IdempotencyInterceptor } from './idempotency.interceptor';
 import { PiiRedactionInterceptor } from './pii-redaction.interceptor';
@@ -36,6 +37,7 @@ import { OutboxEvent } from '@insurance/shared';
     UnderwritingService,
     EcosystemJwtGuard,
     PermissionsGuard,
+    AbacGuard,
     Reflector,
     IdempotencyService,
     RiskScoringService,

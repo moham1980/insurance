@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
+import { WarehouseFireInquiryRecord } from '../entities/WarehouseFireInquiryRecord';
 
 export interface WarehouseFireInquiryRequest {
   warehouseId?: string;
@@ -66,8 +67,13 @@ export interface WarehouseFireConfig {
 @Injectable()
 export class WarehouseFireInquiryService {
   private readonly logger = new Logger(WarehouseFireInquiryService.name);
+  private readonly cache = new Map<string, { response: WarehouseFireInquiryResponse; expiresAt: number }>();
+  private readonly cacheTtlMs = parseInt(process.env.WAREHOUSE_FIRE_CACHE_TTL_MS || '300000', 10);
 
-  constructor() {}
+  constructor(
+    @InjectRepository(WarehouseFireInquiryRecord)
+    private readonly recordRepo: Repository<WarehouseFireInquiryRecord>,
+  ) {}
 
   private getConfig(): WarehouseFireConfig {
     return {
@@ -84,9 +90,19 @@ export class WarehouseFireInquiryService {
 
     this.logger.log(`Warehouse fire inquiry: ${inquiryId}, type: ${request.inquiryType}`);
 
+    // Check cache first
+    const cacheKey = this.buildCacheKey(request);
+    const cached = this.cache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      this.logger.log(`Warehouse fire inquiry cache hit: ${cacheKey}`);
+      return { ...cached.response, inquiryId, message: 'Served from cache' };
+    }
+
     if (!config.enabled) {
       this.logger.warn('Warehouse fire inquiry is disabled, returning mock data');
-      return this.getMockResponse(inquiryId, request);
+      const response = this.getMockResponse(inquiryId, request);
+      await this.recordInquiry(inquiryId, request, response, null, null);
+      return response;
     }
 
     if (!config.apiKey) {
@@ -100,16 +116,77 @@ export class WarehouseFireInquiryService {
 
     try {
       const response = await this.callWarehouseFireApi(config, request, inquiryId);
+      // Cache successful responses
+      if (response.success) {
+        this.cache.set(cacheKey, { response, expiresAt: Date.now() + this.cacheTtlMs });
+      }
+      await this.recordInquiry(inquiryId, request, response, null, null);
       return response;
     } catch (error: any) {
       this.logger.error(`Warehouse fire inquiry failed: ${error.message}`);
-      return {
+      const errorResponse: WarehouseFireInquiryResponse = {
         success: false,
         inquiryId,
         message: error.message || 'Warehouse fire inquiry failed',
         errorCode: 'API_ERROR',
       };
+      await this.recordInquiry(inquiryId, request, errorResponse, null, null);
+      return errorResponse;
     }
+  }
+
+  private buildCacheKey(request: WarehouseFireInquiryRequest): string {
+    return `${request.warehouseId || ''}|${request.nationalId || ''}|${request.licenseNumber || ''}|${request.inquiryType}`;
+  }
+
+  private async recordInquiry(
+    inquiryId: string,
+    request: WarehouseFireInquiryRequest,
+    response: WarehouseFireInquiryResponse,
+    tenantId: string | null,
+    actorUserId: string | null,
+  ): Promise<void> {
+    try {
+      const record = this.recordRepo.create({
+        inquiryId,
+        warehouseId: request.warehouseId || null,
+        nationalId: request.nationalId || null,
+        licenseNumber: request.licenseNumber || null,
+        address: request.address || null,
+        city: request.city || null,
+        province: request.province || null,
+        inquiryType: request.inquiryType,
+        success: response.success,
+        responseJson: response as any,
+        tenantId,
+        actorUserId,
+      });
+      await this.recordRepo.save(record);
+    } catch (err: any) {
+      this.logger.error(`Failed to record warehouse fire inquiry: ${err.message}`);
+    }
+  }
+
+  async getInquiryHistory(filters: {
+    nationalId?: string;
+    licenseNumber?: string;
+    warehouseId?: string;
+    inquiryType?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ rows: WarehouseFireInquiryRecord[]; total: number }> {
+    const limit = Math.min(filters.limit || 50, 200);
+    const offset = filters.offset || 0;
+
+    const qb = this.recordRepo.createQueryBuilder('r');
+    if (filters.nationalId) qb.andWhere('r.nationalId = :nationalId', { nationalId: filters.nationalId });
+    if (filters.licenseNumber) qb.andWhere('r.licenseNumber = :licenseNumber', { licenseNumber: filters.licenseNumber });
+    if (filters.warehouseId) qb.andWhere('r.warehouseId = :warehouseId', { warehouseId: filters.warehouseId });
+    if (filters.inquiryType) qb.andWhere('r.inquiryType = :inquiryType', { inquiryType: filters.inquiryType });
+
+    qb.orderBy('r.createdAt', 'DESC').take(limit).skip(offset);
+    const [rows, total] = await qb.getManyAndCount();
+    return { rows, total };
   }
 
   private async callWarehouseFireApi(

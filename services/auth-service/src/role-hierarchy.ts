@@ -65,12 +65,33 @@ export const ROLE_HIERARCHY: Record<string, string[]> = {
   // agency_staff is a base role
   agency_staff: [],
   
-  // broker_owner inherits from broker_staff
-  broker_owner: ['broker_staff'],
-  
+  // broker_admin inherits from broker_ops and broker_finance
+  broker_admin: ['broker_ops', 'broker_finance', 'broker_staff'],
+
+  // broker_ops inherits from broker_sales
+  broker_ops: ['broker_sales', 'broker_staff'],
+
+  // broker_sales inherits from broker_staff
+  broker_sales: ['broker_staff'],
+
+  // broker_finance is a specialized role
+  broker_finance: [],
+
+  // broker_owner inherits from broker_admin (full broker management)
+  broker_owner: ['broker_admin'],
+
   // broker_staff is a base role
   broker_staff: [],
-  
+
+  // sub_agent inherits from broker_sales (limited scope)
+  sub_agent: ['broker_sales'],
+
+  // mga_underwriter is a specialized role with underwriting authority
+  mga_underwriter: ['broker_staff'],
+
+  // carrier_relationship_manager is a specialized role
+  carrier_relationship_manager: ['broker_staff'],
+
   // call_center is a base role
   call_center: [],
   

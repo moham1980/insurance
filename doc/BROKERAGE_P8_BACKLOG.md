@@ -658,3 +658,48 @@ P8 کامل است اگر و فقط اگر:
 - federation outage نباید داده‌های local را corruption کند.
 
 این بکلاگ مستقیماً از `BROKERAGE_IMPLEMENTATION_PLAN.md` مشتق شده و آماده پیاده‌سازی فاز Federation است.
+
+---
+
+## وضعیت پیشرفت P8 (به‌روزرسانی شده ۲۰۲۶-۰۷-۲۹)
+
+**وضعیت کلی: ۱۰۰٪ تکمیل — تمام ۳۱ زیرمورد پیاده‌سازی شده است.**
+
+### موارد اصلاح‌شده در جلسه نهایی:
+
+| شماره | مشکل | فایل | وضعیت |
+|---|---|---|---|
+| P8-13 | Timestamp skew validation و request signature header مفقود | `services/partner-gateway/src/replay-protection.service.ts` | ✅ اصلاح شد |
+| P8-13 | FederationSignatureGuard برای اعمال هدرهای امضای درخواست | `services/partner-gateway/src/federation-signature.guard.ts` (جدید) | ✅ ایجاد شد |
+| P8-13 | Controller به‌روزرسانی برای استفاده از FederationSignatureGuard | `services/partner-gateway/src/partner-gateway.controller.ts` | ✅ اصلاح شد |
+| P8-13 | ثبت guard در app module | `services/partner-gateway/src/app.module.ts` | ✅ اصلاح شد |
+| P8-11.1 | Backfill migration برای federation fields روی policies | `services/policy-service/src/migrations/1880000000000-p8-federation-backfill.ts` (جدید) | ✅ ایجاد شد |
+| P8-11.1 | Backfill migration برای federation fields روی claims | `services/claims-service/src/migrations/1880000000000-p8-federation-backfill.ts` (جدید) | ✅ ایجاد شد |
+| P8-11.2 | Cutover/dry-run script برای federation rollout | `scripts/federation-cutover.ts` (جدید) | ✅ ایجاد شد |
+
+### جزئیات اصلاحات:
+
+**P8-13 — Signed Request Headers & Replay Protection:**
+- `validateTimestamp()`: بررسی Unix epoch با max 60s skew
+- `verifyRequestSignature()`: RSA-SHA256 verification روی canonical string
+- `buildCanonicalString()`: `METHOD\nPATH\nNONCE\nTIMESTAMP\nBODY_HASH`
+- `computeBodyHash()`: SHA-256 hash بدنه درخواست (base64)
+- `validateFederationRequest()`: ترکیب timestamp + signature + nonce validation
+- `FederationSignatureGuard`: NestJS guard که هدرهای `X-Federation-Nonce`، `X-Federation-Timestamp`، `X-Federation-Signature`، `X-Federation-Signing-Key-Id` را اعمال می‌کند
+- Token-exchange endpoint اکنون از `@UseGuards(FederationSignatureGuard)` استفاده می‌کند
+
+**P8-11.1 — Federation Config Migration:**
+- اضافه شدن `federation_status`، `source_version`، `external_id` به جداول `policies` و `claims`
+- Backfill: `authoritative_tenant_id = COALESCE(authoritative_tenant_id, tenant_id)`
+- Backfill: `source_system_id = COALESCE(source_system_id, 'policy-service'/'claims-service')`
+- Backfill: `federation_status = 'local'` برای رکوردهای محلی
+- Backfill روی `policy_projections` و `claim_projections`: `federation_status = 'projected'`
+- Index creation روی `federation_status` و `source_version`
+
+**P8-11.2 — Federation Cutover Script:**
+- اسکریپت TypeScript با 4 فاز: pre-checks، dry-run، post-reconciliation، full
+- Pre-cutover: بررسی سلامت ۶ سرویس، شمارش partner registrations، بررسی certificate expiry، SOR matrix
+- Dry-run: ثبت mock partner، validate-access، تست reject بدون federation headers، cleanup
+- Post-cutover: trigger projection reconciliation، sync latency monitoring، verify service health
+- Rollback procedure در صورت failure
+- خروجی با exit code (0=success، 1=failure)

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as http from 'node:http';
 import * as https from 'node:https';
+import { ModelRouter } from './model-router';
 
 export type LLMProvider = 'openai' | 'gemini' | 'deepseek' | 'ollama';
 
@@ -27,7 +28,7 @@ export class LLMService {
   private readonly logger = new Logger(LLMService.name);
   private readonly configs: Map<LLMProvider, LLMConfig> = new Map();
 
-  constructor() {
+  constructor(private readonly modelRouter: ModelRouter) {
     this.loadConfigs();
   }
 
@@ -140,6 +141,58 @@ export class LLMService {
       req.write(JSON.stringify(body));
       req.end();
     });
+  }
+
+  /**
+   * Main generation entrypoint with model routing.
+   * Applies costBudgetPerDay and qualityThreshold via ModelRouter.
+   */
+  async generate(options: {
+    prompt: string;
+    systemPrompt?: string;
+    maxTokens?: number;
+    temperature?: number;
+    provider?: LLMProvider;
+    costBudgetPerDay?: number;
+    qualityThreshold?: number;
+    preferLowCost?: boolean;
+  }): Promise<LLMResponse> {
+    const estimatedTokens = this.estimateTokens(options.prompt, options.systemPrompt, options.maxTokens);
+
+    // If provider is explicitly specified, use it directly (but still record usage)
+    const provider = options.provider
+      ? options.provider
+      : this.modelRouter.route(estimatedTokens, {
+          costBudgetPerDay: options.costBudgetPerDay,
+          qualityThreshold: options.qualityThreshold,
+          preferLowCost: options.preferLowCost,
+        }).provider;
+
+    if (!options.provider) {
+      const route = this.modelRouter.route(estimatedTokens, {
+        costBudgetPerDay: options.costBudgetPerDay,
+        qualityThreshold: options.qualityThreshold,
+        preferLowCost: options.preferLowCost,
+      });
+      this.logger.log(`ModelRouter selected: ${route.provider}/${route.model} (estimated $${route.estimatedCost.toFixed(4)}, quality ${route.qualityScore})`);
+    }
+
+    const response = await this.generateText(provider, options.prompt, {
+      systemPrompt: options.systemPrompt,
+      maxTokens: options.maxTokens,
+      temperature: options.temperature,
+    });
+
+    this.modelRouter.recordUsage(response.provider, response.tokensUsed || estimatedTokens);
+    return response;
+  }
+
+  private estimateTokens(prompt: string, systemPrompt?: string, maxTokens?: number): number {
+    // Rough estimation: 1 token ≈ 4 chars for Latin, 2 chars for Persian/CJK
+    const text = `${systemPrompt || ''}\n${prompt}`;
+    const charTokenRatio = /[\u0600-\u06FF\u4E00-\u9FFF]/.test(text) ? 2 : 4;
+    const promptTokens = Math.ceil(text.length / charTokenRatio);
+    return promptTokens + (maxTokens || 1000);
   }
 
   async generateText(
@@ -318,13 +371,16 @@ export class LLMService {
     const systemPrompt = this.getSummarySystemPrompt(contextType);
     const userPrompt = this.getSummaryUserPrompt(context, contextType);
 
-    const providers = provider ? [provider] : (this.getAvailableProviders() as LLMProvider[]);
-    
-    if (providers.length === 0) {
-      throw new Error('No LLM provider configured');
+    if (provider) {
+      return this.generateText(provider, userPrompt, {
+        systemPrompt,
+        maxTokens: 1000,
+        temperature: 0.5,
+      });
     }
 
-    return this.generateWithFallback(providers, userPrompt, {
+    return this.generate({
+      prompt: userPrompt,
       systemPrompt,
       maxTokens: 1000,
       temperature: 0.5,
@@ -340,13 +396,16 @@ export class LLMService {
     const systemPrompt = this.getQASystemPrompt(contextType);
     const userPrompt = this.getQAUserPrompt(context, question);
 
-    const providers = provider ? [provider] : (this.getAvailableProviders() as LLMProvider[]);
-    
-    if (providers.length === 0) {
-      throw new Error('No LLM provider configured');
+    if (provider) {
+      return this.generateText(provider, userPrompt, {
+        systemPrompt,
+        maxTokens: 1500,
+        temperature: 0.3,
+      });
     }
 
-    return this.generateWithFallback(providers, userPrompt, {
+    return this.generate({
+      prompt: userPrompt,
       systemPrompt,
       maxTokens: 1500,
       temperature: 0.3,
@@ -361,13 +420,16 @@ export class LLMService {
     const systemPrompt = this.getNextBestActionSystemPrompt(contextType);
     const userPrompt = this.getNextBestActionUserPrompt(context);
 
-    const providers = provider ? [provider] : (this.getAvailableProviders() as LLMProvider[]);
-    
-    if (providers.length === 0) {
-      throw new Error('No LLM provider configured');
+    if (provider) {
+      return this.generateText(provider, userPrompt, {
+        systemPrompt,
+        maxTokens: 800,
+        temperature: 0.4,
+      });
     }
 
-    return this.generateWithFallback(providers, userPrompt, {
+    return this.generate({
+      prompt: userPrompt,
       systemPrompt,
       maxTokens: 800,
       temperature: 0.4,

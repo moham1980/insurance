@@ -2,7 +2,9 @@ import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
 import { Kafka, Consumer, EachMessagePayload, KafkaMessage } from 'kafkajs';
 import { createLogger, DeadLetterQueueService, EventEnvelope } from '@insurance/shared';
+import { v4 as uuidv4 } from 'uuid';
 import { Claim } from './entities/Claim';
+import { ClaimProjection } from './entities/ClaimProjection';
 
 @Injectable()
 export class ClaimsEventsConsumer implements OnModuleInit, OnModuleDestroy {
@@ -69,6 +71,17 @@ export class ClaimsEventsConsumer implements OnModuleInit, OnModuleDestroy {
       'insurance.fraud.case.resolved',
       'insurance.payment.executed',
       'insurance.payment.failed',
+      'insurance.claim.registered',
+      'insurance.claim.acknowledged',
+      'insurance.claim.submitted_to_carrier',
+      'insurance.claim.status_updated',
+      'insurance.claim.assessed',
+      'insurance.claim.approved',
+      'insurance.claim.rejected',
+      'insurance.claim.paid',
+      'insurance.claim.closed',
+      'insurance.claim.appealed',
+      'insurance.claim.adjuster_assigned',
     ];
     for (const topic of topics) {
       await this.consumer.subscribe({ topic, fromBeginning: false });
@@ -142,6 +155,8 @@ export class ClaimsEventsConsumer implements OnModuleInit, OnModuleDestroy {
       await this.handleFraudEvent(envelope, manager);
     } else if (topic.startsWith('insurance.payment.')) {
       await this.handlePaymentEvent(envelope, topic, manager);
+    } else if (topic.startsWith('insurance.claim.')) {
+      await this.handleClaimProjectionEvent(envelope, topic, manager);
     }
   }
 
@@ -164,9 +179,9 @@ export class ClaimsEventsConsumer implements OnModuleInit, OnModuleDestroy {
     this.assertTenantMatch(claim, eventTenantId);
 
     if (envelope.eventType === 'FraudCaseEscalated') {
-      this.assertAllowedStates('fraud escalation', claim.status, ['registered', 'assessed', 'adjuster_review']);
+      this.assertAllowedStates('fraud escalation', claim.status, ['registered', 'assessed', 'adjuster_assigned']);
       claim.requiresHumanTriage = true;
-      claim.status = 'adjuster_review';
+      claim.status = 'adjuster_assigned';
       claim.metadata = {
         ...(claim.metadata || {}),
         fraudEscalatedAt: new Date().toISOString(),
@@ -181,7 +196,7 @@ export class ClaimsEventsConsumer implements OnModuleInit, OnModuleDestroy {
     } else if (envelope.eventType === 'FraudCaseResolved') {
       const resolution = envelope.payload?.resolution;
       if (resolution === 'confirmed_fraud') {
-        this.assertAllowedStates('fraud resolution', claim.status, ['registered', 'assessed', 'adjuster_review', 'approved']);
+        this.assertAllowedStates('fraud resolution', claim.status, ['registered', 'assessed', 'adjuster_assigned', 'approved']);
         claim.status = 'rejected';
         claim.metadata = {
           ...(claim.metadata || {}),
@@ -280,6 +295,77 @@ export class ClaimsEventsConsumer implements OnModuleInit, OnModuleDestroy {
         eventId: envelope.eventId,
       });
     }
+  }
+
+  private async handleClaimProjectionEvent(
+    envelope: EventEnvelope<any>,
+    topic: string,
+    manager: EntityManager,
+  ): Promise<void> {
+    const claimId = envelope.subject?.claimId;
+    const eventTenantId = envelope.subject?.tenantId || envelope.payload?.tenantId;
+
+    if (!claimId) {
+      this.logger.warn('Claim event without claimId, skipping projection', { eventId: envelope.eventId });
+      return;
+    }
+
+    const claimRepo = manager.getRepository(Claim);
+    const claim = await claimRepo.findOne({ where: { claimId } });
+    if (!claim) {
+      this.logger.warn('Claim not found for projection event', { claimId, eventId: envelope.eventId });
+      return;
+    }
+
+    this.assertTenantMatch(claim, eventTenantId);
+
+    const projectionRepo = manager.getRepository(ClaimProjection);
+
+    const sourceSystemId = 'claims-service';
+    const externalClaimId = claim.claimNumber || claimId;
+    const brokerOrganizationId = claim.brokerOrganizationId || claim.recordOwnerOrganizationId;
+    const carrierOrganizationId = claim.carrierOrganizationId;
+
+    const activeProjections = await projectionRepo.find({
+      where: { claimId, sourceSystemId, externalClaimId, status: 'active' } as any,
+    });
+
+    for (const p of activeProjections) {
+      p.status = 'superseded';
+      p.sourceVersion += 1;
+      await projectionRepo.save(p);
+    }
+
+    const payload = {
+      eventType: envelope.eventType,
+      eventId: envelope.eventId,
+      topic,
+      tenantId: eventTenantId,
+      status: claim.status,
+      ...envelope.payload,
+    };
+
+    const projection = projectionRepo.create({
+      projectionId: uuidv4(),
+      tenantId: claim.tenantId,
+      brokerOrganizationId,
+      carrierOrganizationId,
+      claimId,
+      externalClaimId,
+      sourceSystemId,
+      sourceVersion: 1,
+      payload,
+      receivedAt: new Date(),
+      status: 'active',
+    });
+
+    await projectionRepo.save(projection);
+    this.logger.info('Claim projection recorded from event', {
+      claimId,
+      projectionId: projection.projectionId,
+      eventType: envelope.eventType,
+      eventId: envelope.eventId,
+    });
   }
 
   private assertTenantMatch(claim: Claim, eventTenantId?: string): void {

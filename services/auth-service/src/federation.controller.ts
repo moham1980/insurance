@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Param, Post, Query, Req, UseGuards, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, Param, Post, Query, Req, UseGuards, UnauthorizedException } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import { FederationService, FederatedIdentityInfo } from './federation.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -7,6 +7,7 @@ import { Roles } from './roles.decorator';
 import { PermissionsGuard } from './permissions.guard';
 import { Permissions } from './permissions.decorator';
 import { AuthService } from './auth.service';
+import { TokenExchangeService } from './token-exchange/token-exchange.service';
 
 @Controller('federation')
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
@@ -14,6 +15,7 @@ export class FederationController {
   constructor(
     private readonly federationService: FederationService,
     private readonly authService: AuthService,
+    private readonly tokenExchangeService: TokenExchangeService,
   ) {}
 
   private getCorrelationId(headers: Record<string, any>): string {
@@ -291,6 +293,110 @@ export class FederationController {
         error: { code: 'REFRESH_FAILED', message: 'Operation failed' },
         correlationId,
       };
+    }
+  }
+
+  @Post('token-exchange')
+  @Permissions('federation:manage')
+  async exchangeToken(
+    @Body() body: {
+      subjectToken: string;
+      subjectTokenType: string;
+      audience: string;
+      scope: string;
+      requestedTokenType?: string;
+      actorClientId: string;
+      agreementId: string;
+      relationshipType: string;
+    },
+    @Headers() headers: Record<string, any>,
+  ) {
+    const correlationId = this.getCorrelationId(headers);
+
+    if (!body.subjectToken || !body.audience || !body.scope || !body.actorClientId || !body.agreementId) {
+      return {
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'subjectToken, audience, scope, actorClientId, agreementId are required' },
+        correlationId,
+      };
+    }
+
+    try {
+      const result = await this.tokenExchangeService.exchangeToken(body);
+      return {
+        success: true,
+        data: result,
+        correlationId,
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: { code: error.name || 'TOKEN_EXCHANGE_FAILED', message: error.message || 'Operation failed' },
+        correlationId,
+      };
+    }
+  }
+
+  @Post('mtls/certificates')
+  @Permissions('federation:manage')
+  async registerMtlsCertificate(
+    @Body() body: {
+      organizationId: string;
+      tenantId: string;
+      commonName: string;
+      fingerprint: string;
+      pemContent: string;
+      issuer?: string;
+      validFrom: string;
+      validTo: string;
+      metadata?: Record<string, any>;
+    },
+    @Headers() headers: Record<string, any>,
+  ) {
+    const correlationId = this.getCorrelationId(headers);
+    if (!body.organizationId || !body.commonName || !body.fingerprint || !body.pemContent || !body.validFrom || !body.validTo) {
+      return {
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'organizationId, commonName, fingerprint, pemContent, validFrom, validTo are required' },
+        correlationId,
+      };
+    }
+    try {
+      const cert = await this.federationService.registerMtlsCertificate(body);
+      return { success: true, data: cert, correlationId };
+    } catch (error: any) {
+      return { success: false, error: { code: error.name || 'INTERNAL_ERROR', message: error.message }, correlationId };
+    }
+  }
+
+  @Get('mtls/certificates/:organizationId')
+  @Permissions('federation:read')
+  async listMtlsCertificates(
+    @Param('organizationId') organizationId: string,
+    @Query('status') status: string,
+    @Headers() headers: Record<string, any>,
+  ) {
+    const correlationId = this.getCorrelationId(headers);
+    try {
+      const certs = await this.federationService.listMtlsCertificates(organizationId, status);
+      return { success: true, data: certs, correlationId };
+    } catch (error: any) {
+      return { success: false, error: { code: error.name || 'INTERNAL_ERROR', message: error.message }, correlationId };
+    }
+  }
+
+  @Delete('mtls/certificates/:certificateId')
+  @Permissions('federation:manage')
+  async revokeMtlsCertificate(
+    @Param('certificateId') certificateId: string,
+    @Headers() headers: Record<string, any>,
+  ) {
+    const correlationId = this.getCorrelationId(headers);
+    try {
+      await this.federationService.revokeMtlsCertificate(certificateId);
+      return { success: true, data: { certificateId, status: 'revoked' }, correlationId };
+    } catch (error: any) {
+      return { success: false, error: { code: error.name || 'INTERNAL_ERROR', message: error.message }, correlationId };
     }
   }
 }

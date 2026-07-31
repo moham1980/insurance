@@ -6,6 +6,7 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, Update
 @Index(['status'])
 @Index(['riskLevel'])
 @Index(['createdAt'])
+@Index(['brokerOrganizationId'])
 export class RmAml {
   @Column({ type: 'uuid', name: 'tenant_id', nullable: true })
   tenantId?: string | null;
@@ -57,6 +58,9 @@ export class RmAml {
 
   @Column({ name: 'reference_id', type: 'uuid', nullable: true })
   referenceId!: string | null;
+
+  @Column({ name: 'broker_organization_id', type: 'uuid', nullable: true })
+  brokerOrganizationId!: string | null;
 
   @Column({ name: 'metadata', type: 'jsonb', nullable: true })
   metadata!: Record<string, any> | null;

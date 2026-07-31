@@ -1,0 +1,92 @@
+groups:
+  - name: FederationPartnerGateway
+    rules:
+      - alert: PartnerCertificateExpiringSoon
+        expr: partner_gateway_cert_expiry_days < 30
+        for: 5m
+        labels:
+          severity: warning
+          component: federation
+        annotations:
+          summary: "Partner certificate expiring in {{ $value }} days"
+          description: "Certificate for partner {{ $labels.partner_id }} expires soon"
+
+      - alert: PartnerCertificateExpired
+        expr: partner_gateway_cert_expiry_days < 0
+        for: 1m
+        labels:
+          severity: critical
+          component: federation
+        annotations:
+          summary: "Partner certificate has expired"
+          description: "Certificate for partner {{ $labels.partner_id }} has expired"
+
+      - alert: FederationTokenExchangeFailures
+        expr: rate(federation_token_exchange_failures_total[5m]) > 5
+        for: 2m
+        labels:
+          severity: warning
+          component: federation
+        annotations:
+          summary: "High rate of token exchange failures"
+          description: "Token exchange failure rate is {{ $value }} per second"
+
+      - alert: FederationReplayDetected
+        expr: rate(federation_replay_detections_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: federation
+        annotations:
+          summary: "Replay attack detected"
+          description: "Nonce replay detected for partner {{ $labels.partner_id }}"
+
+      - alert: PartnerStatusNotActive
+        expr: partner_gateway_partner_status{status!="active"} == 1
+        for: 5m
+        labels:
+          severity: warning
+          component: federation
+        annotations:
+          summary: "Partner is not active"
+          description: "Partner {{ $labels.partner_id }} status is {{ $labels.status }}"
+
+      - alert: ProjectionSyncDriftDetected
+        expr: projection_sync_drift_count > 10
+        for: 10m
+        labels:
+          severity: warning
+          component: federation
+        annotations:
+          summary: "Projection sync drift detected"
+          description: "{{ $value }} projections have drifted from source"
+
+      - alert: FederationConsentRevokedProjectionStillActive
+        expr: federation_consent_revoked_projection_active_count > 0
+        for: 5m
+        labels:
+          severity: critical
+          component: federation
+        annotations:
+          summary: "Projection active after consent revocation"
+          description: "{{ $value }} projections remain active despite consent revocation"
+
+      - alert: CrossTenantEventSignatureFailures
+        expr: rate(federation_event_signature_failures_total[5m]) > 2
+        for: 2m
+        labels:
+          severity: critical
+          component: federation
+        annotations:
+          summary: "Event signature validation failures"
+          description: "High rate of signed event validation failures"
+
+      - alert: FederationDLQMessagesAccumulating
+        expr: federation_dlq_message_count > 50
+        for: 10m
+        labels:
+          severity: warning
+          component: federation
+        annotations:
+          summary: "Federation DLQ messages accumulating"
+          description: "{{ $value }} messages in federation DLQ"

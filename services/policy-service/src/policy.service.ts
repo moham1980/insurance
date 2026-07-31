@@ -7,7 +7,11 @@ import { Policy } from './entities/Policy';
 import { PolicyChange } from './entities/PolicyChange';
 import { PolicyInquiry } from './entities/PolicyInquiry';
 import { PolicyRenewal, type RenewalStatus } from './entities/PolicyRenewal';
+import { TransitionAudit } from './entities/TransitionAudit';
 import { auditLogger } from './audit.logger';
+import { BrokerLicenseClient } from './broker-license.client';
+import { DistributionAgreementClient } from './distribution-agreement.client';
+import { AuditService } from './audit.service';
 
 @Injectable()
 export class PolicyService {
@@ -37,8 +41,35 @@ export class PolicyService {
     @InjectRepository(Policy) private readonly policyRepo: Repository<Policy>,
     @InjectRepository(PolicyChange) private readonly changeRepo: Repository<PolicyChange>,
     @InjectRepository(PolicyInquiry) private readonly inquiryRepo: Repository<PolicyInquiry>,
-    @InjectRepository(PolicyRenewal) private readonly renewalRepo: Repository<PolicyRenewal>
-  ) {
+    @InjectRepository(PolicyRenewal) private readonly renewalRepo: Repository<PolicyRenewal>,
+    @InjectRepository(TransitionAudit) private readonly transitionAuditRepo: Repository<TransitionAudit>,
+    private readonly brokerLicenseClient: BrokerLicenseClient,
+    private readonly distributionAgreementClient: DistributionAgreementClient,
+    private readonly auditService: AuditService,
+  ) {}
+
+  private async recordTransition(params: {
+    tenantId?: string;
+    actorUserId?: string | null;
+    resourceType: string;
+    resourceId: string;
+    fromState: string;
+    toState: string;
+    correlationId?: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<void> {
+    if (!params.tenantId) return;
+    const record = this.transitionAuditRepo.create({
+      tenantId: params.tenantId,
+      actorUserId: params.actorUserId || null,
+      resourceType: params.resourceType,
+      resourceId: params.resourceId,
+      fromState: params.fromState,
+      toState: params.toState,
+      correlationId: params.correlationId || null,
+      metadata: params.metadata || null,
+    });
+    await this.transitionAuditRepo.save(record);
   }
 
   private async publishPolicyEvent(params: {
@@ -66,14 +97,83 @@ export class PolicyService {
         uniqueCode: params.policy.uniqueCode,
         status: params.policy.status,
         partyId: params.policy.partyId,
+        customerPartyId: params.policy.customerPartyId ?? undefined,
         producerOrgUnitId: params.policy.producerOrgUnitId,
+        distributionOrganizationId: params.policy.distributionOrganizationId ?? undefined,
+        issuerOrganizationId: params.policy.issuerOrganizationId ?? undefined,
         lineOfBusiness: params.policy.lineOfBusiness,
         startDate: params.policy.startDate?.toISOString?.(),
         endDate: params.policy.endDate?.toISOString?.(),
         premiumAmount: params.policy.premiumAmount,
+        premiumCurrency: params.policy.premiumCurrency,
+        totalPayableAmount: params.policy.totalPayableAmount,
         createdAt: params.policy.createdAt?.toISOString?.(),
         updatedAt: params.policy.updatedAt?.toISOString?.(),
         ...(params.payload || {}),
+      },
+    });
+  }
+
+  private async publishCustomerNotification(params: {
+    outbox: OutboxPublisher;
+    correlationId: string;
+    policy: Policy;
+    notificationType: string;
+    message: string;
+    extraPayload?: Record<string, any>;
+  }): Promise<void> {
+    await params.outbox.publish({
+      topic: 'insurance.policy.customer_notification',
+      eventType: 'CustomerPolicyNotification',
+      eventVersion: 1,
+      correlationId: params.correlationId,
+      subject: {
+        policyId: params.policy.policyId,
+        policyNumber: params.policy.policyNumber,
+        tenantId: params.policy.tenantId || undefined,
+      },
+      payload: {
+        policyId: params.policy.policyId,
+        policyNumber: params.policy.policyNumber,
+        partyId: params.policy.partyId,
+        customerPartyId: params.policy.customerPartyId ?? undefined,
+        notificationType: params.notificationType,
+        message: params.message,
+        tenantId: params.policy.tenantId || undefined,
+        ...(params.extraPayload || {}),
+      },
+    });
+  }
+
+  private async publishSalesNetworkSync(params: {
+    outbox: OutboxPublisher;
+    correlationId: string;
+    policy: Policy;
+    syncType: string;
+    extraPayload?: Record<string, any>;
+  }): Promise<void> {
+    await params.outbox.publish({
+      topic: 'insurance.policy.sales_network_sync',
+      eventType: 'SalesNetworkPolicySync',
+      eventVersion: 1,
+      correlationId: params.correlationId,
+      subject: {
+        policyId: params.policy.policyId,
+        policyNumber: params.policy.policyNumber,
+        tenantId: params.policy.tenantId || undefined,
+      },
+      payload: {
+        policyId: params.policy.policyId,
+        policyNumber: params.policy.policyNumber,
+        status: params.policy.status,
+        distributionOrganizationId: params.policy.distributionOrganizationId ?? undefined,
+        issuerOrganizationId: params.policy.issuerOrganizationId ?? undefined,
+        brokerLicenseId: params.policy.brokerLicenseId ?? undefined,
+        lineOfBusiness: params.policy.lineOfBusiness,
+        productId: params.policy.productId ?? undefined,
+        syncType: params.syncType,
+        tenantId: params.policy.tenantId || undefined,
+        ...(params.extraPayload || {}),
       },
     });
   }
@@ -430,6 +530,11 @@ export class PolicyService {
     correlationId?: string;
     producerOrgUnitId?: string | null;
     idempotencyKey?: string;
+    submissionId?: string | null;
+    placementId?: string | null;
+    distributionOrganizationId?: string | null;
+    issuerOrganizationId?: string | null;
+    productId?: string | null;
   }): Promise<Policy> {
     this.validatePolicyDates(params.startDate, params.endDate);
     this.validatePremium(params.premiumAmount);
@@ -462,6 +567,11 @@ export class PolicyService {
         applicationData: null,
         riskAssessment: null,
         idempotencyKey: params.idempotencyKey || null,
+        submissionId: params.submissionId ?? null,
+        placementId: params.placementId ?? null,
+        distributionOrganizationId: params.distributionOrganizationId ?? null,
+        issuerOrganizationId: params.issuerOrganizationId ?? null,
+        productId: params.productId ?? null,
         version: 0,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -713,6 +823,8 @@ export class PolicyService {
   async issue(params: {
     policyId: string;
     paymentId?: string;
+    brokerLicenseId?: string;
+    issuerOrganizationId?: string;
     correlationId?: string;
     tenantId?: string;
     actorUserId?: string | null;
@@ -720,7 +832,7 @@ export class PolicyService {
   }): Promise<Policy | null> {
     const correlationId = this.requireCorrelationId(params.correlationId);
 
-    return await this.dataSource.transaction(async (manager) => {
+    const issuedPolicy = await this.dataSource.transaction(async (manager) => {
       const policy = await manager.getRepository(Policy).findOne({
         where: { policyId: params.policyId },
         lock: { mode: 'pessimistic_write' },
@@ -810,6 +922,57 @@ export class PolicyService {
         action: 'issue',
       });
 
+      // P0-10: set issuer organization from JWT context if provided
+      if (params.issuerOrganizationId) {
+        policy.issuerOrganizationId = params.issuerOrganizationId;
+      }
+
+      // P0-3: enforce broker license validity and line-of-business scope before issuing
+      if (params.brokerLicenseId) {
+        policy.brokerLicenseId = params.brokerLicenseId;
+      }
+      if (policy.brokerLicenseId) {
+        const licenseValidation = await this.brokerLicenseClient.validateLicense(policy.brokerLicenseId, policy.lineOfBusiness);
+        if (!licenseValidation.valid) {
+          const err: any = new Error(licenseValidation.reason || 'Broker license is not valid for policy issuance');
+          err.code = 'BROKER_LICENSE_INVALID';
+          err.details = { brokerLicenseId: policy.brokerLicenseId, status: licenseValidation.status };
+          throw err;
+        }
+      }
+
+      // P0-Brokerage: enforce distribution agreement validity before issuing
+      if (policy.distributionOrganizationId && policy.issuerOrganizationId) {
+        const agreementValidation = await this.distributionAgreementClient.validateAgreement({
+          distributionOrganizationId: policy.distributionOrganizationId,
+          issuerOrganizationId: policy.issuerOrganizationId,
+          lineOfBusiness: policy.lineOfBusiness,
+          productId: policy.productId ?? undefined,
+        });
+        if (!agreementValidation.valid) {
+          const err: any = new Error(agreementValidation.reason || 'Distribution agreement is not valid for this policy issuance');
+          err.code = 'DISTRIBUTION_AGREEMENT_INVALID';
+          err.details = {
+            distributionOrganizationId: policy.distributionOrganizationId,
+            issuerOrganizationId: policy.issuerOrganizationId,
+            lineOfBusiness: policy.lineOfBusiness,
+            agreementStatus: agreementValidation.status,
+          };
+          throw err;
+        }
+        // Snapshot the commission split from the agreement onto the policy
+        if (agreementValidation.commissionSplit) {
+          policy.commissionSplitSnapshot = agreementValidation.commissionSplit;
+        } else if (agreementValidation.commissionRate !== undefined) {
+          policy.commissionSplitSnapshot = {
+            commissionRate: agreementValidation.commissionRate,
+            distributionOrganizationId: policy.distributionOrganizationId,
+            issuerOrganizationId: policy.issuerOrganizationId,
+            agreementId: agreementValidation.agreementId,
+          };
+        }
+      }
+
       policy.status = 'issued';
       policy.updatedAt = new Date();
       await manager.getRepository(Policy).save(policy);
@@ -823,13 +986,58 @@ export class PolicyService {
         outbox: new OutboxPublisher(manager),
       });
 
+      // Notify customer and sync sales-network on policy issuance
+      const outbox = new OutboxPublisher(manager);
+      await this.publishCustomerNotification({
+        outbox,
+        correlationId,
+        policy,
+        notificationType: 'policy_issued',
+        message: `Your policy ${policy.policyNumber} has been issued successfully.`,
+        extraPayload: { uniqueCode: policy.uniqueCode },
+      });
+      await this.publishSalesNetworkSync({
+        outbox,
+        correlationId,
+        policy,
+        syncType: 'policy_issued',
+      });
+
       return policy;
     });
+
+    if (issuedPolicy && params.tenantId) {
+      await this.auditService.record({
+        tenantId: params.tenantId,
+        actorUserId: params.actorUserId,
+        action: 'issue',
+        resourceType: 'policy',
+        resourceId: issuedPolicy.policyId,
+        correlationId,
+        after: { status: issuedPolicy.status, policyNumber: issuedPolicy.policyNumber, brokerLicenseId: issuedPolicy.brokerLicenseId },
+        metadata: { paymentId: params.paymentId },
+      });
+
+      await this.recordTransition({
+        tenantId: params.tenantId,
+        actorUserId: params.actorUserId,
+        resourceType: 'policy',
+        resourceId: issuedPolicy.policyId,
+        fromState: 'risk_assessed',
+        toState: 'issued',
+        correlationId,
+        metadata: { paymentId: params.paymentId, brokerLicenseId: issuedPolicy.brokerLicenseId },
+      });
+    }
+
+    return issuedPolicy;
   }
 
   async setUniqueCode(params: {
     policyId: string;
     uniqueCode: string;
+    sanhabSubmissionId?: string | null;
+    sanhabResponse?: Record<string, any> | null;
     actorUserId?: string | null;
     correlationId?: string;
     tenantId?: string;
@@ -837,7 +1045,7 @@ export class PolicyService {
   }): Promise<Policy | null> {
     const correlationId = this.requireCorrelationId(params.correlationId);
 
-    return await this.dataSource.transaction(async (manager) => {
+    const activatedPolicy = await this.dataSource.transaction(async (manager) => {
       const policy = await manager.getRepository(Policy).findOne({
         where: { policyId: params.policyId },
         lock: { mode: 'pessimistic_write' },
@@ -863,6 +1071,9 @@ export class PolicyService {
       });
 
       policy.uniqueCode = params.uniqueCode;
+      policy.sanhabStatus = 'confirmed';
+      policy.sanhabSubmissionId = params.sanhabSubmissionId ?? policy.sanhabSubmissionId;
+      policy.sanhabResponse = params.sanhabResponse ?? policy.sanhabResponse;
       policy.status = 'active';
       policy.updatedAt = new Date();
       await manager.getRepository(Policy).save(policy);
@@ -872,7 +1083,7 @@ export class PolicyService {
         eventType: 'PolicyUniqueCodeSet',
         correlationId,
         policy,
-        payload: { uniqueCode: params.uniqueCode },
+        payload: { uniqueCode: params.uniqueCode, sanhabSubmissionId: policy.sanhabSubmissionId },
         outbox: new OutboxPublisher(manager),
       });
 
@@ -884,20 +1095,35 @@ export class PolicyService {
         actorUserId: params.actorUserId ?? null,
         correlationId,
         reason: 'Sanhab registration completed',
-        before: { status: 'issued', uniqueCode: null },
-        after: { status: 'active', uniqueCode: params.uniqueCode },
-        payload: { uniqueCode: params.uniqueCode },
+        before: { status: 'issued', uniqueCode: null, sanhabStatus: 'not_submitted' },
+        after: { status: 'active', uniqueCode: params.uniqueCode, sanhabStatus: 'confirmed' },
+        payload: { uniqueCode: params.uniqueCode, sanhabSubmissionId: policy.sanhabSubmissionId, sanhabResponse: policy.sanhabResponse },
         createdAt: new Date(),
       });
       await manager.getRepository(PolicyChange).save(change);
 
       return policy;
     });
+
+    if (activatedPolicy && params.tenantId) {
+      await this.recordTransition({
+        tenantId: params.tenantId,
+        actorUserId: params.actorUserId,
+        resourceType: 'policy',
+        resourceId: activatedPolicy.policyId,
+        fromState: 'issued',
+        toState: 'active',
+        correlationId,
+        metadata: { uniqueCode: params.uniqueCode },
+      });
+    }
+
+    return activatedPolicy;
   }
 
   async endorse(params: {
     policyId: string;
-    endorsementType: 'coverage_change' | 'premium_change' | 'beneficiary_change' | 'address_change' | 'vehicle_change' | 'other';
+    endorsementType: 'coverage_change' | 'premium_change' | 'beneficiary_change' | 'address_change' | 'vehicle_change' | 'broker_change' | 'other';
     payload: Record<string, any>;
     effectiveDate?: string;
     reason?: string;
@@ -986,6 +1212,63 @@ export class PolicyService {
         }
         endorsementPayload.previousValues = { vehicle: policy.applicationData?.vehicle };
         policy.applicationData.vehicle = params.payload.vehicle;
+      } else if (params.endorsementType === 'broker_change') {
+        const newDistributionOrgId = params.payload.distributionOrganizationId;
+        const newBrokerLicenseId = params.payload.brokerLicenseId;
+        if (!newDistributionOrgId) {
+          const err: any = new Error('distributionOrganizationId is required for broker_change');
+          err.code = 'VALIDATION_ERROR';
+          throw err;
+        }
+        endorsementPayload.previousValues = {
+          distributionOrganizationId: policy.distributionOrganizationId,
+          brokerLicenseId: policy.brokerLicenseId,
+          commissionSplitSnapshot: policy.commissionSplitSnapshot,
+        };
+        // Validate new broker license if provided
+        if (newBrokerLicenseId) {
+          const licenseValidation = await this.brokerLicenseClient.validateLicense(newBrokerLicenseId, policy.lineOfBusiness);
+          if (!licenseValidation.valid) {
+            const err: any = new Error(licenseValidation.reason || 'New broker license is not valid');
+            err.code = 'BROKER_LICENSE_INVALID';
+            err.details = { brokerLicenseId: newBrokerLicenseId, status: licenseValidation.status };
+            throw err;
+          }
+          policy.brokerLicenseId = newBrokerLicenseId;
+        }
+        // Validate distribution agreement for the new broker
+        if (policy.issuerOrganizationId) {
+          const agreementValidation = await this.distributionAgreementClient.validateAgreement({
+            distributionOrganizationId: newDistributionOrgId,
+            issuerOrganizationId: policy.issuerOrganizationId,
+            lineOfBusiness: policy.lineOfBusiness,
+            productId: policy.productId ?? undefined,
+          });
+          if (!agreementValidation.valid) {
+            const err: any = new Error(agreementValidation.reason || 'Distribution agreement is not valid for the new broker');
+            err.code = 'DISTRIBUTION_AGREEMENT_INVALID';
+            err.details = {
+              distributionOrganizationId: newDistributionOrgId,
+              issuerOrganizationId: policy.issuerOrganizationId,
+              lineOfBusiness: policy.lineOfBusiness,
+              agreementStatus: agreementValidation.status,
+            };
+            throw err;
+          }
+          policy.distributionOrganizationId = newDistributionOrgId;
+          if (agreementValidation.commissionSplit) {
+            policy.commissionSplitSnapshot = agreementValidation.commissionSplit;
+          } else if (agreementValidation.commissionRate !== undefined) {
+            policy.commissionSplitSnapshot = {
+              commissionRate: agreementValidation.commissionRate,
+              distributionOrganizationId: newDistributionOrgId,
+              issuerOrganizationId: policy.issuerOrganizationId,
+              agreementId: agreementValidation.agreementId,
+            };
+          }
+        } else {
+          policy.distributionOrganizationId = newDistributionOrgId;
+        }
       }
 
       policy.status = 'endorsed';
@@ -1007,6 +1290,26 @@ export class PolicyService {
         payload: endorsementPayload,
         outbox: new OutboxPublisher(manager),
       });
+
+      // Notify customer and sync sales-network on policy endorsement
+      const endorseOutbox = new OutboxPublisher(manager);
+      await this.publishCustomerNotification({
+        outbox: endorseOutbox,
+        correlationId,
+        policy,
+        notificationType: 'policy_endorsed',
+        message: `Your policy ${policy.policyNumber} has been endorsed (${params.endorsementType}).`,
+        extraPayload: { endorsementType: params.endorsementType },
+      });
+      if (params.endorsementType === 'broker_change') {
+        await this.publishSalesNetworkSync({
+          outbox: endorseOutbox,
+          correlationId,
+          policy,
+          syncType: 'broker_changed',
+          extraPayload: { endorsementType: params.endorsementType },
+        });
+      }
 
       const change = manager.getRepository(PolicyChange).create({
         changeId: uuidv4(),
@@ -1057,6 +1360,10 @@ export class PolicyService {
       exposure?: Record<string, any>;
     };
     producerOrgUnitId?: string | null;
+    submissionId?: string | null;
+    placementId?: string | null;
+    distributionOrganizationId?: string | null;
+    issuerOrganizationId?: string | null;
     actorUserId?: string | null;
     tenantId?: string;
     correlationId?: string;
@@ -1103,6 +1410,11 @@ export class PolicyService {
         renewalReminderSentAt: null,
         renewalNotifiedAt: null,
         idempotencyKey: params.idempotencyKey || null,
+        submissionId: params.submissionId ?? null,
+        placementId: params.placementId ?? null,
+        distributionOrganizationId: params.distributionOrganizationId ?? null,
+        issuerOrganizationId: params.issuerOrganizationId ?? null,
+        productId: params.quote.productId,
         version: 0,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -1155,6 +1467,23 @@ export class PolicyService {
         outbox: new OutboxPublisher(manager),
       });
 
+      // Notify customer and sync sales-network on policy cancellation
+      const cancelOutbox = new OutboxPublisher(manager);
+      await this.publishCustomerNotification({
+        outbox: cancelOutbox,
+        correlationId,
+        policy,
+        notificationType: 'policy_cancelled',
+        message: `Your policy ${policy.policyNumber} has been cancelled.`,
+        extraPayload: { reason: params.reason },
+      });
+      await this.publishSalesNetworkSync({
+        outbox: cancelOutbox,
+        correlationId,
+        policy,
+        syncType: 'policy_cancelled',
+      });
+
       const change = manager.getRepository(PolicyChange).create({
         changeId: uuidv4(),
         tenantId: params.tenantId ?? null,
@@ -1178,6 +1507,7 @@ export class PolicyService {
     policyId: string;
     newEndDate?: string;
     newPremium?: number;
+    newCommissionSplit?: Record<string, any>;
     actorUserId?: string | null;
     tenantId?: string;
     correlationId?: string;
@@ -1234,6 +1564,13 @@ export class PolicyService {
         renewalCount: (policy.renewalCount || 0) + 1,
         maxRenewals: policy.maxRenewals,
         renewalParentId: policy.policyId,
+        submissionId: policy.submissionId,
+        placementId: policy.placementId,
+        distributionOrganizationId: policy.distributionOrganizationId,
+        issuerOrganizationId: policy.issuerOrganizationId,
+        brokerLicenseId: policy.brokerLicenseId,
+        productId: policy.productId,
+        commissionSplitSnapshot: params.newCommissionSplit ?? policy.commissionSplitSnapshot,
         version: 0,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -1247,6 +1584,24 @@ export class PolicyService {
         policy: newPolicy,
         payload: { oldPolicyId: policy.policyId, newPolicyId: newPolicy.policyId, newEndDate: params.newEndDate || null },
         outbox: new OutboxPublisher(manager),
+      });
+
+      // Notify customer and sync sales-network on policy renewal
+      const renewOutbox = new OutboxPublisher(manager);
+      await this.publishCustomerNotification({
+        outbox: renewOutbox,
+        correlationId,
+        policy: newPolicy,
+        notificationType: 'policy_renewed',
+        message: `Your policy ${newPolicy.policyNumber} has been renewed. Previous policy: ${policy.policyNumber}.`,
+        extraPayload: { oldPolicyId: policy.policyId, newPolicyId: newPolicy.policyId },
+      });
+      await this.publishSalesNetworkSync({
+        outbox: renewOutbox,
+        correlationId,
+        policy: newPolicy,
+        syncType: 'policy_renewed',
+        extraPayload: { oldPolicyId: policy.policyId },
       });
 
       const change = manager.getRepository(PolicyChange).create({
@@ -1278,6 +1633,10 @@ export class PolicyService {
     partyId?: string;
     uniqueCode?: string;
     tenantId?: string;
+    distributionOrganizationId?: string;
+    issuerOrganizationId?: string;
+    salesChannelType?: string;
+    status?: string;
     limit: number;
     offset: number;
   }): Promise<{ rows: Policy[]; total: number }> {
@@ -1285,6 +1644,10 @@ export class PolicyService {
     if (params.tenantId) qb.andWhere('p.tenant_id = :tenantId', { tenantId: params.tenantId });
     if (params.partyId) qb.andWhere('p.party_id = :partyId', { partyId: params.partyId });
     if (params.uniqueCode) qb.andWhere('p.unique_code = :uniqueCode', { uniqueCode: params.uniqueCode });
+    if (params.distributionOrganizationId) qb.andWhere('p.distribution_organization_id = :distOrgId', { distOrgId: params.distributionOrganizationId });
+    if (params.issuerOrganizationId) qb.andWhere('p.issuer_organization_id = :issuerOrgId', { issuerOrgId: params.issuerOrganizationId });
+    if (params.salesChannelType) qb.andWhere('p.sales_channel_type = :salesChannelType', { salesChannelType: params.salesChannelType });
+    if (params.status) qb.andWhere('p.status = :status', { status: params.status });
 
     qb.orderBy('p.updated_at', 'DESC').limit(params.limit).offset(params.offset);
 
@@ -1603,9 +1966,36 @@ export class PolicyService {
         payload: {
           actorUserId: params.actorUserId,
           maxRenewals: policy.maxRenewals,
+          distributionOrganizationId: policy.distributionOrganizationId ?? undefined,
+          brokerLicenseId: policy.brokerLicenseId ?? undefined,
         },
         outbox: new OutboxPublisher(manager),
       });
+
+      // Publish broker notification event so downstream consumers (notification service, broker-portal-bff) can inform the broker
+      if (params.autoRenew && policy.distributionOrganizationId) {
+        await new OutboxPublisher(manager).publish({
+          topic: 'insurance.policy.broker_notification',
+          eventType: 'BrokerAutoRenewNotification',
+          eventVersion: 1,
+          correlationId,
+          subject: {
+            policyId: policy.policyId,
+            policyNumber: policy.policyNumber,
+            tenantId: policy.tenantId || undefined,
+          },
+          payload: {
+            policyId: policy.policyId,
+            policyNumber: policy.policyNumber,
+            distributionOrganizationId: policy.distributionOrganizationId,
+            brokerLicenseId: policy.brokerLicenseId ?? undefined,
+            notificationType: 'auto_renew_enabled',
+            message: 'Auto-renewal has been enabled for this policy. Please review and confirm.',
+            actorUserId: params.actorUserId,
+            tenantId: policy.tenantId || undefined,
+          },
+        });
+      }
 
       const change = manager.getRepository(PolicyChange).create({
         changeId: uuidv4(),
@@ -1976,5 +2366,163 @@ export class PolicyService {
     } catch {
       return '0';
     }
+  }
+
+  /**
+   * Records the result of a Sanhab submission initiated by the regulatory gateway.
+   * If uniqueCode is provided and status is 'confirmed', it delegates to setUniqueCode
+   * to enforce the quality gate and transition the policy to active.
+   */
+  async recordSanhabResult(params: {
+    policyId: string;
+    sanhabStatus: 'pending' | 'confirmed' | 'rejected';
+    sanhabSubmissionId?: string | null;
+    sanhabResponse?: Record<string, any> | null;
+    uniqueCode?: string | null;
+    actorUserId?: string | null;
+    tenantId?: string;
+    correlationId?: string;
+    authorization?: string;
+  }): Promise<Policy | null> {
+    if (params.sanhabStatus === 'confirmed' && params.uniqueCode) {
+      return this.setUniqueCode({
+        policyId: params.policyId,
+        uniqueCode: params.uniqueCode,
+        sanhabSubmissionId: params.sanhabSubmissionId,
+        sanhabResponse: params.sanhabResponse,
+        actorUserId: params.actorUserId,
+        tenantId: params.tenantId,
+        correlationId: params.correlationId,
+        authorization: params.authorization,
+      });
+    }
+
+    const correlationId = this.requireCorrelationId(params.correlationId);
+
+    return this.dataSource.transaction(async (manager) => {
+      const repo = manager.getRepository(Policy);
+      const policy = await repo.findOne({
+        where: { policyId: params.policyId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!policy) return null;
+
+      this.assertTenantMatch(policy, params.tenantId, 'record_sanhab_result');
+
+      policy.sanhabStatus = params.sanhabStatus;
+      policy.sanhabSubmissionId = params.sanhabSubmissionId ?? policy.sanhabSubmissionId;
+      policy.sanhabResponse = params.sanhabResponse ?? policy.sanhabResponse;
+      policy.updatedAt = new Date();
+
+      await repo.save(policy);
+
+      await this.publishPolicyEvent({
+        topic: 'insurance.policy.sanhab_result_recorded',
+        eventType: 'SanhabResultRecorded',
+        correlationId,
+        policy,
+        payload: {
+          sanhabStatus: params.sanhabStatus,
+          sanhabSubmissionId: params.sanhabSubmissionId,
+          sanhabResponse: params.sanhabResponse,
+          uniqueCode: params.uniqueCode,
+        },
+        outbox: new OutboxPublisher(manager),
+      });
+
+      await manager.getRepository(PolicyChange).save(
+        manager.getRepository(PolicyChange).create({
+          changeId: uuidv4(),
+          tenantId: params.tenantId ?? null,
+          policyId: policy.policyId,
+          type: 'sanhab_result_recorded',
+          actorUserId: params.actorUserId ?? null,
+          correlationId,
+          reason: `Sanhab submission ${params.sanhabStatus}`,
+          before: { sanhabStatus: 'not_submitted' },
+          after: {
+            sanhabStatus: params.sanhabStatus,
+            sanhabSubmissionId: params.sanhabSubmissionId,
+            sanhabResponse: params.sanhabResponse,
+          },
+          payload: {
+            sanhabSubmissionId: params.sanhabSubmissionId,
+            sanhabResponse: params.sanhabResponse,
+            uniqueCode: params.uniqueCode,
+          },
+          createdAt: new Date(),
+        }),
+      );
+
+      return policy;
+    });
+  }
+
+  async lapse(params: {
+    policyId: string;
+    reason?: string;
+    actorUserId?: string | null;
+    tenantId?: string;
+    correlationId?: string;
+  }): Promise<Policy | null> {
+    const correlationId = this.requireCorrelationId(params.correlationId);
+
+    return await this.dataSource.transaction(async (manager) => {
+      const policy = await manager.getRepository(Policy).findOne({
+        where: { policyId: params.policyId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!policy) return null;
+
+      this.assertTenantMatch(policy, params.tenantId, 'lapse');
+
+      if (policy.status === 'lapsed') {
+        const err: any = new Error('Policy is already lapsed');
+        err.code = 'INVALID_STATE';
+        throw err;
+      }
+
+      if (policy.status === 'cancelled' || policy.status === 'renewed') {
+        const err: any = new Error(`Policy cannot be lapsed from ${policy.status} state`);
+        err.code = 'INVALID_STATE';
+        throw err;
+      }
+
+      const previousStatus = policy.status;
+      policy.status = 'lapsed';
+      policy.updatedAt = new Date();
+      await manager.getRepository(Policy).save(policy);
+
+      await this.publishPolicyEvent({
+        topic: 'insurance.policy.lapsed',
+        eventType: 'PolicyLapsed',
+        correlationId,
+        policy,
+        payload: { reason: params.reason || 'Renewal not completed', previousStatus },
+        outbox: new OutboxPublisher(manager),
+      });
+
+      const change = manager.getRepository(PolicyChange).create({
+        tenantId: params.tenantId ?? null,
+        policyId: policy.policyId,
+        type: 'lapse',
+        actorUserId: params.actorUserId ?? null,
+        correlationId,
+        reason: params.reason || 'Renewal not completed',
+        before: { status: previousStatus },
+        after: { status: 'lapsed' },
+        payload: { reason: params.reason || 'Renewal not completed', previousStatus },
+      });
+      await manager.getRepository(PolicyChange).save(change);
+
+      auditLogger.info('policy.lapsed', {
+        policyId: policy.policyId,
+        previousStatus,
+        reason: params.reason,
+        actorUserId: params.actorUserId,
+      });
+
+      return policy;
+    });
   }
 }

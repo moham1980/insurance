@@ -3,6 +3,7 @@ import { DataSource } from 'typeorm';
 import { ClaimEntity } from './entities/ClaimEntity';
 import { DocumentEntity } from './entities/DocumentEntity';
 import { CopilotAudit } from './entities/CopilotAudit';
+import { NbaActionLog } from './entities/NbaActionLog';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -12,6 +13,6 @@ export const AppDataSource = new DataSource({
   password: process.env.DB_PASSWORD || 'postgres',
   database: process.env.DB_DATABASE || process.env.DB_NAME || 'postgres',
   schema: process.env.DB_SCHEMA || 'public',
-  entities: [ClaimEntity, DocumentEntity, CopilotAudit],
+  entities: [ClaimEntity, DocumentEntity, CopilotAudit, NbaActionLog],
   migrations: [__dirname + '/migrations/*.{js,ts}'],
 });

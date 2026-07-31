@@ -18,6 +18,7 @@ import { DocumentAiProcessor } from './document-ai.processor';
 import { DocumentAiService } from './document-ai.service';
 import { DocumentAiEvalWorker } from './document-ai.eval-worker';
 import { OcrService } from './ocr/ocr.service';
+import { OcrRedactionService } from './ocr/ocr-redaction.service';
 import { DocumentPreprocessingService } from './preprocessing/preprocessing.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { PermissionsGuard } from './permissions.guard';
@@ -64,6 +65,6 @@ import { TenantGuard } from './tenant.guard';
     DeepSeekModule,
   ],
   controllers: [HealthController, DocumentAiController],
-  providers: [TenantGuard, AbacGuard, DocumentAiConsumer, DocumentAiProcessor, DocumentAiJobWorker, DocumentAiEvalWorker, DocumentAiService, OcrService, DocumentPreprocessingService, JwtAuthGuard, PermissionsGuard],
+  providers: [TenantGuard, AbacGuard, DocumentAiConsumer, DocumentAiProcessor, DocumentAiJobWorker, DocumentAiEvalWorker, DocumentAiService, OcrService, OcrRedactionService, DocumentPreprocessingService, JwtAuthGuard, PermissionsGuard],
 })
 export class AppModule {}

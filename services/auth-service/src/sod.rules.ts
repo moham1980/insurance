@@ -72,6 +72,14 @@ export const SOD_RULES: SodRule[] = [
     conflictingActions: ['reinsurance:manage_program', 'policy:underwriting_decide'],
     severity: 'warning',
   },
+  {
+    id: 'SOD-008',
+    name: 'Placement Bind vs Settlement Approve',
+    description: 'A user cannot both bind a placement and approve settlements to prevent brokerage fraud',
+    conflictingRoles: ['broker_owner', 'broker_admin', 'broker_finance'],
+    conflictingActions: ['broker:placement:bind', 'broker:settlements:manage'],
+    severity: 'error',
+  },
 ];
 
 /**

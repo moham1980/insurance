@@ -4,10 +4,14 @@ import { ClaimEntity } from './entities/ClaimEntity';
 import { DocumentEntity } from './entities/DocumentEntity';
 import { CopilotAudit } from './entities/CopilotAudit';
 import { ModelInventory, ModelRiskAssessment, AIIncidentReport, ModelCard, ModelValidationReport } from './entities/ModelInventory';
+import { NbaActionLog } from './entities/NbaActionLog';
 import { CopilotController } from './copilot.controller';
 import { CopilotService } from './copilot.service';
 import { LLMService } from './llm.service';
+import { NbaEngineService } from './nba/nba.service';
 import { EcosystemAiProvider } from './ecosystem-ai.provider';
+import { RagService } from './rag/rag.service';
+import { ModelRouter } from './model-router';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { PermissionsGuard } from './permissions.guard';
 import { HealthController } from './health.controller';
@@ -25,12 +29,12 @@ import { OutboxEvent } from '@insurance/shared';
       password: process.env.DB_PASSWORD || 'postgres',
       database: process.env.DB_DATABASE || process.env.DB_NAME || 'postgres',
       schema: process.env.DB_SCHEMA || 'public',
-      entities: [ClaimEntity, DocumentEntity, CopilotAudit, ModelInventory, ModelRiskAssessment, AIIncidentReport, ModelCard, ModelValidationReport, OutboxEvent],
+      entities: [ClaimEntity, DocumentEntity, CopilotAudit, ModelInventory, ModelRiskAssessment, AIIncidentReport, ModelCard, ModelValidationReport, OutboxEvent, NbaActionLog],
       synchronize: process.env.NODE_ENV !== 'production' && process.env.DB_SYNC === 'true',
     }),
-    TypeOrmModule.forFeature([ClaimEntity, DocumentEntity, CopilotAudit, ModelInventory, ModelRiskAssessment, AIIncidentReport, ModelCard, ModelValidationReport, OutboxEvent]),
+    TypeOrmModule.forFeature([ClaimEntity, DocumentEntity, CopilotAudit, ModelInventory, ModelRiskAssessment, AIIncidentReport, ModelCard, ModelValidationReport, OutboxEvent, NbaActionLog]),
   ],
   controllers: [CopilotController, HealthController],
-  providers: [AbacGuard, TenantGuard, CopilotService, LLMService, EcosystemAiProvider, JwtAuthGuard, PermissionsGuard],
+  providers: [AbacGuard, TenantGuard, CopilotService, LLMService, NbaEngineService, EcosystemAiProvider, RagService, ModelRouter, JwtAuthGuard, PermissionsGuard],
 })
 export class AppModule {}

@@ -1,0 +1,444 @@
+openapi: 3.0.3
+info:
+  title: Submission & Placement Service (P2 Quote-to-Bind)
+  version: 1.0.0
+  description: Quote-to-Bind cycle for brokerage submissions, RFQ, quote comparison, placement and bind.
+servers:
+  - url: http://localhost:3025/api/v1
+paths:
+  /submissions:
+    post:
+      summary: Create a new submission
+      operationId: createSubmission
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmissionCreate'
+      responses:
+        '200':
+          description: Submission created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Submission'
+    get:
+      summary: List submissions
+      operationId: listSubmissions
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of submissions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Submission'
+  /submissions/{submissionId}:
+    get:
+      summary: Get submission by id
+      operationId: getSubmission
+      parameters:
+        - in: path
+          name: submissionId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Submission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Submission'
+    patch:
+      summary: Update submission
+      operationId: patchSubmission
+      parameters:
+        - in: path
+          name: submissionId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmissionCreate'
+      responses:
+        '200':
+          description: Updated submission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Submission'
+  /submissions/{submissionId}/submit:
+    post:
+      summary: Submit submission
+      operationId: submitSubmission
+      parameters:
+        - in: path
+          name: submissionId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Submission submitted
+  /submissions/{submissionId}/expire:
+    post:
+      summary: Expire submission quotes
+      operationId: expireSubmission
+      parameters:
+        - in: path
+          name: submissionId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Submission expired
+  /submissions/{submissionId}/quotes/request:
+    post:
+      summary: Request quotes (RFQ)
+      operationId: requestQuote
+      parameters:
+        - in: path
+          name: submissionId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuoteRequestCreate'
+      responses:
+        '200':
+          description: Quote request created
+  /submissions/{submissionId}/quotes:
+    get:
+      summary: List quote requests for a submission
+      operationId: listQuoteRequests
+      parameters:
+        - in: path
+          name: submissionId
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of quote requests
+  /quote-requests/{quoteRequestId}:
+    get:
+      summary: Get quote request
+      operationId: getQuoteRequest
+      parameters:
+        - in: path
+          name: quoteRequestId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Quote request
+  /quote-requests/{quoteRequestId}/compare:
+    post:
+      summary: Compare quotes
+      operationId: compareQuotes
+      parameters:
+        - in: path
+          name: quoteRequestId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComparePreferences'
+      responses:
+        '200':
+          description: Comparison result
+  /quote-responses/{quoteResponseId}/select:
+    post:
+      summary: Select a quote
+      operationId: selectQuote
+      parameters:
+        - in: path
+          name: quoteResponseId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Quote selected
+  /quote-responses/{quoteResponseId}/placement:
+    post:
+      summary: Create placement from selected quote
+      operationId: createPlacement
+      parameters:
+        - in: path
+          name: quoteResponseId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Placement created
+  /placements:
+    get:
+      summary: List placements
+      operationId: listPlacements
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+        - in: query
+          name: submissionId
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of placements
+  /placements/{placementId}:
+    get:
+      summary: Get placement by id
+      operationId: getPlacement
+      parameters:
+        - in: path
+          name: placementId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Placement
+  /placements/{placementId}/bind:
+    post:
+      summary: Bind placement
+      operationId: bindPlacement
+      parameters:
+        - in: path
+          name: placementId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Bind result
+  /placements/{placementId}/retry:
+    post:
+      summary: Retry a failed placement bind
+      operationId: retryPlacement
+      parameters:
+        - in: path
+          name: placementId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Retry result
+  /placements/{placementId}/cancel:
+    post:
+      summary: Cancel a placement
+      operationId: cancelPlacement
+      parameters:
+        - in: path
+          name: placementId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Placement cancelled
+  /carrier-connectors:
+    post:
+      summary: Create connector config
+      operationId: createConnectorConfig
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectorConfig'
+      responses:
+        '200':
+          description: Connector config created
+    get:
+      summary: List connector configs
+      operationId: listConnectorConfigs
+      responses:
+        '200':
+          description: Connector configs
+  /carrier-connectors/{connectorId}:
+    get:
+      summary: Get connector config by id
+      operationId: getConnectorConfig
+      parameters:
+        - in: path
+          name: connectorId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Connector config
+    put:
+      summary: Update connector config
+      operationId: updateConnectorConfig
+      parameters:
+        - in: path
+          name: connectorId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectorConfig'
+      responses:
+        '200':
+          description: Updated connector config
+  /carrier-connectors/{carrierOrganizationId}/health:
+    get:
+      summary: Check carrier connector health
+      operationId: healthConnector
+      parameters:
+        - in: path
+          name: carrierOrganizationId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Health status
+  /carrier-connectors/{carrierOrganizationId}/test:
+    post:
+      summary: Test carrier connector connectivity
+      operationId: testConnector
+      parameters:
+        - in: path
+          name: carrierOrganizationId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Test result
+components:
+  schemas:
+    SubmissionCreate:
+      type: object
+      required:
+        - tenantId
+        - partyId
+        - brokerOrganizationId
+        - productId
+        - lineOfBusiness
+        - effectiveFrom
+        - effectiveTo
+      properties:
+        tenantId:
+          type: string
+        partyId:
+          type: string
+        brokerOrganizationId:
+          type: string
+        productId:
+          type: string
+        productVersion:
+          type: integer
+        lineOfBusiness:
+          type: string
+        exposure:
+          type: object
+        requestedDeductibles:
+          type: array
+          items:
+            type: object
+        documents:
+          type: array
+          items:
+            type: object
+        effectiveFrom:
+          type: string
+          format: date-time
+        effectiveTo:
+          type: string
+          format: date-time
+        territory:
+          type: string
+        distributionAgreementId:
+          type: string
+    Submission:
+      type: object
+      properties:
+        submissionId:
+          type: string
+        tenantId:
+          type: string
+        status:
+          type: string
+          enum: [draft, submitted, quoted, selected, placed, rejected, quote_expired]
+    QuoteRequestCreate:
+      type: object
+      properties:
+        carriers:
+          type: array
+          items:
+            type: string
+        expiresAt:
+          type: string
+          format: date-time
+        timeoutMs:
+          type: integer
+    ComparePreferences:
+      type: object
+      properties:
+        sortBy:
+          type: string
+          enum: [best_value, lowest_premium, highest_coverage, fastest_bind, custom]
+        weights:
+          type: object
+    ConnectorConfig:
+      type: object
+      required:
+        - tenantId
+        - carrierOrganizationId
+        - connectorType
+      properties:
+        tenantId:
+          type: string
+        carrierOrganizationId:
+          type: string
+        name:
+          type: string
+        connectorType:
+          type: string
+          enum: [internal, rest, soap, kafka, manual]
+        config:
+          type: object
+        timeoutMs:
+          type: integer
+        retryPolicy:
+          type: object
+        circuitBreakerConfig:
+          type: object

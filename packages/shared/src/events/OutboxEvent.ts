@@ -25,6 +25,12 @@ export class OutboxEvent {
   @Column({ name: 'tenant_id', type: 'text' })
   tenantId: string;
 
+  @Column({ name: 'organization_id', type: 'text', nullable: true })
+  organizationId: string | null;
+
+  @Column({ name: 'data_classification', type: 'text', nullable: true })
+  dataClassification: string | null;
+
   @Column({ name: 'subject_json', type: 'jsonb' })
   subjectJson: object;
 

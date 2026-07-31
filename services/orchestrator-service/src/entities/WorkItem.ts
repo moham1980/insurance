@@ -49,7 +49,8 @@ export class WorkItem {
     | 'payment_notify'
     | 'complaint_triage'
     | 'complaint_sla_breach'
-    | 'fraud_case_escalation';
+    | 'fraud_case_escalation'
+    | 'sla_escalation';
 
   @Column({ name: 'status', type: 'enum', enum: WorkItemStatus, enumName: 'work_item_status', default: WorkItemStatus.pending })
   status: WorkItemStatus;

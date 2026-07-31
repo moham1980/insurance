@@ -26,6 +26,15 @@ export class RmPolicy {
   @Column({ name: 'line_of_business', type: 'text', nullable: true })
   lineOfBusiness!: string | null;
 
+  @Column({ name: 'unique_code', type: 'text', nullable: true })
+  uniqueCode!: string | null;
+
+  @Column({ name: 'broker_organization_id', type: 'uuid', nullable: true })
+  brokerOrganizationId!: string | null;
+
+  @Column({ name: 'issuer_organization_id', type: 'uuid', nullable: true })
+  issuerOrganizationId!: string | null;
+
   @Column({ name: 'status', type: 'text' })
   status!: string;
 

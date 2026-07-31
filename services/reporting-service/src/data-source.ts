@@ -19,6 +19,11 @@ import { RmSalesNetwork } from './entities/RmSalesNetwork';
 import { RmAml } from './entities/RmAml';
 import { RmUnderwriting } from './entities/RmUnderwriting';
 import { ExternalSystemConnection } from './entities/ExternalSystemConnection';
+import { BrokerTransactionReport } from './entities/BrokerTransactionReport';
+import { TCoRReport } from './entities/TCoRReport';
+import { DataQualityIssue } from './entities/DataQualityIssue';
+import { AuditReport } from './entities/AuditReport';
+import { OutboxEvent } from '@insurance/shared';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -47,7 +52,12 @@ export const AppDataSource = new DataSource({
     RmAml,
     RmUnderwriting,
     ExternalSystemConnection,
+    BrokerTransactionReport,
+    TCoRReport,
+    DataQualityIssue,
+    AuditReport,
     ConsumedEvent,
+    OutboxEvent,
   ],
   migrations: [__dirname + '/migrations/*.{js,ts}'],
 });

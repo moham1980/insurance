@@ -9,12 +9,15 @@ import Redis from 'ioredis';
 import { createLogger } from '@insurance/shared';
 import {
   CORS_ORIGINS,
+  getGatewaySignatureSecret,
   isPublicRoute,
   normalizeUrl,
   REDIS_URL,
   REQUIRE_EXPLICIT_TENANT,
   resolveTarget,
+  resolveTenantFromHost,
   SERVICE_ROUTES,
+  signInternalContext,
   validateRequiredRoutes,
 } from './gateway.config';
 import { jwtVerifier, VerifiedToken } from './jwt-verifier';
@@ -517,6 +520,18 @@ async function bootstrap() {
 
     const inboundTenantId = getHeader(req.headers, 'x-tenant-id');
     let tenantId: string | undefined;
+    const brandResolution = resolveTenantFromHost(req.headers?.host);
+    let brandTenant = brandResolution?.tenant;
+
+    // P0-5: reject requests to unknown host unless public route explicitly allows it.
+    const host = req.headers?.host;
+    if (host && !brandResolution && !publicRoute.public) {
+      reply.code(403).send({
+        success: false,
+        error: { code: 'UNKNOWN_HOST', message: 'Tenant cannot be resolved for this Host' },
+      });
+      return;
+    }
 
     // Verify JWT first; the tenant must come from the verified token, not the client header.
     const authHeader = getHeader(req.headers, 'authorization');
@@ -565,10 +580,13 @@ async function bootstrap() {
       return;
     }
 
-    // For public or anonymous requests, derive tenant from the header or default.
+    // For public or anonymous requests, derive tenant from the header, brand host, or default.
     if (!tenantId) {
       if (publicRoute.allowsTenantSelection) {
-        tenantId = inboundTenantId;
+        tenantId = inboundTenantId || brandTenant?.tenantId;
+      }
+      if (!tenantId && brandTenant?.tenantId) {
+        tenantId = brandTenant.tenantId;
       }
       if (!tenantId && !REQUIRE_EXPLICIT_TENANT) {
         tenantId = process.env.DEFAULT_TENANT_ID;
@@ -585,8 +603,23 @@ async function bootstrap() {
       }
     }
 
+    if (brandTenant) {
+      req.brandKey = brandTenant.brandKey;
+      reply.header('X-Brand-Key', brandTenant.brandKey);
+    }
+
     req.tenantId = tenantId;
     reply.header('X-Tenant-Id', tenantId);
+
+    // P0-5: sign internal tenant context so downstream services can trust it.
+    const tenantContextPayload: Record<string, string> = {
+      tenantId,
+      brandKey: brandTenant?.brandKey || '',
+      host: host || '',
+    };
+    const tenantContextSignature = signInternalContext(tenantContextPayload);
+    req.tenantContextSignature = tenantContextSignature;
+    reply.header('X-Tenant-Context-Signature', tenantContextSignature);
 
     // Derive identity for rate limiting. Use verified user/tenant/IP, not spoofable header alone.
     const clientIp = req.ip || req.socket?.remoteAddress || 'unknown';
@@ -767,6 +800,7 @@ async function bootstrap() {
 
         if (req.correlationId) headers['x-correlation-id'] = String(req.correlationId);
         if (req.tenantId) headers['x-tenant-id'] = String(req.tenantId);
+        if (req.tenantContextSignature) headers['x-tenant-context-signature'] = String(req.tenantContextSignature);
         if (typeof req.aiEnabled === 'string' && req.aiEnabled.length > 0) headers['x-ai-enabled'] = req.aiEnabled;
         if (req.userId) headers['x-user-id'] = String(req.userId);
         if (typeof req.traceparent === 'string' && req.traceparent.length > 0) headers['traceparent'] = req.traceparent;

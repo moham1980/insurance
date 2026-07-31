@@ -1,0 +1,422 @@
+asyncapi: '2.6.0'
+info:
+  title: Regulatory & Reporting Domain Events
+  version: 1.0.0
+  description: P6 events for Sanhab integration, unique code management, broker/TCoR reports, BI dashboards, data quality, audit, settlement, and retention.
+servers:
+  dev:
+    url: kafka://localhost:19092
+    protocol: kafka
+    description: Dev Kafka broker
+  prod:
+    url: kafka://kafka-1:29092,kafka-2:29092,kafka-3:29092
+    protocol: kafka
+    description: Prod Kafka cluster
+channels:
+  insurance.policy.unique_code_assigned:
+    publish:
+      message:
+        $ref: '#/components/messages/UniqueCodeAssigned'
+  insurance.policy.sanhab_result_recorded:
+    publish:
+      message:
+        $ref: '#/components/messages/SanhabResultRecorded'
+  insurance.regulatory.sanhab.submission_sent:
+    publish:
+      message:
+        $ref: '#/components/messages/SanhabSubmissionSent'
+  insurance.regulatory.sanhab.confirmation_received:
+    publish:
+      message:
+        $ref: '#/components/messages/SanhabConfirmationReceived'
+  insurance.regulatory.sanhab.submission_failed:
+    publish:
+      message:
+        $ref: '#/components/messages/SanhabSubmissionFailed'
+  insurance.reporting.broker_transaction_report_generated:
+    publish:
+      message:
+        $ref: '#/components/messages/BrokerTransactionReportGenerated'
+  insurance.reporting.tcor_report_generated:
+    publish:
+      message:
+        $ref: '#/components/messages/TCoRReportGenerated'
+  insurance.reporting.data_quality_issue_found:
+    publish:
+      message:
+        $ref: '#/components/messages/DataQualityIssueFound'
+  insurance.reporting.audit_report_generated:
+    publish:
+      message:
+        $ref: '#/components/messages/AuditReportGenerated'
+  insurance.reporting.settlement_summary_generated:
+    publish:
+      message:
+        $ref: '#/components/messages/SettlementSummaryGenerated'
+  insurance.reporting.broker_report_approved:
+    publish:
+      message:
+        $ref: '#/components/messages/BrokerReportApproved'
+  insurance.reporting.broker_report_submitted:
+    publish:
+      message:
+        $ref: '#/components/messages/BrokerReportSubmitted'
+  insurance.reporting.tcor_report_submitted:
+    publish:
+      message:
+        $ref: '#/components/messages/TCoRReportSubmitted'
+  insurance.reporting.data_quality_issue_resolved:
+    publish:
+      message:
+        $ref: '#/components/messages/DataQualityIssueResolved'
+  insurance.reporting.settlement_reconciled:
+    publish:
+      message:
+        $ref: '#/components/messages/SettlementReconciled'
+  insurance.reporting.bi_aggregate_refreshed:
+    publish:
+      message:
+        $ref: '#/components/messages/BIAggregateRefreshed'
+  insurance.reporting.reconciliation_discrepancy_detected:
+    publish:
+      message:
+        $ref: '#/components/messages/ReconciliationDiscrepancyDetected'
+components:
+  messages:
+    UniqueCodeAssigned:
+      name: UniqueCodeAssigned.v1
+      payload:
+        $ref: '#/components/schemas/UniqueCodeAssignedEvent'
+    SanhabResultRecorded:
+      name: SanhabResultRecorded.v1
+      payload:
+        $ref: '#/components/schemas/SanhabResultRecordedEvent'
+    SanhabSubmissionSent:
+      name: SanhabSubmissionSent.v1
+      payload:
+        $ref: '#/components/schemas/SanhabSubmissionSentEvent'
+    SanhabConfirmationReceived:
+      name: SanhabConfirmationReceived.v1
+      payload:
+        $ref: '#/components/schemas/SanhabConfirmationReceivedEvent'
+    SanhabSubmissionFailed:
+      name: SanhabSubmissionFailed.v1
+      payload:
+        $ref: '#/components/schemas/SanhabSubmissionFailedEvent'
+    BrokerTransactionReportGenerated:
+      name: BrokerTransactionReportGenerated.v1
+      payload:
+        $ref: '#/components/schemas/BrokerTransactionReportGeneratedEvent'
+    TCoRReportGenerated:
+      name: TCoRReportGenerated.v1
+      payload:
+        $ref: '#/components/schemas/TCoRReportGeneratedEvent'
+    DataQualityIssueFound:
+      name: DataQualityIssueFound.v1
+      payload:
+        $ref: '#/components/schemas/DataQualityIssueFoundEvent'
+    AuditReportGenerated:
+      name: AuditReportGenerated.v1
+      payload:
+        $ref: '#/components/schemas/AuditReportGeneratedEvent'
+    SettlementSummaryGenerated:
+      name: SettlementSummaryGenerated.v1
+      payload:
+        $ref: '#/components/schemas/SettlementSummaryGeneratedEvent'
+    BrokerReportApproved:
+      name: BrokerReportApproved.v1
+      payload:
+        $ref: '#/components/schemas/BrokerReportApprovedEvent'
+    BrokerReportSubmitted:
+      name: BrokerReportSubmitted.v1
+      payload:
+        $ref: '#/components/schemas/BrokerReportSubmittedEvent'
+    TCoRReportSubmitted:
+      name: TCoRReportSubmitted.v1
+      payload:
+        $ref: '#/components/schemas/TCoRReportSubmittedEvent'
+    DataQualityIssueResolved:
+      name: DataQualityIssueResolved.v1
+      payload:
+        $ref: '#/components/schemas/DataQualityIssueResolvedEvent'
+    SettlementReconciled:
+      name: SettlementReconciled.v1
+      payload:
+        $ref: '#/components/schemas/SettlementReconciledEvent'
+    BIAggregateRefreshed:
+      name: BIAggregateRefreshed.v1
+      payload:
+        $ref: '#/components/schemas/BIAggregateRefreshedEvent'
+    ReconciliationDiscrepancyDetected:
+      name: ReconciliationDiscrepancyDetected.v1
+      payload:
+        $ref: '#/components/schemas/ReconciliationDiscrepancyDetectedEvent'
+  schemas:
+    UniqueCodeAssignedEvent:
+      type: object
+      required: [policyId, policyNumber, uniqueCode, status]
+      properties:
+        policyId:
+          type: string
+          format: uuid
+        policyNumber:
+          type: string
+        uniqueCode:
+          type: string
+        sanhabSubmissionId:
+          type: string
+        status:
+          type: string
+        tenantId:
+          type: string
+    SanhabResultRecordedEvent:
+      type: object
+      required: [policyId, sanhabStatus]
+      properties:
+        policyId:
+          type: string
+          format: uuid
+        sanhabStatus:
+          type: string
+          enum: [pending, confirmed, rejected]
+        sanhabSubmissionId:
+          type: string
+        uniqueCode:
+          type: string
+        sanhabResponse:
+          type: object
+        tenantId:
+          type: string
+    SanhabSubmissionSentEvent:
+      type: object
+      required: [policyId, submissionId, policyNumber]
+      properties:
+        policyId:
+          type: string
+          format: uuid
+        submissionId:
+          type: string
+          format: uuid
+        policyNumber:
+          type: string
+        tenantId:
+          type: string
+    SanhabConfirmationReceivedEvent:
+      type: object
+      required: [policyId, submissionId, uniqueCode]
+      properties:
+        policyId:
+          type: string
+          format: uuid
+        submissionId:
+          type: string
+          format: uuid
+        uniqueCode:
+          type: string
+        policyNumber:
+          type: string
+        tenantId:
+          type: string
+    SanhabSubmissionFailedEvent:
+      type: object
+      required: [policyId, submissionId, resultCode]
+      properties:
+        policyId:
+          type: string
+          format: uuid
+        submissionId:
+          type: string
+          format: uuid
+        resultCode:
+          type: string
+        errorMessage:
+          type: string
+        tenantId:
+          type: string
+    BrokerTransactionReportGeneratedEvent:
+      type: object
+      required: [reportId, brokerOrganizationId, periodId, status]
+      properties:
+        reportId:
+          type: string
+          format: uuid
+        brokerOrganizationId:
+          type: string
+          format: uuid
+        periodId:
+          type: string
+        status:
+          type: string
+        premiumAmount:
+          type: number
+        claimPaidAmount:
+          type: number
+        commissionAmount:
+          type: number
+        technicalResult:
+          type: number
+        tenantId:
+          type: string
+    TCoRReportGeneratedEvent:
+      type: object
+      required: [reportId, periodId, totalCostOfRisk]
+      properties:
+        reportId:
+          type: string
+          format: uuid
+        periodId:
+          type: string
+        totalPremium:
+          type: number
+        totalClaimPaid:
+          type: number
+        totalCostOfRisk:
+          type: number
+        combinedRatio:
+          type: number
+        tenantId:
+          type: string
+    DataQualityIssueFoundEvent:
+      type: object
+      required: [issueId, ruleId, entityType, entityId, severity]
+      properties:
+        issueId:
+          type: string
+          format: uuid
+        ruleId:
+          type: string
+        entityType:
+          type: string
+        entityId:
+          type: string
+        severity:
+          type: string
+          enum: [low, medium, high, critical]
+        issueMessage:
+          type: string
+        tenantId:
+          type: string
+    AuditReportGeneratedEvent:
+      type: object
+      required: [reportId, reportType, status]
+      properties:
+        reportId:
+          type: string
+          format: uuid
+        reportType:
+          type: string
+        status:
+          type: string
+        tenantId:
+          type: string
+    SettlementSummaryGeneratedEvent:
+      type: object
+      required: [brokerOrganizationId, periodId, netSettlement]
+      properties:
+        brokerOrganizationId:
+          type: string
+          format: uuid
+        periodId:
+          type: string
+        policyCount:
+          type: integer
+        premiumAmount:
+          type: number
+        commissionAmount:
+          type: number
+        claimPaidAmount:
+          type: number
+        netSettlement:
+          type: number
+        tenantId:
+          type: string
+    BrokerReportApprovedEvent:
+      type: object
+      required: [reportId, approvedBy]
+      properties:
+        reportId:
+          type: string
+          format: uuid
+        approvedBy:
+          type: string
+        tenantId:
+          type: string
+    BrokerReportSubmittedEvent:
+      type: object
+      required: [reportId, status]
+      properties:
+        reportId:
+          type: string
+          format: uuid
+        status:
+          type: string
+        submittedAt:
+          type: string
+          format: date-time
+        tenantId:
+          type: string
+    TCoRReportSubmittedEvent:
+      type: object
+      required: [reportId, status]
+      properties:
+        reportId:
+          type: string
+          format: uuid
+        status:
+          type: string
+        submittedAt:
+          type: string
+          format: date-time
+        tenantId:
+          type: string
+    DataQualityIssueResolvedEvent:
+      type: object
+      required: [issueId, resolvedBy]
+      properties:
+        issueId:
+          type: string
+          format: uuid
+        resolvedBy:
+          type: string
+        resolvedAt:
+          type: string
+          format: date-time
+        tenantId:
+          type: string
+    SettlementReconciledEvent:
+      type: object
+      required: [brokerOrganizationId, discrepancy]
+      properties:
+        brokerOrganizationId:
+          type: string
+        discrepancy:
+          type: number
+        reconciledAt:
+          type: string
+          format: date-time
+        tenantId:
+          type: string
+    BIAggregateRefreshedEvent:
+      type: object
+      required: [refreshedAt]
+      properties:
+        refreshedAt:
+          type: string
+          format: date-time
+        tenantId:
+          type: string
+    ReconciliationDiscrepancyDetectedEvent:
+      type: object
+      required: [reconciliationType, discrepancy]
+      properties:
+        reconciliationType:
+          type: string
+        discrepancy:
+          type: number
+        details:
+          type: object
+        timestamp:
+          type: string
+          format: date-time
+        tenantId:
+          type: string

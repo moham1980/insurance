@@ -1,4 +1,4 @@
-import { IsString, IsArray, IsOptional, ArrayNotEmpty } from 'class-validator';
+import { IsString, IsArray, IsOptional, ArrayNotEmpty, IsObject } from 'class-validator';
 
 export class ServiceTokenDto {
   @IsString()
@@ -12,4 +12,20 @@ export class ServiceTokenDto {
   @IsOptional()
   @IsString()
   tenantId?: string;
+
+  @IsOptional()
+  @IsString()
+  agreementId?: string;
+
+  @IsOptional()
+  @IsString()
+  organizationId?: string;
+
+  @IsOptional()
+  @IsObject()
+  fieldAcl?: {
+    visibleFields?: string[];
+    editableFields?: string[];
+    hiddenFields?: string[];
+  };
 }

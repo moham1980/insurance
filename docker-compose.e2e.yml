@@ -359,6 +359,118 @@ services:
       DB_SCHEMA: public
       JWT_SECRET: your-super-secret-jwt-key-change-in-production
 
+  billing-service:
+    image: insurance-billing-service:latest
+    ports:
+      - "18039:18039"
+    environment:
+      NODE_ENV: production
+      PORT: 18039
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: billing
+      DB_SYNC: "false"
+      KAFKA_BROKERS: insurance-kafka:9092
+      POLICY_SERVICE_URL: http://policy-service:18007
+      PAYMENT_SERVICE_URL: http://payments-service:18004
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+    depends_on:
+      insurance-postgres:
+        condition: service_healthy
+
+  notification-service:
+    image: insurance-notification-service:latest
+    ports:
+      - "18037:18037"
+    environment:
+      NODE_ENV: production
+      PORT: 18037
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: notification
+      DB_SYNC: "false"
+      SMS_PROVIDER: ${SMS_PROVIDER:-kavenegar}
+      KAVENEGAR_API_KEY: ${KAVENEGAR_API_KEY:-test-key}
+      KAVENEGAR_SENDER: ${KAVENEGAR_SENDER:-10008666}
+      KAVENEGAR_OTP_TEMPLATE: ${KAVENEGAR_OTP_TEMPLATE:-verify}
+    depends_on:
+      insurance-postgres:
+        condition: service_healthy
+
+  agent-portal-service:
+    image: insurance-agent-portal-service:latest
+    ports:
+      - "18031:18031"
+    environment:
+      NODE_ENV: production
+      PORT: 18031
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: agent_portal
+      DB_SYNC: "false"
+      AUTH_SERVICE_URL: http://auth-service:18001
+      POLICY_SERVICE_URL: http://policy-service:18007
+      CLAIMS_SERVICE_URL: http://claims-service:18002
+      CLAIMS_READMODEL_URL: http://claims-readmodel-service:18012
+      SALES_NETWORK_SERVICE_URL: http://sales-network-service:18022
+      PRODUCT_SERVICE_URL: http://product-service:18018
+      COMPLAINTS_SERVICE_URL: http://complaints-service:18013
+      COLLECTIONS_SERVICE_URL: http://collections-service:18025
+      REPORTING_SERVICE_URL: http://reporting-service:18014
+      CUSTOMER_360_SERVICE_URL: http://customer-360-service:18026
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+    depends_on:
+      insurance-postgres:
+        condition: service_healthy
+
+  collections-service:
+    image: insurance-collections-service:latest
+    ports:
+      - "18025:18025"
+    environment:
+      NODE_ENV: production
+      PORT: 18025
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: collections
+      DB_SYNC: "false"
+      KAFKA_BROKERS: insurance-kafka:9092
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+    depends_on:
+      insurance-postgres:
+        condition: service_healthy
+
+  customer-360-service:
+    image: insurance-customer-360-service:latest
+    ports:
+      - "18026:18026"
+    environment:
+      NODE_ENV: production
+      PORT: 18026
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: customer_360
+      DB_SYNC: "false"
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+    depends_on:
+      insurance-postgres:
+        condition: service_healthy
+
   document-ai-service:
     image: insurance-document-ai-service:latest
     ports:

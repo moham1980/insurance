@@ -15,9 +15,11 @@ export interface EventEnvelope<T = unknown> {
   producer: string;
   correlationId: string;
   tenantId?: string;
+  organizationId?: string;
   idempotencyKey?: string;
   causationId?: string;
   traceparent?: string;
+  dataClassification?: 'PUBLIC' | 'INTERNAL' | 'CONFIDENTIAL' | 'PII';
   subject: EventSubject;
   payload: T;
 }
@@ -36,9 +38,11 @@ export type CreateEventEnvelopeParams<TPayload> = {
   subject: EventSubject;
   payload: TPayload;
   tenantId?: string;
+  organizationId?: string;
   idempotencyKey?: string;
   causationId?: string;
   traceparent?: string;
+  dataClassification?: 'PUBLIC' | 'INTERNAL' | 'CONFIDENTIAL' | 'PII';
   occurredAt?: Date | string;
 };
 
@@ -58,9 +62,11 @@ export function createEventEnvelope<TPayload>(params: CreateEventEnvelopeParams<
     producer: params.producer,
     correlationId: params.correlationId,
     tenantId: params.tenantId,
+    organizationId: params.organizationId,
     idempotencyKey: params.idempotencyKey,
     causationId: params.causationId,
     traceparent: params.traceparent,
+    dataClassification: params.dataClassification,
     subject: params.subject,
     payload: params.payload,
   };

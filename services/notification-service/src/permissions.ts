@@ -6,7 +6,9 @@ export type PermissionKey =
   | 'notification:view'
   | 'notification:list'
   | 'notification:templates:manage'
-  | 'notification:export';
+  | 'notification:export'
+  | 'notification:credentials:manage'
+  | 'notification:credentials:view';
 
 const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
   insurer_admin: [
@@ -18,8 +20,10 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     'notification:list',
     'notification:templates:manage',
     'notification:export',
+    'notification:credentials:manage',
+    'notification:credentials:view',
   ],
-  head_office_ops: ['notification:view', 'notification:list', 'notification:export'],
+  head_office_ops: ['notification:view', 'notification:list', 'notification:export', 'notification:credentials:view'],
   notification_ops: [
     'notification:send',
     'notification:retry',
@@ -29,6 +33,8 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     'notification:list',
     'notification:templates:manage',
     'notification:export',
+    'notification:credentials:manage',
+    'notification:credentials:view',
   ],
   customer_service: [
     'notification:send',

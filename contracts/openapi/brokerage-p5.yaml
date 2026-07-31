@@ -1,0 +1,795 @@
+openapi: 3.0.0
+info:
+  title: Claims Advocacy API
+  version: 1.0.0
+  description: P5 claims, advocacy cases, adjuster referrals, claim projections, recovery and document management endpoints for the claims-service.
+servers:
+  - url: http://localhost:18002
+    description: Local claims-service
+paths:
+  /claims:
+    post:
+      summary: Register a claim
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateClaimRequest'
+      responses:
+        '200':
+          description: Claim registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+    get:
+      summary: List claims
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer }
+        - in: query
+          name: offset
+          schema: { type: integer }
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: policyId
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: List of claims
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /claims/{claimId}:
+    get:
+      summary: Get claim by ID
+      parameters:
+        - in: path
+          name: claimId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Claim details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+    patch:
+      summary: Update claim metadata
+      description: Updates allowed fields (description, lossType, lossDate, notificationChannel, contact info, location, metadata). Financial fields are not editable via this endpoint.
+      parameters:
+        - in: path
+          name: claimId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                description:
+                  type: string
+                lossType:
+                  type: string
+                lossDate:
+                  type: string
+                  format: date-time
+                notificationChannel:
+                  type: string
+                  enum: [web, mobile_app, sms, email, call_center]
+                representativePartyId:
+                  type: string
+                  format: uuid
+                contactPhone:
+                  type: string
+                contactEmail:
+                  type: string
+                locationAddress:
+                  type: string
+                locationCity:
+                  type: string
+                locationProvince:
+                  type: string
+                metadata:
+                  type: object
+      responses:
+        '200':
+          description: Claim updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /claims/{claimId}/acknowledge:
+    post:
+      summary: Acknowledge a claim
+      parameters:
+        - in: path
+          name: claimId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Acknowledged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /claims/{claimId}/submit-to-carrier:
+    post:
+      summary: Submit claim to carrier
+      parameters:
+        - in: path
+          name: claimId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                externalClaimId: { type: string }
+      responses:
+        '200':
+          description: Submitted to carrier
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /claims/{claimId}/appeal:
+    post:
+      summary: Appeal a rejected or closed claim
+      parameters:
+        - in: path
+          name: claimId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string }
+              required: [reason]
+      responses:
+        '200':
+          description: Appeal submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /claims/{claimId}/history:
+    get:
+      summary: Get claim state history
+      parameters:
+        - in: path
+          name: claimId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Claim history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /claims/{claimId}/assess:
+    post:
+      summary: Assess a claim
+      parameters:
+        - in: path
+          name: claimId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                assessedAmount: { type: number }
+                reserveAmount: { type: number }
+      responses:
+        '200':
+          description: Assessed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /claims/{claimId}/approve:
+    post:
+      summary: Approve a claim
+      parameters:
+        - in: path
+          name: claimId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                approvedAmount: { type: number }
+                settlementAmount: { type: number }
+      responses:
+        '200':
+          description: Approved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /claims/{claimId}/adjuster-referrals:
+    get:
+      summary: List adjuster referrals for a claim
+      parameters:
+        - in: path
+          name: claimId
+          required: true
+          schema: { type: string, format: uuid }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20 }
+        - in: query
+          name: offset
+          schema: { type: integer, default: 0 }
+      responses:
+        '200':
+          description: List of adjuster referrals
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+    post:
+      summary: Create adjuster referral
+      parameters:
+        - in: path
+          name: claimId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAdjusterReferralRequest'
+      responses:
+        '200':
+          description: Referral created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /adjuster-referrals/{referralId}/accept:
+    post:
+      summary: Accept adjuster referral
+      parameters:
+        - in: path
+          name: referralId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Referral accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /adjuster-referrals/{referralId}/reject:
+    post:
+      summary: Reject adjuster referral
+      parameters:
+        - in: path
+          name: referralId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string }
+      responses:
+        '200':
+          description: Referral rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /adjuster-referrals/{referralId}/submit-report:
+    post:
+      summary: Submit adjuster report
+      parameters:
+        - in: path
+          name: referralId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitAdjusterReportRequest'
+      responses:
+        '200':
+          description: Report submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /claims/{claimId}/advocacy-cases:
+    post:
+      summary: Open an advocacy case
+      parameters:
+        - in: path
+          name: claimId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpenAdvocacyCaseRequest'
+      responses:
+        '200':
+          description: Advocacy case opened
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /advocacy-cases:
+    get:
+      summary: List advocacy cases
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: customerPartyId
+          schema: { type: string, format: uuid }
+        - in: query
+          name: scope
+          schema: { type: string, enum: [mine, all] }
+        - in: query
+          name: limit
+          schema: { type: integer }
+        - in: query
+          name: offset
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Advocacy cases list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /advocacy-cases/{caseId}:
+    get:
+      summary: Get advocacy case
+      parameters:
+        - in: path
+          name: caseId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Advocacy case details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /advocacy-cases/{caseId}/tasks:
+    post:
+      summary: Create advocacy task
+      parameters:
+        - in: path
+          name: caseId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAdvocacyTaskRequest'
+      responses:
+        '200':
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /advocacy-cases/{caseId}/tasks/{taskId}:
+    patch:
+      summary: Update advocacy task
+      parameters:
+        - in: path
+          name: caseId
+          required: true
+          schema: { type: string, format: uuid }
+        - in: path
+          name: taskId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status: { type: string }
+                outcome: { type: string }
+      responses:
+        '200':
+          description: Task updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /advocacy-cases/{caseId}/communications:
+    post:
+      summary: Add advocacy communication
+      parameters:
+        - in: path
+          name: caseId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddAdvocacyCommunicationRequest'
+      responses:
+        '200':
+          description: Communication added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /advocacy-cases/{caseId}/escalate:
+    post:
+      summary: Escalate advocacy case
+      parameters:
+        - in: path
+          name: caseId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string }
+              required: [reason]
+      responses:
+        '200':
+          description: Case escalated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /advocacy-cases/{caseId}/close:
+    post:
+      summary: Close advocacy case
+      parameters:
+        - in: path
+          name: caseId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Case closed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /claims/{claimId}/projections:
+    get:
+      summary: List claim projections
+      parameters:
+        - in: path
+          name: claimId
+          required: true
+          schema: { type: string, format: uuid }
+        - in: query
+          name: limit
+          schema: { type: integer }
+        - in: query
+          name: offset
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Projections list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+    post:
+      summary: Add claim projection
+      parameters:
+        - in: path
+          name: claimId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddClaimProjectionRequest'
+      responses:
+        '200':
+          description: Projection added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /claims/{claimId}/recovery:
+    post:
+      summary: Create recovery case
+      parameters:
+        - in: path
+          name: claimId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRecoveryCaseRequest'
+      responses:
+        '200':
+          description: Recovery case created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /claims/{claimId}/pay:
+    post:
+      summary: Pay a claim
+      description: Processes claim payment after approval. paidAmount must equal approvedAmount. Uses X-Idempotency-Key for deduplication.
+      parameters:
+        - in: path
+          name: claimId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [paidAmount]
+              properties:
+                paidAmount:
+                  type: number
+                paymentReference:
+                  type: string
+      responses:
+        '200':
+          description: Claim paid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /claims/{claimId}/close:
+    post:
+      summary: Close a claim
+      parameters:
+        - in: path
+          name: claimId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                closureReason:
+                  type: string
+      responses:
+        '200':
+          description: Claim closed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /claims/{claimId}/reject:
+    post:
+      summary: Reject a claim
+      parameters:
+        - in: path
+          name: claimId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Claim rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /claims/{claimId}/documents:
+    post:
+      summary: Attach a document to a claim
+      parameters:
+        - in: path
+          name: claimId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [documentId, documentType]
+              properties:
+                documentId:
+                  type: string
+                documentType:
+                  type: string
+                  enum: [police_report, medical_report, repair_estimate, invoice, photo, video, other]
+                classification:
+                  type: string
+                  enum: [PUBLIC, INTERNAL, CONFIDENTIAL, PII]
+      responses:
+        '200':
+          description: Document attached
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+    get:
+      summary: List claim documents
+      parameters:
+        - in: path
+          name: claimId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: List of documents
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /claims/{claimId}/documents/{documentId}/download:
+    get:
+      summary: Download a claim document
+      parameters:
+        - in: path
+          name: claimId
+          required: true
+          schema: { type: string, format: uuid }
+        - in: path
+          name: documentId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Signed URL for document download
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+components:
+  schemas:
+    StandardResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: { type: object }
+        error:
+          type: object
+          properties:
+            code: { type: string }
+            message: { type: string }
+        correlationId: { type: string }
+    CreateClaimRequest:
+      type: object
+      required: [policyId, claimantPartyId, lossDate, lossType]
+      properties:
+        policyId: { type: string, format: uuid }
+        policyNumber: { type: string }
+        claimantPartyId: { type: string, format: uuid }
+        brokerOrganizationId: { type: string, format: uuid }
+        distributionOrganizationId: { type: string, format: uuid }
+        carrierOrganizationId: { type: string, format: uuid }
+        recordOwnerOrganizationId: { type: string, format: uuid }
+        authoritativeTenantId: { type: string }
+        representativePartyId: { type: string, format: uuid }
+        claimType: { type: string }
+        lossDate: { type: string, format: date-time }
+        lossType: { type: string }
+        description: { type: string }
+    OpenAdvocacyCaseRequest:
+      type: object
+      required: [brokerOrganizationId, customerPartyId, carrierOrganizationId]
+      properties:
+        brokerOrganizationId: { type: string, format: uuid }
+        customerPartyId: { type: string, format: uuid }
+        carrierOrganizationId: { type: string, format: uuid }
+        priority: { type: string, enum: [low, medium, high, urgent] }
+    CreateAdvocacyTaskRequest:
+      type: object
+      required: [taskType, assignedToPartyId, dueDate]
+      properties:
+        taskType: { type: string }
+        assignedToPartyId: { type: string, format: uuid }
+        dueDate: { type: string, format: date-time }
+    AddAdvocacyCommunicationRequest:
+      type: object
+      required: [channel, direction, contentRef]
+      properties:
+        channel: { type: string, enum: [email, phone, chat, sms, in_person, portal] }
+        direction: { type: string, enum: [inbound, outbound] }
+        contentRef: { type: string }
+        partyId: { type: string, format: uuid }
+        subject: { type: string }
+        summary: { type: string }
+        isPii: { type: boolean }
+        timestamp: { type: string, format: date-time }
+    CreateAdjusterReferralRequest:
+      type: object
+      required: [caseId, adjusterOrganizationId, adjusterPartyId]
+      properties:
+        caseId: { type: string, format: uuid }
+        adjusterOrganizationId: { type: string, format: uuid }
+        adjusterPartyId: { type: string, format: uuid }
+        estimatedFeeAmount: { type: number }
+        estimatedFeeCurrency: { type: string }
+    SubmitAdjusterReportRequest:
+      type: object
+      required: [reportRef, reportChecksum]
+      properties:
+        reportRef: { type: string }
+        reportChecksum: { type: string }
+        reportMetadata: { type: object }
+    AddClaimProjectionRequest:
+      type: object
+      required: [brokerOrganizationId, carrierOrganizationId, externalClaimId, sourceSystemId, payload]
+      properties:
+        brokerOrganizationId: { type: string, format: uuid }
+        carrierOrganizationId: { type: string, format: uuid }
+        externalClaimId: { type: string }
+        sourceSystemId: { type: string }
+        sourceVersion: { type: integer }
+        payload: { type: object }
+    CreateRecoveryCaseRequest:
+      type: object
+      required: [expectedRecoveryAmount]
+      properties:
+        responsiblePartyId: { type: string, format: uuid }
+        expectedRecoveryAmount: { type: number }
+        expectedRecoveryCurrency: { type: string }

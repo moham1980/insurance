@@ -8,10 +8,25 @@ export interface PublishOptions {
   eventType: string;
   eventVersion: number;
   correlationId: string;
-  tenantId: string;
-  subject: Record<string, string>;
+  tenantId?: string;
+  organizationId?: string;
+  subject: Record<string, any>;
   payload: unknown;
   producer?: string;
+  dataClassification?: 'PUBLIC' | 'INTERNAL' | 'CONFIDENTIAL' | 'PII';
+}
+
+function resolveTenantId(options: PublishOptions): string {
+  if (options.tenantId) return options.tenantId;
+  const subject = options.subject || {};
+  const payload = (options.payload as Record<string, any>) || {};
+  return (
+    subject.tenantId ||
+    subject.tenant_id ||
+    payload.tenantId ||
+    payload.tenant_id ||
+    'unknown'
+  );
 }
 
 export class OutboxPublisher {
@@ -24,6 +39,7 @@ export class OutboxPublisher {
   async publish(options: PublishOptions): Promise<string> {
     const eventId = uuidv4();
     const occurredAt = new Date();
+    const tenantId = resolveTenantId(options);
 
     const outboxEvent = this.outboxRepo.create({
       id: eventId,
@@ -32,7 +48,9 @@ export class OutboxPublisher {
       eventType: options.eventType,
       eventVersion: options.eventVersion,
       correlationId: options.correlationId,
-      tenantId: options.tenantId,
+      tenantId,
+      organizationId: options.organizationId || null,
+      dataClassification: options.dataClassification || null,
       subjectJson: options.subject,
       payloadJson: options.payload as object,
       status: 'pending',

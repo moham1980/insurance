@@ -1,0 +1,843 @@
+openapi: 3.0.3
+info:
+  title: Insurance Brokerage P0 API
+  description: OpenAPI contract for P0 Organization, Tenant, Party, Broker License, and Distribution Agreement APIs.
+  version: '1.0.0'
+  contact:
+    name: Insurance Platform Team
+servers:
+  - url: http://localhost:18001
+    description: Auth Service (Organization/Tenant/Brand)
+  - url: http://localhost:18006
+    description: Party/KYC Service (Party/Roles/GlobalSubject/IdentityLink/BrokerLicense)
+  - url: http://localhost:18022
+    description: Sales Network Service (DistributionAgreement)
+paths:
+  /api/v1/admin/organizations:
+    post:
+      summary: Create Organization
+      operationId: createOrganization
+      tags: [Organization]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrganizationRequest'
+      responses:
+        '200':
+          description: Organization created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationResponse'
+    get:
+      summary: Get Organization
+      operationId: getOrganization
+      tags: [Organization]
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Organization
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationResponse'
+  /api/v1/admin/tenants:
+    post:
+      summary: Create Tenant
+      operationId: createTenant
+      tags: [Tenant]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTenantRequest'
+      responses:
+        '200':
+          description: Tenant created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantResponse'
+  /api/v1/admin/tenants/{tenantId}/brand:
+    patch:
+      summary: Update Brand Config
+      operationId: updateBrandConfig
+      tags: [Brand]
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BrandConfigRequest'
+      responses:
+        '200':
+          description: Brand config updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BrandConfigResponse'
+  /api/v1/parties/{partyId}/roles:
+    post:
+      summary: Assign Party Role
+      operationId: createPartyRole
+      tags: [PartyRole]
+      parameters:
+        - name: partyId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePartyRoleRequest'
+      responses:
+        '200':
+          description: Role assigned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartyRoleResponse'
+  /api/v1/global-subjects:
+    post:
+      summary: Create Global Subject
+      operationId: createGlobalSubject
+      tags: [GlobalSubject]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGlobalSubjectRequest'
+      responses:
+        '200':
+          description: Global subject created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GlobalSubjectResponse'
+  /api/v1/broker-licenses:
+    post:
+      summary: Create Broker License
+      operationId: createBrokerLicense
+      tags: [BrokerLicense]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBrokerLicenseRequest'
+      responses:
+        '200':
+          description: Broker license created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BrokerLicenseResponse'
+  /api/v1/distribution-agreements:
+    post:
+      summary: Create Distribution Agreement
+      operationId: createDistributionAgreement
+      tags: [DistributionAgreement]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDistributionAgreementRequest'
+      responses:
+        '200':
+          description: Agreement created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DistributionAgreementResponse'
+    get:
+      summary: List Distribution Agreements
+      operationId: listDistributionAgreements
+      tags: [DistributionAgreement]
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: carrierOrganizationId
+          in: query
+          schema:
+            type: string
+        - name: distributorOrganizationId
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of agreements
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DistributionAgreementListResponse'
+  /api/v1/distribution-agreements/{agreementId}:
+    get:
+      summary: Get Distribution Agreement
+      operationId: getDistributionAgreement
+      tags: [DistributionAgreement]
+      parameters:
+        - name: agreementId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Agreement details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DistributionAgreementResponse'
+  /api/v1/distribution-agreements/{agreementId}/versions:
+    post:
+      summary: Create Agreement Version
+      operationId: createAgreementVersion
+      tags: [DistributionAgreement]
+      parameters:
+        - name: agreementId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDistributionAgreementRequest'
+      responses:
+        '200':
+          description: New version created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DistributionAgreementResponse'
+  /api/v1/distribution-agreements/{agreementId}/activate:
+    post:
+      summary: Activate Distribution Agreement
+      operationId: activateDistributionAgreement
+      tags: [DistributionAgreement]
+      parameters:
+        - name: agreementId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Agreement activated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DistributionAgreementResponse'
+  /api/v1/distribution-agreements/{agreementId}/terminate:
+    post:
+      summary: Terminate Distribution Agreement
+      operationId: terminateDistributionAgreement
+      tags: [DistributionAgreement]
+      parameters:
+        - name: agreementId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Agreement terminated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DistributionAgreementResponse'
+  /api/v1/distribution-agreements/{agreementId}/eligibility:
+    get:
+      summary: Check Agreement Eligibility
+      operationId: checkAgreementEligibility
+      tags: [DistributionAgreement]
+      parameters:
+        - name: agreementId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: lineOfBusiness
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Eligibility result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EligibilityResponse'
+  /api/v1/broker-licenses/{licenseId}:
+    get:
+      summary: Get Broker License
+      operationId: getBrokerLicense
+      tags: [BrokerLicense]
+      parameters:
+        - name: licenseId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Broker license details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BrokerLicenseResponse'
+  /api/v1/broker-licenses/{licenseId}/validate:
+    post:
+      summary: Validate Broker License
+      operationId: validateBrokerLicense
+      tags: [BrokerLicense]
+      parameters:
+        - name: licenseId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                lineOfBusiness:
+                  type: string
+      responses:
+        '200':
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BrokerLicenseValidationResponse'
+  /api/v1/broker-licenses/{licenseId}/verify:
+    post:
+      summary: Verify Broker License via Regulatory Gateway
+      operationId: verifyBrokerLicense
+      tags: [BrokerLicense]
+      parameters:
+        - name: licenseId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BrokerLicenseResponse'
+  /api/v1/parties:
+    post:
+      summary: Create Party
+      operationId: createParty
+      tags: [Party]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePartyRequest'
+      responses:
+        '200':
+          description: Party created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartyResponse'
+  /api/v1/parties/{partyId}:
+    get:
+      summary: Get Party
+      operationId: getParty
+      tags: [Party]
+      parameters:
+        - name: partyId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Party details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartyResponse'
+  /api/v1/parties/{partyId}/roles:
+    get:
+      summary: List Party Roles
+      operationId: listPartyRoles
+      tags: [PartyRole]
+      parameters:
+        - name: partyId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of roles
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartyRoleListResponse'
+  /api/v1/parties/{partyId}/roles/{assignmentId}:
+    delete:
+      summary: Revoke Party Role
+      operationId: revokePartyRole
+      tags: [PartyRole]
+      parameters:
+        - name: partyId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: assignmentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Role revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartyRoleResponse'
+  /api/v1/global-subjects/{globalSubjectId}/links:
+    post:
+      summary: Create Identity Link
+      operationId: createIdentityLink
+      tags: [GlobalSubject]
+      parameters:
+        - name: globalSubjectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateIdentityLinkRequest'
+      responses:
+        '200':
+          description: Identity link created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdentityLinkResponse'
+  /api/v1/global-subjects/{globalSubjectId}/links/{linkId}/revoke:
+    post:
+      summary: Revoke Identity Link
+      operationId: revokeIdentityLink
+      tags: [GlobalSubject]
+      parameters:
+        - name: globalSubjectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: linkId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Identity link revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdentityLinkResponse'
+  /api/v1/admin/organizations/{organizationId}:
+    put:
+      summary: Update Organization
+      operationId: updateOrganization
+      tags: [Organization]
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOrganizationRequest'
+      responses:
+        '200':
+          description: Organization updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationResponse'
+  /api/v1/admin/organizations/{organizationId}/capabilities:
+    get:
+      summary: List Organization Capabilities
+      operationId: listOrganizationCapabilities
+      tags: [Organization]
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of capabilities
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CapabilityListResponse'
+    post:
+      summary: Grant Organization Capability
+      operationId: grantOrganizationCapability
+      tags: [Organization]
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCapabilityRequest'
+      responses:
+        '200':
+          description: Capability granted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CapabilityResponse'
+components:
+  schemas:
+    CreateOrganizationRequest:
+      type: object
+      required: [legalType, country, legalAddress]
+      properties:
+        legalType:
+          type: string
+          enum: [person, company, government]
+        country:
+          type: string
+        legalAddress:
+          type: object
+    OrganizationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+    CreateTenantRequest:
+      type: object
+      required: [organizationId, deploymentMode, dataIsolation, primaryRegion]
+      properties:
+        organizationId:
+          type: string
+          format: uuid
+        deploymentMode:
+          type: string
+          enum: [single_org, multi_org, saas, federated_node]
+        dataIsolation:
+          type: string
+          enum: [schema, row, database]
+        primaryRegion:
+          type: string
+    TenantResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+    BrandConfigRequest:
+      type: object
+      required: [brandKey, displayNameFa, displayNameEn]
+      properties:
+        brandKey:
+          type: string
+        displayNameFa:
+          type: string
+        displayNameEn:
+          type: string
+        primaryColor:
+          type: string
+    BrandConfigResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+    CreatePartyRoleRequest:
+      type: object
+      required: [organizationId, roleType, validFrom]
+      properties:
+        organizationId:
+          type: string
+          format: uuid
+        roleType:
+          type: string
+          enum: [CUSTOMER, INSURED, BENEFICIARY, BROKER, AGENT, SUB_AGENT, MARKETER, LOSS_ADJUSTER, CLAIMANT, PAYER]
+        validFrom:
+          type: string
+          format: date-time
+    PartyRoleResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+    CreateGlobalSubjectRequest:
+      type: object
+      required: [iamSubjectId]
+      properties:
+        iamSubjectId:
+          type: string
+        assuranceLevel:
+          type: string
+          enum: [low, substantial, high]
+    GlobalSubjectResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+    CreateBrokerLicenseRequest:
+      type: object
+      required: [partyId, organizationId, brokerCentralCode, licenseNumber, licenseType, issueDate, expiryDate]
+      properties:
+        partyId:
+          type: string
+          format: uuid
+        organizationId:
+          type: string
+          format: uuid
+        brokerCentralCode:
+          type: string
+        licenseNumber:
+          type: string
+        licenseType:
+          type: string
+          enum: [life, non_life, both]
+        issueDate:
+          type: string
+          format: date-time
+        expiryDate:
+          type: string
+          format: date-time
+    BrokerLicenseResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+    CreateDistributionAgreementRequest:
+      type: object
+      required: [tenantId, carrierOrganizationId, distributorOrganizationId, agreementType, effectiveFrom, bindingAuthority]
+      properties:
+        tenantId:
+          type: string
+        carrierOrganizationId:
+          type: string
+          format: uuid
+        distributorOrganizationId:
+          type: string
+          format: uuid
+        agreementType:
+          type: string
+          enum: [brokerage, agency, mga, referral]
+        effectiveFrom:
+          type: string
+          format: date-time
+        bindingAuthority:
+          type: object
+          properties:
+            amountMinor:
+              type: string
+            currency:
+              type: string
+    DistributionAgreementResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+    DistributionAgreementListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            type: object
+        total:
+          type: integer
+    EligibilityResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            eligible:
+              type: boolean
+            reason:
+              type: string
+    BrokerLicenseValidationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            valid:
+              type: boolean
+            scopeMatch:
+              type: boolean
+            lineOfBusiness:
+              type: string
+    CreatePartyRequest:
+      type: object
+      required: [partyType]
+      properties:
+        partyType:
+          type: string
+          enum: [individual, organization]
+        firstName:
+          type: string
+        lastName:
+          type: string
+        organizationName:
+          type: string
+        nationalId:
+          type: string
+        mobile:
+          type: string
+        email:
+          type: string
+    PartyResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            partyId:
+              type: string
+              format: uuid
+            partyType:
+              type: string
+            displayName:
+              type: string
+    PartyRoleListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            type: object
+    CreateIdentityLinkRequest:
+      type: object
+      required: [providerId, providerUserId]
+      properties:
+        providerId:
+          type: string
+        providerUserId:
+          type: string
+        attributes:
+          type: object
+    IdentityLinkResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+    UpdateOrganizationRequest:
+      type: object
+      properties:
+        legalName:
+          type: string
+        legalAddress:
+          type: object
+        isActive:
+          type: boolean
+    CapabilityListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            type: object
+    CreateCapabilityRequest:
+      type: object
+      required: [capability]
+      properties:
+        capability:
+          type: string
+          enum: [brokerage, agency, mga, referral, underwriting, claims, billing]
+        approvedBy:
+          type: string
+          format: uuid
+    CapabilityResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object

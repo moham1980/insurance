@@ -1,4 +1,4 @@
-import { Controller, Get, Headers, Param, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { Customer360Service } from './customer-360.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { AbacGuard } from './abac.guard';
@@ -37,6 +37,102 @@ export class Customer360Controller {
         error: { code: 'INTERNAL_ERROR', message: error.message },
         correlationId,
       };
+    }
+  }
+
+  @Get(':customerId/portfolio')
+  async getPortfolioSummary(
+    @Param('customerId') customerId: string,
+    @Headers() headers: Record<string, any>,
+    @Req() req: any,
+  ) {
+    const correlationId = this.getCorrelationId(headers);
+    const authToken = req.headers['authorization'] || '';
+
+    try {
+      const summary = await this.customer360Service.getPortfolioSummary(customerId, authToken);
+      return { success: true, data: summary, correlationId };
+    } catch (error: any) {
+      return { success: false, error: { code: 'INTERNAL_ERROR', message: error.message }, correlationId };
+    }
+  }
+
+  @Get(':customerId/consents')
+  async listConsents(
+    @Param('customerId') customerId: string,
+    @Headers() headers: Record<string, any>,
+  ) {
+    const correlationId = this.getCorrelationId(headers);
+    try {
+      const consents = await this.customer360Service.listConsents(customerId);
+      return { success: true, data: consents, correlationId };
+    } catch (error: any) {
+      return { success: false, error: { code: 'INTERNAL_ERROR', message: error.message }, correlationId };
+    }
+  }
+
+  @Post(':customerId/consents')
+  async recordConsent(
+    @Param('customerId') customerId: string,
+    @Body() body: { purpose: string; status?: 'granted' | 'denied'; expiresAt?: string; source?: string; channel?: string; version?: string },
+    @Headers() headers: Record<string, any>,
+    @Req() req: any,
+  ) {
+    const correlationId = this.getCorrelationId(headers);
+    const actorUserId = req?.user?.userId as string | undefined;
+    const tenantId = req?.user?.tenantId as string | undefined;
+
+    try {
+      const record = await this.customer360Service.recordConsent({
+        customerId,
+        purpose: body.purpose,
+        status: body.status,
+        expiresAt: body.expiresAt ? new Date(body.expiresAt) : undefined,
+        source: body.source,
+        channel: body.channel,
+        actorUserId,
+        tenantId,
+        version: body.version,
+      });
+      return { success: true, data: record, correlationId };
+    } catch (error: any) {
+      return { success: false, error: { code: 'INTERNAL_ERROR', message: error.message }, correlationId };
+    }
+  }
+
+  @Post(':customerId/consents/:consentId/revoke')
+  async revokeConsent(
+    @Param('customerId') customerId: string,
+    @Param('consentId') consentId: string,
+    @Body() body: { reason?: string },
+    @Headers() headers: Record<string, any>,
+  ) {
+    const correlationId = this.getCorrelationId(headers);
+
+    try {
+      const record = await this.customer360Service.revokeConsent(customerId, consentId, body?.reason);
+      if (!record) {
+        return { success: false, error: { code: 'NOT_FOUND', message: 'Consent not found' }, correlationId };
+      }
+      return { success: true, data: record, correlationId };
+    } catch (error: any) {
+      return { success: false, error: { code: 'INTERNAL_ERROR', message: error.message }, correlationId };
+    }
+  }
+
+  @Get(':customerId/consents/check')
+  async checkConsent(
+    @Param('customerId') customerId: string,
+    @Query('purpose') purpose: string,
+    @Headers() headers: Record<string, any>,
+  ) {
+    const correlationId = this.getCorrelationId(headers);
+
+    try {
+      const result = await this.customer360Service.checkConsent(customerId, purpose);
+      return { success: true, data: result, correlationId };
+    } catch (error: any) {
+      return { success: false, error: { code: 'INTERNAL_ERROR', message: error.message }, correlationId };
     }
   }
 }

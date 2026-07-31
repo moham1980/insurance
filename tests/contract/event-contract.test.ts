@@ -10,6 +10,7 @@ describe('Contract: Event Envelope Shape', () => {
       occurredAt: new Date().toISOString(),
       producer: 'policy-service',
       correlationId: 'corr-123',
+      tenantId: 'tenant-001',
       subject: 'policy-123',
       payload: {
         policyId: 'policy-123',
@@ -77,6 +78,7 @@ describe('Contract: Event Envelope Shape', () => {
         occurredAt: new Date().toISOString(),
         producer: 'policy-service',
         correlationId: 'corr-123',
+        tenantId: 'tenant-001',
         subject: 'policy-123',
         payload: {},
       };
@@ -104,6 +106,7 @@ describe('Contract: Event Envelope Shape', () => {
         occurredAt: new Date().toISOString(),
         producer: 'claims-service',
         correlationId: 'corr-123',
+        tenantId: 'tenant-001',
         subject: 'claim-123',
         payload: {},
       };
@@ -130,6 +133,7 @@ describe('Contract: Event Envelope Shape', () => {
         occurredAt: new Date().toISOString(),
         producer: 'payments-service',
         correlationId: 'corr-123',
+        tenantId: 'tenant-001',
         subject: 'payment-123',
         payload: {},
       };
@@ -155,6 +159,7 @@ describe('Contract: Event Envelope Shape', () => {
         occurredAt: new Date().toISOString(),
         producer: 'fraud-service',
         correlationId: 'corr-123',
+        tenantId: 'tenant-001',
         subject: 'fraud-123',
         payload: {},
       };
@@ -181,6 +186,7 @@ describe('Contract: Event Envelope Shape', () => {
         occurredAt: new Date().toISOString(),
         producer: 'complaints-service',
         correlationId: 'corr-123',
+        tenantId: 'tenant-001',
         subject: 'complaint-123',
         payload: {},
       };
@@ -206,6 +212,7 @@ describe('Contract: Event Envelope Shape', () => {
         occurredAt: new Date().toISOString(),
         producer: 'reinsurance-service',
         correlationId: 'corr-123',
+        tenantId: 'tenant-001',
         subject: 'policy-123',
         payload: {},
       };
@@ -230,6 +237,7 @@ describe('Contract: Event Envelope Shape', () => {
         occurredAt: new Date().toISOString(),
         producer: 'document-ai-service',
         correlationId: 'corr-123',
+        tenantId: 'tenant-001',
         subject: 'document-123',
         payload: {},
       };
@@ -253,6 +261,7 @@ describe('Contract: Event Envelope Shape', () => {
         occurredAt: new Date().toISOString(),
         producer: 'sales-service',
         correlationId: 'corr-123',
+        tenantId: 'tenant-001',
         subject: 'partner-123',
         payload: {},
       };
@@ -276,6 +285,7 @@ describe('Contract: Event Envelope Shape', () => {
         occurredAt: new Date().toISOString(),
         producer: 'collections-service',
         correlationId: 'corr-123',
+        tenantId: 'tenant-001',
         subject: 'plan-123',
         payload: {},
       };
@@ -300,6 +310,7 @@ describe('Contract: Event Envelope Shape', () => {
         occurredAt: new Date().toISOString(),
         producer: 'aml-service',
         correlationId: 'corr-123',
+        tenantId: 'tenant-001',
         subject: 'alert-123',
         payload: {},
       };
@@ -324,6 +335,7 @@ describe('Contract: Event Envelope Shape', () => {
         occurredAt: new Date().toISOString(),
         producer: 'party-kyc-service',
         correlationId: 'corr-123',
+        tenantId: 'tenant-001',
         subject: 'customer-123',
         payload: {},
       };
@@ -348,6 +360,7 @@ describe('Contract: Event Envelope Shape', () => {
         occurredAt: new Date().toISOString(),
         producer: 'product-service',
         correlationId: 'corr-123',
+        tenantId: 'tenant-001',
         subject: 'product-123',
         payload: {},
       };
@@ -372,6 +385,7 @@ describe('Contract: Event Envelope Shape', () => {
         occurredAt: new Date().toISOString(),
         producer: 'underwriting-service',
         correlationId: 'corr-123',
+        tenantId: 'tenant-001',
         subject: 'underwriting-123',
         payload: {},
       };
@@ -395,6 +409,7 @@ describe('Contract: Event Envelope Shape', () => {
         occurredAt: new Date().toISOString(),
         producer: 'reporting-service',
         correlationId: 'corr-123',
+        tenantId: 'tenant-001',
         subject: 'report-123',
         payload: {},
       };
@@ -418,6 +433,7 @@ describe('Contract: Event Envelope Shape', () => {
         occurredAt: new Date().toISOString(),
         producer: 'copilot-service',
         correlationId: 'corr-123',
+        tenantId: 'tenant-001',
         subject: 'query-123',
         payload: {},
       };
@@ -442,6 +458,7 @@ describe('Contract: Event Envelope Shape', () => {
         occurredAt: new Date().toISOString(),
         producer: 'workflow-service',
         correlationId: 'corr-123',
+        tenantId: 'tenant-001',
         subject: 'process-123',
         payload: {},
       };
@@ -465,6 +482,7 @@ describe('Contract: Event Envelope Shape', () => {
         occurredAt: new Date().toISOString(),
         producer: 'notification-service',
         correlationId: 'corr-123',
+        tenantId: 'tenant-001',
         subject: 'notification-123',
         payload: {},
       };
@@ -489,6 +507,7 @@ describe('Contract: Event Envelope Shape', () => {
         occurredAt: new Date().toISOString(),
         producer: 'billing-service',
         correlationId: 'corr-123',
+        tenantId: 'tenant-001',
         subject: 'invoice-123',
         payload: {},
       };

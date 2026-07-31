@@ -19,6 +19,9 @@ export class ModelInvocation {
   @Column({ type: 'varchar', length: 50 })
   modelKey!: string;
 
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  modelVersion!: string | null;
+
   @Column({ type: 'varchar', length: 100, nullable: true })
   businessKey!: string | null;
 

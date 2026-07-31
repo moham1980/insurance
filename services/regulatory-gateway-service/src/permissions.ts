@@ -4,6 +4,8 @@ export type PermissionKey =
   | 'regulatory:events:list'
   | 'regulatory:failures:view'
   | 'regulatory:retry'
+  | 'regulatory:submit'
+  | 'regulatory:status'
   | 'regulatory:export';
 
 const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
@@ -13,6 +15,8 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     'regulatory:events:list',
     'regulatory:failures:view',
     'regulatory:retry',
+    'regulatory:submit',
+    'regulatory:status',
     'regulatory:export',
   ],
   head_office_ops: [
@@ -20,6 +24,8 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     'regulatory:events:view',
     'regulatory:events:list',
     'regulatory:failures:view',
+    'regulatory:submit',
+    'regulatory:status',
     'regulatory:export',
   ],
   regulatory_ops: [
@@ -28,6 +34,8 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     'regulatory:events:list',
     'regulatory:failures:view',
     'regulatory:retry',
+    'regulatory:submit',
+    'regulatory:status',
     'regulatory:export',
   ],
 };

@@ -1,0 +1,1938 @@
+asyncapi: '2.6.0'
+info:
+  title: Insurance Domain Events
+  version: '1.0.0'
+  description: AsyncAPI contract for P0 insurance domain events (brokerage, policy, party).
+channels:
+  insurance.policy.issued:
+    publish:
+      message:
+        $ref: '#/components/messages/PolicyIssued'
+  insurance.policy.unique_code_set:
+    publish:
+      message:
+        $ref: '#/components/messages/PolicyUniqueCodeSet'
+  insurance.party.created:
+    publish:
+      message:
+        $ref: '#/components/messages/PartyCreated'
+  insurance.broker_license.validated:
+    publish:
+      message:
+        $ref: '#/components/messages/BrokerLicenseValidated'
+  insurance.policy.updated:
+    publish:
+      message:
+        $ref: '#/components/messages/PolicyUpdated'
+  insurance.policy.endorsement.drafted:
+    publish:
+      message:
+        $ref: '#/components/messages/EndorsementDrafted'
+  insurance.policy.endorsement.applied:
+    publish:
+      message:
+        $ref: '#/components/messages/EndorsementApplied'
+  insurance.policy.endorsed:
+    publish:
+      message:
+        $ref: '#/components/messages/PolicyEndorsed'
+  insurance.policy.endorsement.submitted:
+    publish:
+      message:
+        $ref: '#/components/messages/EndorsementSubmitted'
+  insurance.policy.endorsement.approved:
+    publish:
+      message:
+        $ref: '#/components/messages/EndorsementApproved'
+  insurance.policy.endorsement.rejected:
+    publish:
+      message:
+        $ref: '#/components/messages/EndorsementRejected'
+  insurance.policy.projection.synced:
+    publish:
+      message:
+        $ref: '#/components/messages/PolicyProjectionSynchronized'
+  insurance.policy.projection.updated:
+    publish:
+      message:
+        $ref: '#/components/messages/PolicyProjectionUpdated'
+  insurance.billing.commission.accrued:
+    publish:
+      message:
+        $ref: '#/components/messages/CommissionSplitAccrued'
+  insurance.billing.journal.posted:
+    publish:
+      message:
+        $ref: '#/components/messages/BrokerageJournalPosted'
+  insurance.billing.journal.reversed:
+    publish:
+      message:
+        $ref: '#/components/messages/BrokerageJournalReversed'
+  insurance.billing.settlement.batch.created:
+    publish:
+      message:
+        $ref: '#/components/messages/SettlementBatchCreated'
+  insurance.billing.settlement.batch.paid:
+    publish:
+      message:
+        $ref: '#/components/messages/SettlementBatchPaid'
+  insurance.policy.renewed:
+    publish:
+      message:
+        $ref: '#/components/messages/PolicyRenewed'
+  insurance.policy.cancelled:
+    publish:
+      message:
+        $ref: '#/components/messages/PolicyCancelled'
+  insurance.policy.lapsed:
+    publish:
+      message:
+        $ref: '#/components/messages/PolicyLapsed'
+  insurance.billing.commission.calculated:
+    publish:
+      message:
+        $ref: '#/components/messages/CommissionCalculated'
+  insurance.billing.commission.posted:
+    publish:
+      message:
+        $ref: '#/components/messages/CommissionPosted'
+  insurance.billing.commission.clawed_back:
+    publish:
+      message:
+        $ref: '#/components/messages/CommissionClawedBack'
+  insurance.billing.settlement.batch.approved:
+    publish:
+      message:
+        $ref: '#/components/messages/SettlementBatchApproved'
+  insurance.collections.receivable.creation.requested:
+    publish:
+      message:
+        $ref: '#/components/messages/ReceivableCreationRequested'
+  insurance.billing.receivable.created:
+    publish:
+      message:
+        $ref: '#/components/messages/ReceivableCreated'
+  insurance.billing.premium_invoice.issued:
+    publish:
+      message:
+        $ref: '#/components/messages/PremiumInvoiceIssued'
+  insurance.billing.premium_invoice.paid:
+    publish:
+      message:
+        $ref: '#/components/messages/PremiumInvoicePaid'
+  insurance.billing.premium_invoice.overdue:
+    publish:
+      message:
+        $ref: '#/components/messages/PremiumInvoiceOverdue'
+  insurance.billing.premium_invoice.cancelled:
+    publish:
+      message:
+        $ref: '#/components/messages/PremiumInvoiceCancelled'
+  insurance.billing.installment_plan.created:
+    publish:
+      message:
+        $ref: '#/components/messages/InstallmentPlanCreated'
+  insurance.billing.installment.paid:
+    publish:
+      message:
+        $ref: '#/components/messages/InstallmentPaid'
+  insurance.billing.installment.defaulted:
+    publish:
+      message:
+        $ref: '#/components/messages/InstallmentDefaulted'
+  insurance.billing.payment.initiated:
+    publish:
+      message:
+        $ref: '#/components/messages/PaymentInitiated'
+  insurance.billing.payment.settled:
+    publish:
+      message:
+        $ref: '#/components/messages/PaymentSettled'
+  insurance.billing.payment.failed:
+    publish:
+      message:
+        $ref: '#/components/messages/PaymentFailed'
+  insurance.billing.refund.initiated:
+    publish:
+      message:
+        $ref: '#/components/messages/RefundInitiated'
+  insurance.billing.refund.approved:
+    publish:
+      message:
+        $ref: '#/components/messages/RefundApproved'
+  insurance.billing.refund.sent:
+    publish:
+      message:
+        $ref: '#/components/messages/RefundSent'
+  insurance.billing.refund.settled:
+    publish:
+      message:
+        $ref: '#/components/messages/RefundSettled'
+  insurance.billing.refund.failed:
+    publish:
+      message:
+        $ref: '#/components/messages/RefundFailed'
+  insurance.billing.escrow.held:
+    publish:
+      message:
+        $ref: '#/components/messages/EscrowHeld'
+  insurance.billing.escrow.released:
+    publish:
+      message:
+        $ref: '#/components/messages/EscrowReleased'
+  insurance.billing.escrow.auto_released:
+    publish:
+      message:
+        $ref: '#/components/messages/EscrowAutoReleased'
+  insurance.billing.escrow.carrier_approved:
+    publish:
+      message:
+        $ref: '#/components/messages/EscrowCarrierApproved'
+  insurance.billing.clawback.applied:
+    publish:
+      message:
+        $ref: '#/components/messages/ClawbackPaymentInitiated'
+  insurance.billing.settlement.batch.reconciled:
+    publish:
+      message:
+        $ref: '#/components/messages/SettlementBatchReconciled'
+  insurance.billing.settlement.discrepancy_detected:
+    publish:
+      message:
+        $ref: '#/components/messages/SettlementDiscrepancyDetected'
+  insurance.collections.installment.receivable.linked:
+    publish:
+      message:
+        $ref: '#/components/messages/InstallmentReceivableLinked'
+  insurance.collections.installment.receivable.sync:
+    publish:
+      message:
+        $ref: '#/components/messages/InstallmentReceivableSync'
+  insurance.claim.registered:
+    publish:
+      message:
+        $ref: '#/components/messages/ClaimRegistered'
+  insurance.claim.acknowledged:
+    publish:
+      message:
+        $ref: '#/components/messages/ClaimAcknowledged'
+  insurance.claim.submitted_to_carrier:
+    publish:
+      message:
+        $ref: '#/components/messages/ClaimSubmittedToCarrier'
+  insurance.claim.status_updated:
+    publish:
+      message:
+        $ref: '#/components/messages/ClaimStatusUpdated'
+  insurance.claim.assessed:
+    publish:
+      message:
+        $ref: '#/components/messages/ClaimAssessed'
+  insurance.claim.approved:
+    publish:
+      message:
+        $ref: '#/components/messages/ClaimApproved'
+  insurance.claim.rejected:
+    publish:
+      message:
+        $ref: '#/components/messages/ClaimRejected'
+  insurance.claim.paid:
+    publish:
+      message:
+        $ref: '#/components/messages/ClaimPaid'
+  insurance.claim.closed:
+    publish:
+      message:
+        $ref: '#/components/messages/ClaimClosed'
+  insurance.claim.appealed:
+    publish:
+      message:
+        $ref: '#/components/messages/ClaimAppealed'
+  insurance.claim.projection_updated:
+    publish:
+      message:
+        $ref: '#/components/messages/ClaimProjectionUpdated'
+  insurance.claim.advocacy_case_opened:
+    publish:
+      message:
+        $ref: '#/components/messages/ClaimAdvocacyCaseOpened'
+  insurance.claim.advocacy_case_escalated:
+    publish:
+      message:
+        $ref: '#/components/messages/ClaimAdvocacyCaseEscalated'
+  insurance.claim.advocacy_task_created:
+    publish:
+      message:
+        $ref: '#/components/messages/AdvocacyTaskCreated'
+  insurance.claim.advocacy_task_overdue:
+    publish:
+      message:
+        $ref: '#/components/messages/AdvocacyTaskOverdue'
+  insurance.claim.adjuster_referred:
+    publish:
+      message:
+        $ref: '#/components/messages/AdjusterReferred'
+  insurance.claim.adjuster_report_received:
+    publish:
+      message:
+        $ref: '#/components/messages/AdjusterReportReceived'
+  insurance.claim.recovery_case_created:
+    publish:
+      message:
+        $ref: '#/components/messages/RecoveryCaseCreated'
+  insurance.claim.recovery_received:
+    publish:
+      message:
+        $ref: '#/components/messages/RecoveryReceived'
+  insurance.claim.document_attached:
+    publish:
+      message:
+        $ref: '#/components/messages/ClaimDocumentAttached'
+  insurance.claim.payment_processed:
+    publish:
+      message:
+        $ref: '#/components/messages/ClaimPaymentProcessed'
+components:
+  messages:
+    PolicyIssued:
+      name: PolicyIssued
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: PolicyIssued }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              policyId: { type: string, format: uuid }
+              tenantId: { type: string }
+          payload:
+            type: object
+            properties:
+              policyId: { type: string, format: uuid }
+              policyNumber: { type: string }
+              tenantId: { type: string }
+              status: { type: string }
+              paymentId: { type: string }
+    PolicyUniqueCodeSet:
+      name: PolicyUniqueCodeSet
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: PolicyUniqueCodeSet }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              policyId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              policyId: { type: string, format: uuid }
+              uniqueCode: { type: string }
+    PartyCreated:
+      name: PartyCreated
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: PartyCreated }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              partyId: { type: string, format: uuid }
+              tenantId: { type: string }
+          payload:
+            type: object
+            properties:
+              partyId: { type: string, format: uuid }
+              tenantId: { type: string }
+              type: { type: string }
+    BrokerLicenseValidated:
+      name: BrokerLicenseValidated
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: BrokerLicenseValidated }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              licenseId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              licenseId: { type: string, format: uuid }
+              valid: { type: boolean }
+              status: { type: string }
+    PolicyUpdated:
+      name: PolicyUpdated
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: PolicyUpdated }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              policyId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              policyId: { type: string, format: uuid }
+              before: { type: object }
+              after: { type: object }
+    EndorsementDrafted:
+      name: EndorsementDrafted
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: EndorsementDrafted }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              policyId: { type: string, format: uuid }
+              endorsementId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              policyId: { type: string, format: uuid }
+              endorsementId: { type: string, format: uuid }
+              endorsementType: { type: string }
+              effectiveDate: { type: string, format: date-time }
+    EndorsementApplied:
+      name: EndorsementApplied
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: EndorsementApplied }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              policyId: { type: string, format: uuid }
+              endorsementId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              policyId: { type: string, format: uuid }
+              endorsementId: { type: string, format: uuid }
+              before: { type: object }
+              after: { type: object }
+    PolicyEndorsed:
+      name: PolicyEndorsed
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: PolicyEndorsed }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              policyId: { type: string, format: uuid }
+              endorsementId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              policyId: { type: string, format: uuid }
+              endorsementId: { type: string, format: uuid }
+              endorsementType: { type: string }
+              premiumDeltaAmount: { type: number }
+              taxDeltaAmount: { type: number }
+              currency: { type: string }
+              before: { type: object }
+              after: { type: object }
+    EndorsementSubmitted:
+      name: EndorsementSubmitted
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: EndorsementSubmitted }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              policyId: { type: string, format: uuid }
+              endorsementId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              policyId: { type: string, format: uuid }
+              endorsementId: { type: string, format: uuid }
+              submittedBy: { type: string }
+    EndorsementApproved:
+      name: EndorsementApproved
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: EndorsementApproved }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              policyId: { type: string, format: uuid }
+              endorsementId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              policyId: { type: string, format: uuid }
+              endorsementId: { type: string, format: uuid }
+              approvedBy: { type: string, format: uuid }
+    EndorsementRejected:
+      name: EndorsementRejected
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: EndorsementRejected }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              policyId: { type: string, format: uuid }
+              endorsementId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              policyId: { type: string, format: uuid }
+              endorsementId: { type: string, format: uuid }
+              rejectionReason: { type: string }
+    PolicyProjectionSynchronized:
+      name: PolicyProjectionSynchronized
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: PolicyProjectionSynchronized }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              policyId: { type: string, format: uuid }
+              projectionId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              policyId: { type: string, format: uuid }
+              projectionId: { type: string, format: uuid }
+              sourceSystemId: { type: string }
+              premiumAmount: { type: number }
+              status: { type: string }
+    PolicyProjectionUpdated:
+      name: PolicyProjectionUpdated
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: PolicyProjectionUpdated }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              policyId: { type: string, format: uuid }
+              projectionId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              policyId: { type: string, format: uuid }
+              projectionId: { type: string, format: uuid }
+              sourceSystemId: { type: string }
+              sourceVersion: { type: integer }
+              premiumAmount: { type: number }
+              status: { type: string }
+    CommissionSplitAccrued:
+      name: CommissionSplitAccrued
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: CommissionSplitAccrued }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              splitId: { type: string, format: uuid }
+              sourceId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              splitId: { type: string, format: uuid }
+              sourceType: { type: string }
+              sourceId: { type: string, format: uuid }
+              organizationId: { type: string, format: uuid }
+              role: { type: string }
+              amount: { type: number }
+              currency: { type: string }
+    BrokerageJournalPosted:
+      name: BrokerageJournalPosted
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: BrokerageJournalPosted }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              journalEntryId: { type: string, format: uuid }
+              sourceId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              journalEntryId: { type: string, format: uuid }
+              sourceType: { type: string }
+              sourceId: { type: string, format: uuid }
+              totalDebit: { type: number }
+              totalCredit: { type: number }
+              currency: { type: string }
+    BrokerageJournalReversed:
+      name: BrokerageJournalReversed
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: BrokerageJournalReversed }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              journalEntryId: { type: string, format: uuid }
+              reversedFrom: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              journalEntryId: { type: string, format: uuid }
+              reversedFrom: { type: string, format: uuid }
+              reason: { type: string }
+    SettlementBatchCreated:
+      name: SettlementBatchCreated
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: SettlementBatchCreated }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              batchId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              batchId: { type: string, format: uuid }
+              fromOrganizationId: { type: string, format: uuid }
+              toOrganizationId: { type: string, format: uuid }
+              netSettlementAmount: { type: number }
+              reconciliationHash: { type: string }
+    SettlementBatchPaid:
+      name: SettlementBatchPaid
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: SettlementBatchPaid }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              batchId: { type: string, format: uuid }
+              paymentId: { type: string }
+          payload:
+            type: object
+            properties:
+              batchId: { type: string, format: uuid }
+              paymentId: { type: string }
+              netSettlementAmount: { type: number }
+    PolicyRenewed:
+      name: PolicyRenewed
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: PolicyRenewed }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              policyId: { type: string, format: uuid }
+              oldPolicyId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              oldPolicyId: { type: string, format: uuid }
+              newPolicyId: { type: string, format: uuid }
+              newEndDate: { type: string, format: date-time }
+              renewalCount: { type: integer }
+    PolicyCancelled:
+      name: PolicyCancelled
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: PolicyCancelled }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              policyId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              policyId: { type: string, format: uuid }
+              reason: { type: string }
+              cancellationType: { type: string }
+              effectiveDate: { type: string, format: date-time }
+    PolicyLapsed:
+      name: PolicyLapsed
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: PolicyLapsed }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              policyId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              policyId: { type: string, format: uuid }
+              reason: { type: string }
+              previousStatus: { type: string }
+    CommissionCalculated:
+      name: CommissionCalculated
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: CommissionCalculated }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              sourceId: { type: string, format: uuid }
+              sourceType: { type: string }
+          payload:
+            type: object
+            properties:
+              sourceId: { type: string, format: uuid }
+              sourceType: { type: string }
+              totalCommissionAmount: { type: number }
+              currency: { type: string }
+              splitCount: { type: integer }
+    CommissionPosted:
+      name: CommissionPosted
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: CommissionPosted }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              journalEntryId: { type: string, format: uuid }
+              sourceId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              journalEntryId: { type: string, format: uuid }
+              sourceId: { type: string, format: uuid }
+              totalDebit: { type: number }
+              totalCredit: { type: number }
+              currency: { type: string }
+              splitIds:
+                type: array
+                items: { type: string, format: uuid }
+    CommissionClawedBack:
+      name: CommissionClawedBack
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: CommissionClawedBack }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              policyId: { type: string, format: uuid }
+              journalEntryId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              policyId: { type: string, format: uuid }
+              clawbackAmount: { type: number }
+              currency: { type: string }
+              journalEntryId: { type: string, format: uuid }
+              reversedSplitIds:
+                type: array
+                items: { type: string, format: uuid }
+    SettlementBatchApproved:
+      name: SettlementBatchApproved
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: SettlementBatchApproved }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              batchId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              batchId: { type: string, format: uuid }
+              approvedByPartyId: { type: string, format: uuid }
+              netSettlementAmount: { type: number }
+              reconciliationHash: { type: string }
+    ReceivableCreationRequested:
+      name: ReceivableCreationRequested
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: ReceivableCreationRequested }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              policyId: { type: string, format: uuid }
+              planId: { type: string, format: uuid }
+              installmentId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              installmentId: { type: string, format: uuid }
+              planId: { type: string, format: uuid }
+              policyId: { type: string, format: uuid }
+              installmentNo: { type: integer }
+              amount: { type: number }
+              currency: { type: string }
+              dueDate: { type: string, format: date-time }
+              premiumAmount: { type: number }
+    ReceivableCreated:
+      name: ReceivableCreated
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: ReceivableCreated }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              policyId: { type: string, format: uuid }
+              receivableId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              receivableId: { type: string, format: uuid }
+              installmentId: { type: string, format: uuid }
+              planId: { type: string, format: uuid }
+              policyId: { type: string, format: uuid }
+              amount: { type: number }
+              currency: { type: string }
+              dueDate: { type: string, format: date-time }
+              status: { type: string }
+    InstallmentReceivableLinked:
+      name: InstallmentReceivableLinked
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: InstallmentReceivableLinked }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              policyId: { type: string, format: uuid }
+              planId: { type: string, format: uuid }
+              installmentId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              installmentId: { type: string, format: uuid }
+              planId: { type: string, format: uuid }
+              policyId: { type: string, format: uuid }
+              receivableId: { type: string, format: uuid }
+              previousReceivableId: { type: string, format: uuid, nullable: true }
+    InstallmentReceivableSync:
+      name: InstallmentReceivableSync
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: InstallmentReceivableSync }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              policyId: { type: string, format: uuid }
+              planId: { type: string, format: uuid }
+              installmentId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              installmentId: { type: string, format: uuid }
+              receivableId: { type: string, format: uuid }
+              installmentStatus: { type: string }
+              expectedReceivableStatus: { type: string }
+              overdue: { type: boolean, nullable: true }
+              gracePeriodEnd: { type: string, format: date-time, nullable: true }
+              amount: { type: number }
+              currency: { type: string }
+    PremiumInvoiceIssued:
+      name: PremiumInvoiceIssued
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: PremiumInvoiceIssued }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              invoiceId: { type: string, format: uuid }
+              policyId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              invoiceId: { type: string, format: uuid }
+              invoiceNumber: { type: string }
+              totalAmountMinor: { type: string }
+              currency: { type: string }
+    PremiumInvoicePaid:
+      name: PremiumInvoicePaid
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: PremiumInvoicePaid }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              invoiceId: { type: string, format: uuid }
+              policyId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              invoiceId: { type: string, format: uuid }
+              policyId: { type: string, format: uuid }
+              totalAmountMinor: { type: string }
+              paidAmountMinor: { type: string }
+              currency: { type: string }
+    PremiumInvoiceOverdue:
+      name: PremiumInvoiceOverdue
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: PremiumInvoiceOverdue }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              invoiceId: { type: string, format: uuid }
+              policyId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              invoiceId: { type: string, format: uuid }
+              policyId: { type: string, format: uuid }
+              totalAmountMinor: { type: string }
+              paidAmountMinor: { type: string }
+              currency: { type: string }
+    PremiumInvoiceCancelled:
+      name: PremiumInvoiceCancelled
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: PremiumInvoiceCancelled }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              invoiceId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              invoiceId: { type: string, format: uuid }
+              cancellationReason: { type: string }
+    InstallmentPlanCreated:
+      name: InstallmentPlanCreated
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: InstallmentPlanCreated }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              invoiceId: { type: string, format: uuid }
+              planId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              invoiceId: { type: string, format: uuid }
+              planId: { type: string, format: uuid }
+              numberOfInstallments: { type: integer }
+    InstallmentPaid:
+      name: InstallmentPaid
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: InstallmentPaid }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              invoiceId: { type: string, format: uuid }
+              planId: { type: string, format: uuid }
+              itemId: { type: string }
+          payload:
+            type: object
+            properties:
+              invoiceId: { type: string, format: uuid }
+              planId: { type: string, format: uuid }
+              itemId: { type: string }
+              paymentId: { type: string, format: uuid }
+              amountMinor: { type: string }
+              currency: { type: string }
+    InstallmentDefaulted:
+      name: InstallmentDefaulted
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: InstallmentDefaulted }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              invoiceId: { type: string, format: uuid }
+              planId: { type: string, format: uuid }
+              itemId: { type: string }
+          payload:
+            type: object
+            properties:
+              invoiceId: { type: string, format: uuid }
+              planId: { type: string, format: uuid }
+              itemId: { type: string }
+              amountMinor: { type: string }
+              dueDate: { type: string, format: date-time }
+              currency: { type: string }
+    PaymentInitiated:
+      name: PaymentInitiated
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: PaymentInitiated }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              invoiceId: { type: string, format: uuid }
+              paymentId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              invoiceId: { type: string, format: uuid }
+              paymentId: { type: string, format: uuid }
+              amountMinor: { type: string }
+              currency: { type: string }
+              rail: { type: string }
+    PaymentSettled:
+      name: PaymentSettled
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: PaymentSettled }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              invoiceId: { type: string, format: uuid }
+              paymentId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              invoiceId: { type: string, format: uuid }
+              paymentId: { type: string, format: uuid }
+              amountMinor: { type: string }
+              currency: { type: string }
+    PaymentFailed:
+      name: PaymentFailed
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: PaymentFailed }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              paymentId: { type: string, format: uuid }
+              invoiceId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              paymentId: { type: string, format: uuid }
+              invoiceId: { type: string, format: uuid }
+              reason: { type: string }
+    RefundInitiated:
+      name: RefundInitiated
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: RefundInitiated }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              refundId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              refundId: { type: string, format: uuid }
+              invoiceId: { type: string, format: uuid }
+              amountMinor: { type: string }
+              currency: { type: string }
+    RefundApproved:
+      name: RefundApproved
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: RefundApproved }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              refundId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              refundId: { type: string, format: uuid }
+              approvedBy: { type: string, format: uuid }
+    RefundSent:
+      name: RefundSent
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: RefundSent }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              refundId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              refundId: { type: string, format: uuid }
+              paymentId: { type: string, format: uuid }
+              amountMinor: { type: string }
+              currency: { type: string }
+    RefundSettled:
+      name: RefundSettled
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: RefundSettled }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              refundId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              refundId: { type: string, format: uuid }
+              paymentId: { type: string, format: uuid }
+    RefundFailed:
+      name: RefundFailed
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: RefundFailed }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              refundId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              refundId: { type: string, format: uuid }
+              paymentId: { type: string, format: uuid }
+              reason: { type: string }
+    EscrowHeld:
+      name: EscrowHeld
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: EscrowHeld }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              holdingId: { type: string, format: uuid }
+              sourceId: { type: string }
+          payload:
+            type: object
+            properties:
+              holdingId: { type: string, format: uuid }
+              sourceType: { type: string }
+              sourceId: { type: string }
+              amountMinor: { type: string }
+              currency: { type: string }
+    EscrowReleased:
+      name: EscrowReleased
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: EscrowReleased }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              holdingId: { type: string, format: uuid }
+              releaseId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              holdingId: { type: string, format: uuid }
+              releaseId: { type: string, format: uuid }
+              amountMinor: { type: string }
+              currency: { type: string }
+              releaseType: { type: string }
+    EscrowAutoReleased:
+      name: EscrowAutoReleased
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: EscrowAutoReleased }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              holdingId: { type: string, format: uuid }
+              releaseId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              holdingId: { type: string, format: uuid }
+              releaseId: { type: string, format: uuid }
+              reason: { type: string }
+              amountMinor: { type: string }
+              currency: { type: string }
+    EscrowCarrierApproved:
+      name: EscrowCarrierApproved
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: EscrowCarrierApproved }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              holdingId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              holdingId: { type: string, format: uuid }
+              approvedBy: { type: string, format: uuid }
+    ClawbackPaymentInitiated:
+      name: ClawbackPaymentInitiated
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: ClawbackPaymentInitiated }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              clawbackId: { type: string, format: uuid }
+              policyId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              clawbackId: { type: string, format: uuid }
+              policyId: { type: string, format: uuid }
+              totalClawedBackMinor: { type: string }
+              splitIds:
+                type: array
+                items: { type: string }
+              journalEntryId: { type: string, format: uuid }
+    SettlementBatchReconciled:
+      name: SettlementBatchReconciled
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: SettlementBatchReconciled }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              batchId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              batchId: { type: string, format: uuid }
+              totalLines: { type: integer }
+              hashVerified: { type: boolean }
+    SettlementDiscrepancyDetected:
+      name: SettlementDiscrepancyDetected
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: SettlementDiscrepancyDetected }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              batchId: { type: string, format: uuid }
+          payload:
+            type: object
+            properties:
+              batchId: { type: string, format: uuid }
+              totalLines: { type: integer }
+              discrepancyCount: { type: integer }
+              discrepancies:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    type: { type: string }
+                    sourceType: { type: string }
+                    sourceId: { type: string }
+                    expectedAmountMinor: { type: string }
+                    actualAmountMinor: { type: string }
+                    message: { type: string }
+    ClaimRegistered:
+      name: ClaimRegistered
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: ClaimRegistered }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              claimId: { type: string, format: uuid }
+              tenantId: { type: string }
+          payload:
+            type: object
+            properties:
+              claimId: { type: string, format: uuid }
+              claimNumber: { type: string }
+              policyId: { type: string, format: uuid }
+              carrierOrganizationId: { type: string, format: uuid }
+              distributionOrganizationId: { type: string, format: uuid }
+              claimantPartyId: { type: string, format: uuid }
+              claimType: { type: string }
+              lossType: { type: string }
+              lossDate: { type: string, format: date-time }
+              status: { type: string }
+              currency: { type: string }
+    ClaimAcknowledged:
+      name: ClaimAcknowledged
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: ClaimAcknowledged }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              claimId: { type: string, format: uuid }
+              tenantId: { type: string }
+          payload:
+            type: object
+            properties:
+              claimId: { type: string, format: uuid }
+              status: { type: string }
+              acknowledgedAt: { type: string, format: date-time }
+    ClaimSubmittedToCarrier:
+      name: ClaimSubmittedToCarrier
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: ClaimSubmittedToCarrier }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              claimId: { type: string, format: uuid }
+              tenantId: { type: string }
+          payload:
+            type: object
+            properties:
+              claimId: { type: string, format: uuid }
+              carrierOrganizationId: { type: string, format: uuid }
+              externalClaimId: { type: string }
+              submittedAt: { type: string, format: date-time }
+    ClaimStatusUpdated:
+      name: ClaimStatusUpdated
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: ClaimStatusUpdated }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              claimId: { type: string, format: uuid }
+              tenantId: { type: string }
+          payload:
+            type: object
+            properties:
+              claimId: { type: string, format: uuid }
+              previousStatus: { type: string }
+              newStatus: { type: string }
+              updatedAt: { type: string, format: date-time }
+    ClaimAssessed:
+      name: ClaimAssessed
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: ClaimAssessed }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              claimId: { type: string, format: uuid }
+              tenantId: { type: string }
+          payload:
+            type: object
+            properties:
+              claimId: { type: string, format: uuid }
+              assessedAmount: { type: number }
+              currency: { type: string }
+              assessedAt: { type: string, format: date-time }
+    ClaimApproved:
+      name: ClaimApproved
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: ClaimApproved }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              claimId: { type: string, format: uuid }
+              tenantId: { type: string }
+          payload:
+            type: object
+            properties:
+              claimId: { type: string, format: uuid }
+              approvedAmount: { type: number }
+              currency: { type: string }
+              approvedAt: { type: string, format: date-time }
+    ClaimRejected:
+      name: ClaimRejected
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: ClaimRejected }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              claimId: { type: string, format: uuid }
+              tenantId: { type: string }
+          payload:
+            type: object
+            properties:
+              claimId: { type: string, format: uuid }
+              rejectionReason: { type: string }
+              rejectedAt: { type: string, format: date-time }
+    ClaimPaid:
+      name: ClaimPaid
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: ClaimPaid }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              claimId: { type: string, format: uuid }
+              tenantId: { type: string }
+          payload:
+            type: object
+            properties:
+              claimId: { type: string, format: uuid }
+              paidAmount: { type: number }
+              currency: { type: string }
+              paymentReference: { type: string }
+              paidAt: { type: string, format: date-time }
+    ClaimClosed:
+      name: ClaimClosed
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: ClaimClosed }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              claimId: { type: string, format: uuid }
+              tenantId: { type: string }
+          payload:
+            type: object
+            properties:
+              claimId: { type: string, format: uuid }
+              closedAt: { type: string, format: date-time }
+              finalStatus: { type: string }
+    ClaimAppealed:
+      name: ClaimAppealed
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: ClaimAppealed }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              claimId: { type: string, format: uuid }
+              tenantId: { type: string }
+          payload:
+            type: object
+            properties:
+              claimId: { type: string, format: uuid }
+              appealReason: { type: string }
+              appealedAt: { type: string, format: date-time }
+    ClaimProjectionUpdated:
+      name: ClaimProjectionUpdated
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: ClaimProjectionUpdated }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              claimId: { type: string, format: uuid }
+              projectionId: { type: string, format: uuid }
+              tenantId: { type: string }
+          payload:
+            type: object
+            properties:
+              projectionId: { type: string, format: uuid }
+              claimId: { type: string, format: uuid }
+              externalClaimId: { type: string }
+              sourceSystemId: { type: string }
+              sourceVersion: { type: integer }
+              receivedAt: { type: string, format: date-time }
+    ClaimAdvocacyCaseOpened:
+      name: ClaimAdvocacyCaseOpened
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: ClaimAdvocacyCaseOpened }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              caseId: { type: string, format: uuid }
+              claimId: { type: string, format: uuid }
+              tenantId: { type: string }
+          payload:
+            type: object
+            properties:
+              caseId: { type: string, format: uuid }
+              claimId: { type: string, format: uuid }
+              brokerOrganizationId: { type: string, format: uuid }
+              customerPartyId: { type: string, format: uuid }
+              carrierOrganizationId: { type: string, format: uuid }
+              priority: { type: string }
+              openedAt: { type: string, format: date-time }
+    ClaimAdvocacyCaseEscalated:
+      name: ClaimAdvocacyCaseEscalated
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: ClaimAdvocacyCaseEscalated }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              caseId: { type: string, format: uuid }
+              tenantId: { type: string }
+          payload:
+            type: object
+            properties:
+              caseId: { type: string, format: uuid }
+              reason: { type: string }
+              escalatedAt: { type: string, format: date-time }
+    AdvocacyTaskCreated:
+      name: AdvocacyTaskCreated
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: AdvocacyTaskCreated }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              caseId: { type: string, format: uuid }
+              taskId: { type: string, format: uuid }
+              tenantId: { type: string }
+          payload:
+            type: object
+            properties:
+              caseId: { type: string, format: uuid }
+              taskId: { type: string, format: uuid }
+              taskType: { type: string }
+              assignedToPartyId: { type: string, format: uuid }
+              dueDate: { type: string, format: date-time }
+    AdvocacyTaskOverdue:
+      name: AdvocacyTaskOverdue
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: AdvocacyTaskOverdue }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              caseId: { type: string, format: uuid }
+              taskId: { type: string, format: uuid }
+              tenantId: { type: string }
+          payload:
+            type: object
+            properties:
+              taskId: { type: string, format: uuid }
+              caseId: { type: string, format: uuid }
+              taskType: { type: string }
+              assignedToPartyId: { type: string, format: uuid }
+              dueDate: { type: string, format: date-time }
+              overdueAt: { type: string, format: date-time }
+    AdjusterReferred:
+      name: AdjusterReferred
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: AdjusterReferred }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              claimId: { type: string, format: uuid }
+              caseId: { type: string, format: uuid }
+              referralId: { type: string, format: uuid }
+              tenantId: { type: string }
+          payload:
+            type: object
+            properties:
+              referralId: { type: string, format: uuid }
+              claimId: { type: string, format: uuid }
+              caseId: { type: string, format: uuid }
+              adjusterOrganizationId: { type: string, format: uuid }
+              adjusterPartyId: { type: string, format: uuid }
+              referralDate: { type: string, format: date-time }
+    AdjusterReportReceived:
+      name: AdjusterReportReceived
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: AdjusterReportReceived }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              referralId: { type: string, format: uuid }
+              claimId: { type: string, format: uuid }
+              tenantId: { type: string }
+          payload:
+            type: object
+            properties:
+              referralId: { type: string, format: uuid }
+              claimId: { type: string, format: uuid }
+              reportRef: { type: string }
+              reportChecksum: { type: string }
+              receivedAt: { type: string, format: date-time }
+    RecoveryCaseCreated:
+      name: RecoveryCaseCreated
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: RecoveryCaseCreated }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              claimId: { type: string, format: uuid }
+              recoveryId: { type: string, format: uuid }
+              tenantId: { type: string }
+          payload:
+            type: object
+            properties:
+              recoveryId: { type: string, format: uuid }
+              claimId: { type: string, format: uuid }
+              responsiblePartyId: { type: string, format: uuid }
+              expectedRecoveryAmount: { type: number }
+              expectedRecoveryCurrency: { type: string }
+    RecoveryReceived:
+      name: RecoveryReceived
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: RecoveryReceived }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              recoveryId: { type: string, format: uuid }
+              claimId: { type: string, format: uuid }
+              tenantId: { type: string }
+          payload:
+            type: object
+            properties:
+              recoveryId: { type: string, format: uuid }
+              claimId: { type: string, format: uuid }
+              recoveredAmount: { type: number }
+              status: { type: string }
+    ClaimDocumentAttached:
+      name: ClaimDocumentAttached
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: ClaimDocumentAttached }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              claimId: { type: string, format: uuid }
+              documentId: { type: string }
+              tenantId: { type: string }
+          payload:
+            type: object
+            properties:
+              documentId: { type: string }
+              claimId: { type: string, format: uuid }
+              caseId: { type: string, format: uuid }
+              documentType: { type: string }
+              virusScanStatus: { type: string }
+              piiScanStatus: { type: string }
+              classification: { type: string }
+              uploadedByPartyId: { type: string, format: uuid }
+    ClaimPaymentProcessed:
+      name: ClaimPaymentProcessed
+      contentType: application/json
+      payload:
+        type: object
+        required: [eventType, eventVersion, correlationId, subject, payload]
+        properties:
+          eventType: { type: string, const: ClaimPaymentProcessed }
+          eventVersion: { type: integer, const: 1 }
+          correlationId: { type: string }
+          subject:
+            type: object
+            properties:
+              claimId: { type: string, format: uuid }
+              paymentId: { type: string, format: uuid }
+              tenantId: { type: string }
+          payload:
+            type: object
+            properties:
+              paymentId: { type: string, format: uuid }
+              claimId: { type: string, format: uuid }
+              paidAmount: { type: number }
+              currency: { type: string }
+              paymentReference: { type: string }
+              journalEntryId: { type: string }
+              status: { type: string, enum: [initiated, settled, failed] }
+              processedAt: { type: string, format: date-time }

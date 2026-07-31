@@ -9,6 +9,7 @@ import { FederatedIdentity } from './entities/FederatedIdentity';
 import { checkSodViolations } from './sod.rules';
 import { SessionService } from './session.service';
 import { OutboxEvent } from '@insurance/shared';
+import { permissionsForRoles } from './permissions';
 
 interface TokenPayload {
   userId: string;
@@ -17,6 +18,9 @@ interface TokenPayload {
   roles: string[];
   orgUnitId?: string | null;
   tenantId?: string | null;
+  organizationId?: string | null;
+  capabilities?: string[];
+  permissions?: string[];
 }
 
 interface ServiceTokenPayload {
@@ -69,14 +73,18 @@ export class AuthService {
     });
   }
 
-  private generateServiceToken(payload: ServiceTokenPayload & { tenantId?: string | null }): string {
-    return jwt.sign(
-      {
+  private generateServiceToken(payload: ServiceTokenPayload & { tenantId?: string | null; agreementId?: string | null; organizationId?: string | null; fieldAcl?: { visibleFields?: string[]; editableFields?: string[]; hiddenFields?: string[] } | null }): string {
+    const claims: Record<string, any> = {
         tokenType: payload.tokenType,
         serviceId: payload.serviceId,
         permissions: payload.permissions,
         tenantId: payload.tenantId,
-      },
+      };
+    if (payload.agreementId) claims.agreementId = payload.agreementId;
+    if (payload.organizationId) claims.organizationId = payload.organizationId;
+    if (payload.fieldAcl) claims.fieldAcl = payload.fieldAcl;
+    return jwt.sign(
+      claims,
       this.jwtSecret,
       {
         expiresIn: this.serviceJwtExpiresIn as jwt.SignOptions['expiresIn'],
@@ -91,7 +99,7 @@ export class AuthService {
     return jwt.verify(token, this.jwtSecret) as TokenPayload;
   }
 
-  issueServiceToken(params: { serviceId: string; permissions: string[]; tenantId?: string | null }): { token: string } {
+  issueServiceToken(params: { serviceId: string; permissions: string[]; tenantId?: string | null; agreementId?: string | null; organizationId?: string | null; fieldAcl?: { visibleFields?: string[]; editableFields?: string[]; hiddenFields?: string[] } | null }): { token: string } {
     const permissions = Array.isArray(params.permissions)
       ? params.permissions.map((x) => String(x || '').trim()).filter(Boolean)
       : [];
@@ -135,6 +143,9 @@ export class AuthService {
       serviceId,
       permissions,
       tenantId: params.tenantId,
+      agreementId: params.agreementId,
+      organizationId: params.organizationId,
+      fieldAcl: params.fieldAcl,
     });
     return { token };
   }
@@ -219,6 +230,9 @@ export class AuthService {
       roles: user.roles,
       orgUnitId: user.orgUnitId,
       tenantId: user.tenantId,
+      organizationId: user.orgUnitId,
+      capabilities: [],
+      permissions: permissionsForRoles(user.roles),
     });
 
     const session = await this.sessionService.createSession({
@@ -421,6 +435,9 @@ export class AuthService {
       roles: user.roles,
       orgUnitId: user.orgUnitId,
       tenantId: user.tenantId,
+      organizationId: user.orgUnitId,
+      capabilities: [],
+      permissions: permissionsForRoles(user.roles),
     });
 
     const session = await this.sessionService.createSession({

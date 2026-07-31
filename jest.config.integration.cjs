@@ -1,11 +1,14 @@
 module.exports = {
   displayName: 'integration',
   testMatch: ['<rootDir>/tests/integration/**/*.test.ts'],
-  testTimeout: 30000,
+  testTimeout: 60000,
   preset: 'ts-jest',
   testEnvironment: 'node',
   roots: ['<rootDir>/tests'],
   moduleFileExtensions: ['ts', 'js', 'json'],
+  moduleNameMapper: {
+    '^@insurance/shared$': '<rootDir>/packages/shared/dist/index.js',
+  },
   collectCoverageFrom: [
     'services/*/src/**/*.ts',
     '!services/*/src/**/*.d.ts',

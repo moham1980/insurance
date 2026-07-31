@@ -1,33 +1,52 @@
 import { NextResponse } from 'next/server';
 
-const PORTAL_BASE = process.env.CUSTOMER_PORTAL_URL || 'http://localhost:18035';
+const DEMO_OTP = '111111';
+const DEMO_TOKEN = 'demo-jwt-token-customer-portal';
+const DEMO_USER = {
+  id: 'demo-user-001',
+  phoneNumber: '09123456789',
+  name: 'کاربر دمو',
+  tenantId: 'default-tenant',
+};
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const phoneNumber = body?.phoneNumber;
-    const otpCode = body?.otpCode;
+    const otpCode = body?.otp;
 
-    if (!phoneNumber || !otpCode) {
+    if (!otpCode) {
       return NextResponse.json(
-        { success: false, error: { code: 'VALIDATION_ERROR', message: 'Phone number and OTP code are required' } },
+        { success: false, error: { code: 'VALIDATION_ERROR', message: 'OTP code is required' } },
         { status: 400 },
       );
     }
 
-    const res = await fetch(`${PORTAL_BASE}/portal/otp/verify`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ phoneNumber, otp: otpCode }),
-    });
-
-    const json = await res.json();
-
-    if (!res.ok || !json?.success) {
-      return NextResponse.json(json, { status: res.status });
+    if (otpCode !== DEMO_OTP) {
+      return NextResponse.json(
+        { success: false, error: { code: 'INVALID_OTP', message: 'کد اشتباه است (دمو: 111111)' } },
+        { status: 400 },
+      );
     }
 
-    return NextResponse.json({ success: true, data: json.data });
+    const response = NextResponse.json({
+      success: true,
+      data: { token: DEMO_TOKEN, user: DEMO_USER },
+    });
+    response.cookies.set('auth-token', DEMO_TOKEN, {
+      httpOnly: false,
+      secure: false,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 24 * 60 * 60,
+    });
+    response.cookies.set('auth-user', JSON.stringify(DEMO_USER), {
+      httpOnly: false,
+      secure: false,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 24 * 60 * 60,
+    });
+    return response;
   } catch {
     return NextResponse.json(
       { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to verify OTP' } },

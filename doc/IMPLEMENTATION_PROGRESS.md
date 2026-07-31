@@ -1231,3 +1231,66 @@
   - Auth federation service: database storage for federated identities - linkFederatedIdentity (real database operations)
   - Auth federation service: database removal for federated identities - unlinkFederatedIdentity (real database operations)
   - Auth federation service: database query for federated identities - getUserFederatedIdentities (real database operations)
+
+---
+
+## Epic: Brokerage Portal UI Completion | P1 | M
+
+### Task: Agent Portal UI — Claims, Advocacy, Adjuster Referrals, Recovery
+**Status**: ✅ Done + Verified | **تاریخ تکمیل**: ۱۴۰۵/۰۴/۳۰
+
+- [x] Recovery tracking page (`agent-portal-ui/src/pages/recovery.tsx`) — list, create, update status with modal
+- [x] Claims, advocacy, adjuster referrals pages wired into navigation
+- [x] Loading, error handling, data tables, user interactions
+- [x] API client integration with auth token from cookies
+
+### Task: Customer Portal UI — Advocacy, Adjuster Communication, Endorsement Tracking, Renewal Comparison
+**Status**: ✅ Done + Verified | **تاریخ تکمیل**: ۱۴۰۵/۰۴/۳۰
+
+- [x] Extended `customer-portal-ui/src/lib/api.ts` with advocacy, adjuster communication, endorsement tracking, renewal quote comparison methods
+- [x] Advocacy page (`customer-portal-ui/src/app/advocacy/page.tsx`) — case listing, details, communications, new case creation
+- [x] Adjuster communication page (`customer-portal-ui/src/app/adjuster-communication/page.tsx`) — claim selection, messaging
+- [x] Endorsement tracking page (`customer-portal-ui/src/app/endorsement-tracking/page.tsx`) — policy selection, endorsement list, tracking details
+- [x] Renewal quote comparison page (`customer-portal-ui/src/app/renewal-comparison/page.tsx`) — policy selection, quote list, comparison, acceptance
+- [x] Navigation links added to `portal-shell.tsx` for all new pages
+
+### Task: Channel Workspace UI — Dashboard, Sub-Agents, Partners
+**Status**: ✅ Done + Verified | **تاریخ تکمیل**: ۱۴۰۵/۰۴/۳۰
+
+- [x] Extended `channel-workspace-ui/src/lib/api.ts` with `channelApi` and `brokerApi` objects, `postBFF`, `patchBFF` helpers
+- [x] Channel workspace main page (`index.tsx`) — added dashboard, sub-agents, partners tabs with `ChannelDashboardTab` component
+- [x] Broker page (`broker/index.tsx`) — added dashboard, contracts, sub-agents, partners tabs
+- [x] `DashboardTab` component with stat cards and recent activity
+- [x] `SubAgentsTab` component with data table and create modal form
+- [x] `PartnersTab` component with data table and create modal form (partner type selector)
+
+### Task: Broker Portal UI — Full Portal Creation
+**Status**: ✅ Done + Verified | **تاریخ تکمیل**: ۱۴۰۵/۰۴/۳۰
+
+- [x] Created `broker-portal-ui` from scratch (Next.js 14, React 18, Tailwind, TypeScript)
+- [x] API client (`src/lib/api.ts`) — all BFF endpoints: dashboard, claims, policies, payments, underwriting, collections, regulatory, agreements, offerings, submissions, placements, commissions, sub-agents, KYC
+- [x] Main page (`src/pages/index.tsx`) — 7 page sections with navigation:
+  - Dashboard: stat cards from BFF
+  - Claims: list, detail view, approve/reject actions
+  - Policies: list, detail view, endorsements
+  - Payments: list with status filter
+  - Underwriting: list, detail view, appeal flow
+  - Collections: plans list, installments detail
+  - Regulatory: 3 tabs (license validation, Sanhab inquiry, warehouse fire inquiry)
+- [x] Login page with token-based auth
+- [x] Dockerfile for containerized deployment
+
+### Task: E2E Tests — Broker Portal BFF & Channel Workspace BFF
+**Status**: ✅ Done + Verified | **تاریخ تکمیل**: ۱۴۰۵/۰۴/۳۰
+
+- [x] `tests/e2e/broker-portal-bff.test.ts` — 24 test cases covering all BFF endpoints:
+  - Dashboard, agreements, offerings, submissions, placements
+  - Claims (list, FNOL create), policies (list, filter, projections)
+  - Payments, underwriting (list, SLA metrics), collections (plans, filter)
+  - Regulatory (license validate, status changes, Sanhab inquiry)
+  - Commissions, sub-agents, KYC proxy, organizations/parties
+- [x] `tests/e2e/channel-workspace-bff.test.ts` — 18 test cases covering:
+  - Health check, channel workspaces, offerings, submissions, commissions, customers
+  - Broker carrier agreements, product offerings, placements, settlements, claim advocacy
+  - Sales network partners, contracts, ledger, agreements, sub-agents, dashboard
+  - Auth guard verification (unauthenticated access returns 401/403)

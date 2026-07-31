@@ -1,0 +1,643 @@
+openapi: '3.0.3'
+info:
+  title: Insurance Policy Service P3 API
+  version: '1.0.0'
+  description: OpenAPI contract for P3 policy lifecycle, endorsement, renewal, and cancellation endpoints.
+servers:
+  - url: http://localhost:8080/policies
+    description: Local dev gateway
+security:
+  - BearerAuth: []
+paths:
+  /policies:
+    get:
+      summary: List policies
+      operationId: listPolicies
+      tags: [Policy]
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20, maximum: 200 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+        - name: status
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Paginated list of policies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPolicies'
+  /policies/{policyId}:
+    get:
+      summary: Get policy by ID
+      operationId: getPolicy
+      tags: [Policy]
+      parameters:
+        - $ref: '#/components/parameters/PolicyIdPath'
+      responses:
+        '200':
+          description: Policy details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /policies/{policyId}/details:
+    get:
+      summary: Get policy with coverages, parties, and documents
+      operationId: getPolicyDetails
+      tags: [Policy]
+      parameters:
+        - $ref: '#/components/parameters/PolicyIdPath'
+      responses:
+        '200':
+          description: Full policy details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyDetailsResponse'
+  /policies/{policyId}:
+    patch:
+      summary: Patch policy fields
+      operationId: patchPolicy
+      tags: [Policy]
+      parameters:
+        - $ref: '#/components/parameters/PolicyIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                patch:
+                  type: object
+                  properties:
+                    productId: { type: string, format: uuid }
+                    productVersion: { type: integer }
+                    salesChannelType: { type: string }
+                    customerPartyId: { type: string, format: uuid }
+                    recordOwnerOrganizationId: { type: string, format: uuid }
+                    sourceSystemId: { type: string }
+                    externalPolicyId: { type: string }
+                    placementId: { type: string, format: uuid }
+                    marketerPartyId: { type: string, format: uuid }
+                    subAgentPartyId: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Updated policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyResponse'
+  /policies/{policyId}/coverages:
+    get:
+      summary: List policy coverages
+      operationId: getCoverages
+      tags: [Policy]
+      parameters:
+        - $ref: '#/components/parameters/PolicyIdPath'
+      responses:
+        '200':
+          description: Coverage list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      rows:
+                        type: array
+                        items: { $ref: '#/components/schemas/PolicyCoverage' }
+    post:
+      summary: Add coverage to policy
+      operationId: addCoverage
+      tags: [Policy]
+      parameters:
+        - $ref: '#/components/parameters/PolicyIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateCoverageRequest' }
+      responses:
+        '200':
+          description: Created coverage
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { $ref: '#/components/schemas/PolicyCoverage' }
+  /policies/{policyId}/history:
+    get:
+      summary: Get policy history (changes, renewals, endorsements)
+      operationId: getHistory
+      tags: [Policy]
+      parameters:
+        - $ref: '#/components/parameters/PolicyIdPath'
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50, maximum: 200 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        '200':
+          description: Paginated history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      changes: { type: array, items: { type: object } }
+                      renewals: { type: array, items: { type: object } }
+                      endorsements: { type: array, items: { type: object } }
+                      total: { type: integer }
+  /policies/{policyId}/endorsements:
+    get:
+      summary: List endorsements for a policy
+      operationId: listEndorsements
+      tags: [Endorsement]
+      parameters:
+        - $ref: '#/components/parameters/PolicyIdPath'
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        '200':
+          description: Paginated endorsements
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Endorsement' }
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+    post:
+      summary: Create endorsement on a policy
+      operationId: createEndorsement
+      tags: [Endorsement]
+      parameters:
+        - $ref: '#/components/parameters/PolicyIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateEndorsementRequest' }
+      responses:
+        '200':
+          description: Created endorsement
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { $ref: '#/components/schemas/Endorsement' }
+  /endorsements/{endorsementId}/submit:
+    post:
+      summary: Submit endorsement (draft → submitted)
+      operationId: submitEndorsement
+      tags: [Endorsement]
+      parameters:
+        - name: endorsementId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Submitted endorsement
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { $ref: '#/components/schemas/Endorsement' }
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /endorsements/{endorsementId}/approve:
+    post:
+      summary: Approve endorsement (submitted → approved)
+      operationId: approveEndorsement
+      tags: [Endorsement]
+      parameters:
+        - name: endorsementId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [approvedByPartyId]
+              properties:
+                approvedByPartyId: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Approved endorsement
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { $ref: '#/components/schemas/Endorsement' }
+  /endorsements/{endorsementId}/reject:
+    post:
+      summary: Reject endorsement (submitted/draft → rejected)
+      operationId: rejectEndorsement
+      tags: [Endorsement]
+      parameters:
+        - name: endorsementId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rejectionReason]
+              properties:
+                rejectionReason: { type: string }
+      responses:
+        '200':
+          description: Rejected endorsement
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { $ref: '#/components/schemas/Endorsement' }
+  /endorsements/{endorsementId}/apply:
+    post:
+      summary: Apply endorsement (draft/submitted → applied)
+      operationId: applyEndorsement
+      tags: [Endorsement]
+      parameters:
+        - name: endorsementId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                approvedByPartyId: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Applied endorsement
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { $ref: '#/components/schemas/Endorsement' }
+  /policies/{policyId}/cancel:
+    post:
+      summary: Cancel policy
+      operationId: cancelPolicy
+      tags: [Policy Lifecycle]
+      parameters:
+        - $ref: '#/components/parameters/PolicyIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string }
+                cancellationType: { type: string }
+                effectiveDate: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Cancelled policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyResponse'
+  /policies/{policyId}/lapse:
+    post:
+      summary: Lapse policy (renewal not completed)
+      operationId: lapsePolicy
+      tags: [Policy Lifecycle]
+      parameters:
+        - $ref: '#/components/parameters/PolicyIdPath'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string }
+      responses:
+        '200':
+          description: Lapsed policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyResponse'
+  /policies/{policyId}/renew:
+    post:
+      summary: Renew policy
+      operationId: renewPolicy
+      tags: [Policy Lifecycle]
+      parameters:
+        - $ref: '#/components/parameters/PolicyIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string }
+                newPremium: { type: number }
+                newCoverageEndDate: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Renewed policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyResponse'
+  /policies/{policyId}/auto-renew:
+    post:
+      summary: Set auto-renewal
+      operationId: setAutoRenew
+      tags: [Policy Lifecycle]
+      parameters:
+        - $ref: '#/components/parameters/PolicyIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                enabled: { type: boolean }
+                autoRenew: { type: boolean }
+                paymentMethod: { type: string }
+      responses:
+        '200':
+          description: Updated auto-renewal settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyResponse'
+  /policies/{policyId}/renewal/schedule:
+    post:
+      summary: Schedule renewal
+      operationId: scheduleRenewal
+      tags: [Policy Lifecycle]
+      parameters:
+        - $ref: '#/components/parameters/PolicyIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                scheduledDate: { type: string, format: date-time }
+                premium: { type: number }
+                notes: { type: string }
+      responses:
+        '200':
+          description: Scheduled renewal
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      renewalId: { type: string, format: uuid }
+                      status: { type: string }
+  /policies/{policyId}/renewals:
+    get:
+      summary: List renewals for a policy
+      operationId: getRenewals
+      tags: [Policy Lifecycle]
+      parameters:
+        - $ref: '#/components/parameters/PolicyIdPath'
+      responses:
+        '200':
+          description: Renewal list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      rows: { type: array, items: { type: object } }
+                      total: { type: integer }
+  /policies/renewal/due:
+    get:
+      summary: Get policies due for renewal
+      operationId: getPoliciesForRenewal
+      tags: [Policy Lifecycle]
+      parameters:
+        - name: daysUntilExpiry
+          in: query
+          schema: { type: integer, default: 30 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50 }
+      responses:
+        '200':
+          description: List of expiring policies
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      rows: { type: array, items: { $ref: '#/components/schemas/Policy' } }
+                      total: { type: integer }
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    PolicyIdPath:
+      name: policyId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: false }
+              error:
+                type: object
+                properties:
+                  code: { type: string, example: NOT_FOUND }
+                  message: { type: string }
+  schemas:
+    Pagination:
+      type: object
+      properties:
+        total: { type: integer }
+        limit: { type: integer }
+        offset: { type: integer }
+    PaginatedPolicies:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          type: object
+          properties:
+            rows:
+              type: array
+              items: { $ref: '#/components/schemas/Policy' }
+            pagination:
+              $ref: '#/components/schemas/Pagination'
+    Policy:
+      type: object
+      properties:
+        policyId: { type: string, format: uuid }
+        policyNumber: { type: string }
+        uniqueCode: { type: string, nullable: true }
+        status: { type: string, enum: [inquiry, bound, docs_pending, uw_pending, uw_rejected, risk_assessed, issued, active, endorsed, cancelled, renewed, lapsed] }
+        partyId: { type: string, format: uuid }
+        producerOrgUnitId: { type: string, format: uuid, nullable: true }
+        distributionOrganizationId: { type: string, format: uuid, nullable: true }
+        issuerOrganizationId: { type: string, format: uuid, nullable: true }
+        lineOfBusiness: { type: string }
+        startDate: { type: string, format: date-time }
+        endDate: { type: string, format: date-time }
+        premiumAmount: { type: number }
+        premiumCurrency: { type: string }
+        taxesAmount: { type: number }
+        totalPayableAmount: { type: number }
+        autoRenew: { type: boolean }
+        renewalCount: { type: integer }
+        version: { type: integer }
+    PolicyResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: { $ref: '#/components/schemas/Policy' }
+        correlationId: { type: string }
+    PolicyDetailsResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          type: object
+          properties:
+            policy: { $ref: '#/components/schemas/Policy' }
+            coverages:
+              type: array
+              items: { $ref: '#/components/schemas/PolicyCoverage' }
+            parties:
+              type: array
+              items: { type: object }
+            documents:
+              type: array
+              items: { type: object }
+    PolicyCoverage:
+      type: object
+      properties:
+        policyCoverageId: { type: string, format: uuid }
+        policyId: { type: string, format: uuid }
+        coverageCode: { type: string }
+        limitAmount: { type: number }
+        limitCurrency: { type: string }
+        deductibleAmount: { type: number }
+        deductibleCurrency: { type: string }
+        premiumAmount: { type: number }
+        premiumCurrency: { type: string }
+        status: { type: string }
+    CreateCoverageRequest:
+      type: object
+      required: [coverageCode, limitAmount, premiumAmount]
+      properties:
+        coverageCode: { type: string }
+        limitAmount: { type: number }
+        limitCurrency: { type: string, default: IRR }
+        deductibleAmount: { type: number, default: 0 }
+        deductibleCurrency: { type: string, default: IRR }
+        premiumAmount: { type: number }
+        premiumCurrency: { type: string, default: IRR }
+    Endorsement:
+      type: object
+      properties:
+        endorsementId: { type: string, format: uuid }
+        policyId: { type: string, format: uuid }
+        endorsementType: { type: string, enum: [change, renewal, cancellation, rewrite] }
+        effectiveDate: { type: string, format: date-time }
+        requestedByPartyId: { type: string, format: uuid }
+        approvedByPartyId: { type: string, format: uuid, nullable: true }
+        status: { type: string, enum: [draft, submitted, approved, applied, rejected] }
+        premiumDeltaAmount: { type: number }
+        premiumDeltaCurrency: { type: string }
+        taxDeltaAmount: { type: number }
+        taxDeltaCurrency: { type: string }
+        reason: { type: string, nullable: true }
+        rejectedAt: { type: string, format: date-time, nullable: true }
+        rejectionReason: { type: string, nullable: true }
+        appliedAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+    CreateEndorsementRequest:
+      type: object
+      required: [endorsementType, effectiveDate, requestedByPartyId]
+      properties:
+        endorsementType: { type: string, enum: [change, renewal, cancellation, rewrite] }
+        effectiveDate: { type: string, format: date-time }
+        requestedByPartyId: { type: string, format: uuid }
+        reason: { type: string }
+        payload:
+          type: object
+          properties:
+            premiumDeltaAmount: { type: number }
+            premiumDeltaCurrency: { type: string }
+            taxDeltaAmount: { type: number }
+            taxDeltaCurrency: { type: string }

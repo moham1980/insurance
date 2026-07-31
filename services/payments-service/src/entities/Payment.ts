@@ -12,11 +12,20 @@ export class Payment {
   @Column({ name: 'tenant_id', type: 'text' })
   tenantId!: string;
 
+  @Column({ name: 'policy_id', type: 'text', nullable: true })
+  policyId!: string | null;
+
+  @Column({ name: 'broker_organization_id', type: 'uuid', nullable: true })
+  brokerOrganizationId!: string | null;
+
+  @Column({ name: 'payment_type', type: 'text', nullable: true })
+  paymentType!: 'claim_payment' | 'commission_settlement' | 'premium_payment' | 'refund' | 'transfer' | 'card_to_card' | 'bill_payment' | null;
+
   @Column({ name: 'payment_intent_id', type: 'uuid' })
   paymentIntentId!: string;
 
   @Column({ name: 'status', type: 'text' })
-  status!: 'executed' | 'failed' | 'refunded' | 'disputed';
+  status!: 'executed' | 'failed' | 'refunded' | 'partially_refunded' | 'disputed';
 
   @Column({ name: 'provider', type: 'text', nullable: true })
   provider!: string | null;
@@ -26,6 +35,9 @@ export class Payment {
 
   @Column({ name: 'amount', type: 'numeric' })
   amount!: number;
+
+  @Column({ name: 'refunded_amount', type: 'numeric', default: 0 })
+  refundedAmount!: number;
 
   @Column({ name: 'currency', type: 'text', default: 'IRR' })
   currency!: string;

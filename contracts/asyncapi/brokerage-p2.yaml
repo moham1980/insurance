@@ -1,0 +1,428 @@
+asyncapi: '2.6.0'
+info:
+  title: Quote-to-Bind Domain Events
+  version: 1.0.0
+  description: P2 quote-to-bind events between submission-placement, policy, billing and workflow services.
+servers:
+  dev:
+    url: kafka://localhost:19092
+    protocol: kafka
+    description: Dev Kafka broker
+channels:
+  insurance.submission.events:
+    publish:
+      message:
+        $ref: '#/components/messages/SubmissionCreated'
+  insurance.quote.events:
+    publish:
+      message:
+        oneOf:
+          - $ref: '#/components/messages/QuoteRequested'
+          - $ref: '#/components/messages/QuoteExpired'
+          - $ref: '#/components/messages/QuoteSelected'
+    subscribe:
+      message:
+        $ref: '#/components/messages/CarrierQuoteReceived'
+  insurance.placement.events:
+    publish:
+      message:
+        oneOf:
+          - $ref: '#/components/messages/BindRequested'
+          - $ref: '#/components/messages/BindConfirmed'
+          - $ref: '#/components/messages/BindFailed'
+          - $ref: '#/components/messages/PlacementBound'
+          - $ref: '#/components/messages/PlacementIssued'
+          - $ref: '#/components/messages/PolicyProjected'
+          - $ref: '#/components/messages/PlacementCancelled'
+  insurance.underwriting.events:
+    publish:
+      message:
+        $ref: '#/components/messages/RiskReferred'
+components:
+  messages:
+    SubmissionCreated:
+      name: SubmissionCreated.v1
+      payload:
+        $ref: '#/components/schemas/SubmissionCreatedEvent'
+    QuoteRequested:
+      name: QuoteRequested.v1
+      payload:
+        $ref: '#/components/schemas/QuoteRequestedEvent'
+    CarrierQuoteReceived:
+      name: CarrierQuoteReceived.v1
+      payload:
+        $ref: '#/components/schemas/CarrierQuoteReceivedEvent'
+    QuoteExpired:
+      name: QuoteExpired.v1
+      payload:
+        $ref: '#/components/schemas/QuoteExpiredEvent'
+    QuoteSelected:
+      name: QuoteSelected.v1
+      payload:
+        $ref: '#/components/schemas/QuoteSelectedEvent'
+    BindRequested:
+      name: BindRequested.v1
+      payload:
+        $ref: '#/components/schemas/BindRequestedEvent'
+    BindConfirmed:
+      name: BindConfirmed.v1
+      payload:
+        $ref: '#/components/schemas/BindConfirmedEvent'
+    BindFailed:
+      name: BindFailed.v1
+      payload:
+        $ref: '#/components/schemas/BindFailedEvent'
+    PlacementBound:
+      name: PlacementBound.v1
+      payload:
+        $ref: '#/components/schemas/PlacementBoundEvent'
+    PlacementIssued:
+      name: PlacementIssued.v1
+      payload:
+        $ref: '#/components/schemas/PlacementIssuedEvent'
+    PolicyProjected:
+      name: PolicyProjected.v1
+      payload:
+        $ref: '#/components/schemas/PolicyProjectedEvent'
+    PlacementCancelled:
+      name: PlacementCancelled.v1
+      payload:
+        $ref: '#/components/schemas/PlacementCancelledEvent'
+    RiskReferred:
+      name: RiskReferred.v1
+      payload:
+        $ref: '#/components/schemas/RiskReferredEvent'
+  schemas:
+    DomainEventEnvelope:
+      type: object
+      required:
+        - eventId
+        - eventType
+        - schemaVersion
+        - occurredAt
+        - producer
+        - tenantId
+        - correlationId
+        - subject
+        - data
+      properties:
+        eventId:
+          type: string
+        eventType:
+          type: string
+        schemaVersion:
+          type: integer
+        occurredAt:
+          type: string
+          format: date-time
+        producer:
+          type: string
+        tenantId:
+          type: string
+        organizationId:
+          type: string
+        correlationId:
+          type: string
+        causationId:
+          type: string
+        idempotencyKey:
+          type: string
+        dataClassification:
+          type: string
+          enum: [PUBLIC, INTERNAL, CONFIDENTIAL, PII]
+        subject:
+          type: object
+          properties:
+            type:
+              type: string
+            id:
+              type: string
+        data:
+          type: object
+    SubmissionCreatedEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                tenantId:
+                  type: string
+                submissionId:
+                  type: string
+                brokerOrganizationId:
+                  type: string
+                partyId:
+                  type: string
+                productId:
+                  type: string
+                productVersion:
+                  type: integer
+                lineOfBusiness:
+                  type: string
+                status:
+                  type: string
+                createdAt:
+                  type: string
+                  format: date-time
+    QuoteRequestedEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                tenantId:
+                  type: string
+                quoteRequestId:
+                  type: string
+                submissionId:
+                  type: string
+                carriersRequested:
+                  type: array
+                  items:
+                    type: string
+                requestedAt:
+                  type: string
+                  format: date-time
+                expiresAt:
+                  type: string
+                  format: date-time
+                amlPassed:
+                  type: boolean
+                referralRequired:
+                  type: boolean
+    CarrierQuoteReceivedEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                quoteResponseId:
+                  type: string
+                quoteRequestId:
+                  type: string
+                submissionId:
+                  type: string
+                carrierOrganizationId:
+                  type: string
+                premiumAmountMinor:
+                  type: string
+                premiumCurrency:
+                  type: string
+                status:
+                  type: string
+                receivedAt:
+                  type: string
+                  format: date-time
+    PlacementBoundEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                placementId:
+                  type: string
+                submissionId:
+                  type: string
+                quoteResponseId:
+                  type: string
+                policyId:
+                  type: string
+                policyNumber:
+                  type: string
+                premiumReservationId:
+                  type: string
+                boundAt:
+                  type: string
+                  format: date-time
+    RiskReferredEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                tenantId:
+                  type: string
+                submissionId:
+                  type: string
+                quoteRequestId:
+                  type: string
+                referralId:
+                  type: string
+                reasonCodes:
+                  type: array
+                  items:
+                    type: string
+    QuoteExpiredEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                tenantId:
+                  type: string
+                submissionId:
+                  type: string
+                previousStatus:
+                  type: string
+                expiredAt:
+                  type: string
+                  format: date-time
+    QuoteSelectedEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                tenantId:
+                  type: string
+                quoteResponseId:
+                  type: string
+                quoteRequestId:
+                  type: string
+                submissionId:
+                  type: string
+                carrierOrganizationId:
+                  type: string
+                selectedAt:
+                  type: string
+                  format: date-time
+    BindRequestedEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                placementId:
+                  type: string
+                submissionId:
+                  type: string
+                quoteResponseId:
+                  type: string
+                carrierOrganizationId:
+                  type: string
+                brokerOrganizationId:
+                  type: string
+                bindAttempts:
+                  type: integer
+                requestedAt:
+                  type: string
+                  format: date-time
+    BindConfirmedEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                placementId:
+                  type: string
+                submissionId:
+                  type: string
+                quoteResponseId:
+                  type: string
+                policyId:
+                  type: string
+                policyNumber:
+                  type: string
+                carrierOrganizationId:
+                  type: string
+                confirmedAt:
+                  type: string
+                  format: date-time
+    BindFailedEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                placementId:
+                  type: string
+                submissionId:
+                  type: string
+                errorCode:
+                  type: string
+                errorMessage:
+                  type: string
+                bindSagaState:
+                  type: string
+                failedAt:
+                  type: string
+                  format: date-time
+    PlacementIssuedEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                placementId:
+                  type: string
+                submissionId:
+                  type: string
+                policyId:
+                  type: string
+                policyNumber:
+                  type: string
+                carrierOrganizationId:
+                  type: string
+                issuedAt:
+                  type: string
+                  format: date-time
+    PolicyProjectedEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                placementId:
+                  type: string
+                policyId:
+                  type: string
+                policyNumber:
+                  type: string
+                brokerOrganizationId:
+                  type: string
+                issuerOrganizationId:
+                  type: string
+                projectedAt:
+                  type: string
+                  format: date-time
+    PlacementCancelledEvent:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                placementId:
+                  type: string
+                submissionId:
+                  type: string
+                carrierOrganizationId:
+                  type: string
+                cancelledAt:
+                  type: string
+                  format: date-time

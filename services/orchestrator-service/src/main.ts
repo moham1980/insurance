@@ -3,7 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { AppModule } from './app.module';
 import { DataSource } from 'typeorm';
-import { DeadLetterQueueService, KafkaConsumer, consumeOnce, createLogger } from '@insurance/shared';
+import { DeadLetterQueueService, KafkaConsumer, createLogger } from '@insurance/shared';
 import { OrchestratorService } from './orchestrator.service';
 
 async function bootstrap() {
@@ -49,20 +49,12 @@ async function bootstrap() {
     const svc = app.get(OrchestratorService);
     const consumerName = process.env.CONSUMER_NAME || 'orchestrator-service';
 
-    const dlq = new DeadLetterQueueService(
-      {
-        dataSource: ds,
-        kafkaConfig: {
-          brokers: kafkaBrokers
-            .split(',')
-            .map((x) => x.trim())
-            .filter(Boolean),
-          clientId: process.env.KAFKA_CLIENT_ID || 'orchestrator-dlq',
-        },
-        maxRetries: parseInt(process.env.DLQ_MAX_RETRIES || '3', 10),
-      },
-      logger
-    );
+    // Ensure the configured schema is in the search_path for this connection
+    const schema = process.env.DB_SCHEMA || 'public';
+    const safeSchema = schema.replace(/[^a-zA-Z0-9_$]/g, '');
+    await ds.query(`SET search_path TO ${safeSchema}`);
+
+    const dlq = app.get<DeadLetterQueueService>('DLQ_SERVICE');
     await dlq.initialize();
     await dlq.startRetryProcessor(Number.isFinite(dlqRetryIntervalMs) ? dlqRetryIntervalMs : 60000);
 
@@ -94,13 +86,22 @@ async function bootstrap() {
         '00000000-0000-0000-0000-000000000000';
 
       try {
-        const res = await consumeOnce({
-          dataSource: ds,
-          consumerName,
-          topic: String(topic),
-          eventId: String(eventId),
-          tenantId: String(tenantId),
-          handler: async () => {
+        await ds.transaction(async (manager) => {
+          // Idempotency guard: skip already-processed events
+          const inserted = await manager.query(
+            `INSERT INTO consumed_events(event_id, consumer_name, tenant_id, consumed_at, topic)
+             VALUES ($1, $2, $3, NOW(), $4)
+             ON CONFLICT (event_id, consumer_name, tenant_id) DO NOTHING
+             RETURNING event_id;`,
+            [String(eventId), consumerName, String(tenantId), String(topic)]
+          );
+
+          if (!Array.isArray(inserted) || inserted.length === 0) {
+            return; // duplicate
+          }
+
+          // Run the event handler under the same transactional EntityManager
+          await svc.runWithManager(manager, async () => {
             if (String(topic) === 'insurance.document.extraction.needs_review') {
               if (!documentId) return;
               await svc.onDocumentNeedsReview({
@@ -170,10 +171,8 @@ async function bootstrap() {
               paymentIntentId: paymentIntentId ? String(paymentIntentId) : undefined,
               payload: parsed,
             });
-          },
+          });
         });
-
-        if (res.consumed === false && res.reason === 'DUPLICATE') return;
       } catch (e: any) {
         const err = e instanceof Error ? e : new Error(String(e));
         logger.error('Kafka consume handler failed, sending to DLQ', err, {

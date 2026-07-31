@@ -191,6 +191,23 @@ services:
       - migrate
     restart: "no"
 
+  submission-placement-migrate:
+    build:
+      context: .
+      dockerfile: services/submission-placement-service/Dockerfile
+      args: *proxy_build_args
+    command: ["bun", "run", "migrate"]
+    environment:
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: placement
+    profiles:
+      - migrate
+    restart: "no"
+
   document-migrate:
     build:
       context: .
@@ -616,6 +633,23 @@ services:
       - migrate
     restart: "no"
 
+  partner-gateway-migrate:
+    build:
+      context: .
+      dockerfile: services/partner-gateway/Dockerfile
+      args: *proxy_build_args
+    command: ["bun", "run", "migrate"]
+    environment:
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: partner_gateway
+    profiles:
+      - migrate
+    restart: "no"
+
   # Application Services
   auth-service:
     build:
@@ -654,6 +688,33 @@ services:
       insurance-postgres:
         condition: service_healthy
       insurance-kafka:
+        condition: service_started
+    restart: unless-stopped
+
+  partner-gateway:
+    build:
+      context: .
+      dockerfile: services/partner-gateway/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18010:18010"
+    environment:
+      NODE_ENV: production
+      PORT: 18010
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: partner_gateway
+      KAFKA_BROKERS: insurance-kafka:9092
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+    depends_on:
+      insurance-postgres:
+        condition: service_healthy
+      insurance-kafka:
+        condition: service_started
+      auth-service:
         condition: service_started
     restart: unless-stopped
 
@@ -949,6 +1010,43 @@ services:
       - insurance-kafka
     restart: unless-stopped
 
+  submission-placement-service:
+    build:
+      context: .
+      dockerfile: services/submission-placement-service/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18025:18025"
+    environment:
+      NODE_ENV: production
+      PORT: 18025
+      DB_HOST: insurance-postgres
+      DB_PORT: 5432
+      DB_USERNAME: insurance
+      DB_PASSWORD: insurance123
+      DB_DATABASE: insurance_platform
+      DB_SCHEMA: placement
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      KAFKA_BROKERS: insurance-kafka:9092
+      PRODUCT_SERVICE_URL: http://product-service:18018
+      SALES_NETWORK_SERVICE_URL: http://sales-network-service:18022
+      POLICY_SERVICE_URL: http://policy-service:18007
+      BILLING_SERVICE_URL: http://payments-service:18004
+      UNDERWRITING_SERVICE_URL: http://underwriting-service:18020
+      FRAUD_SERVICE_URL: http://fraud-service:18009
+      WORKFLOW_ENGINE_SERVICE_URL: http://workflow-service:18028
+    depends_on:
+      - auth-service
+      - product-service
+      - sales-network-service
+      - policy-service
+      - payments-service
+      - underwriting-service
+      - fraud-service
+      - workflow-service
+      - insurance-kafka
+    restart: unless-stopped
+
   document-service:
     build:
       context: .
@@ -1143,6 +1241,8 @@ services:
       CUSTOMER_360_URL: http://customer-360-service:18026
       OUTBOX_RELAY_URL: http://outbox-relay:18041
       AI_GOVERNANCE_URL: http://ai-governance-service:18036
+      BROKER_PORTAL_BFF_URL: http://broker-portal-bff:3030
+      CHANNEL_WORKSPACE_BFF_URL: http://channel-workspace-bff:3020
       JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
     depends_on:
       - auth-service
@@ -1176,6 +1276,8 @@ services:
       - customer-360-service
       - outbox-relay
       - ai-governance-service
+      - broker-portal-bff
+      - channel-workspace-bff
     restart: unless-stopped
 
   web-ui:
@@ -1187,7 +1289,7 @@ services:
       - "18042:3026"
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_API_BASE_URL: http://localhost:18000
+      NEXT_PUBLIC_API_BASE_URL: http://api-gateway:18000
     depends_on:
       - api-gateway
     restart: unless-stopped
@@ -1269,10 +1371,27 @@ services:
       DB_SYNC: "false"
       NOTIFICATION_SERVICE_URL: http://notification-service:18037
       PARTY_KYC_URL: http://party-kyc-service:18006
+      PRODUCT_SERVICE_URL: http://product-service:18018
+      POLICY_SERVICE_URL: http://policy-service:18007
+      CLAIMS_SERVICE_URL: http://claims-service:18002
+      CLAIMS_READMODEL_URL: http://claims-readmodel-service:18012
+      COLLECTIONS_SERVICE_URL: http://collections-service:18025
+      COMPLAINTS_SERVICE_URL: http://complaints-service:18013
+      CUSTOMER_360_URL: http://customer-360-service:18026
+      SALES_NETWORK_SERVICE_URL: http://sales-network-service:18022
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
     depends_on:
       - auth-service
       - notification-service
       - party-kyc-service
+      - product-service
+      - policy-service
+      - claims-service
+      - claims-readmodel-service
+      - collections-service
+      - complaints-service
+      - customer-360-service
+      - sales-network-service
     restart: unless-stopped
 
   customer-portal-ui:
@@ -1285,10 +1404,13 @@ services:
     environment:
       NODE_ENV: production
       PORT: 18043
-      NEXT_PUBLIC_API_URL: http://api-gateway:18000
+      NEXT_PUBLIC_API_URL: http://customer-portal-service:18027
+      NEXT_PUBLIC_TENANT_ID: ${NEXT_PUBLIC_TENANT_ID:-default}
+      CUSTOMER_PORTAL_URL: http://customer-portal-service:18027
+      NEXT_PUBLIC_CUSTOMER_360_URL: http://customer-360-service:18026
     depends_on:
-      - api-gateway
       - customer-portal-service
+      - customer-360-service
     restart: unless-stopped
 
   agent-portal-service:
@@ -1309,8 +1431,27 @@ services:
       DB_SCHEMA: agent_portal
       DB_SYNC: "false"
       AUTH_SERVICE_URL: http://auth-service:18001
+      POLICY_SERVICE_URL: http://policy-service:18007
+      CLAIMS_SERVICE_URL: http://claims-service:18002
+      CLAIMS_READMODEL_URL: http://claims-readmodel-service:18012
+      SALES_NETWORK_SERVICE_URL: http://sales-network-service:18022
+      PRODUCT_SERVICE_URL: http://product-service:18018
+      COMPLAINTS_SERVICE_URL: http://complaints-service:18013
+      COLLECTIONS_SERVICE_URL: http://collections-service:18025
+      REPORTING_SERVICE_URL: http://reporting-service:18014
+      CUSTOMER_360_SERVICE_URL: http://customer-360-service:18026
+      COPILOT_SERVICE_URL: http://copilot-service:18030
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
     depends_on:
       - auth-service
+      - policy-service
+      - claims-service
+      - claims-readmodel-service
+      - sales-network-service
+      - product-service
+      - collections-service
+      - reporting-service
+      - customer-360-service
     restart: unless-stopped
 
   agent-portal-ui:
@@ -1323,10 +1464,95 @@ services:
     environment:
       NODE_ENV: production
       PORT: 18044
-      NEXT_PUBLIC_API_URL: http://api-gateway:18000
+      NEXT_PUBLIC_API_URL: http://agent-portal-service:18031
+    depends_on:
+      - agent-portal-service
+    restart: unless-stopped
+
+  broker-portal-bff:
+    build:
+      context: .
+      dockerfile: services/broker-portal-bff/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "3030:3030"
+    environment:
+      NODE_ENV: production
+      PORT: 3030
+      AUTH_SERVICE_URL: http://auth-service:18001
+      CLAIMS_SERVICE_URL: http://claims-service:18002
+      POLICY_SERVICE_URL: http://policy-service:18007
+      BILLING_SERVICE_URL: http://billing-service:18039
+      SALES_NETWORK_SERVICE_URL: http://sales-network-service:18022/sales-network
+      PRODUCT_SERVICE_URL: http://product-service:18018
+      SUBMISSION_PLACEMENT_SERVICE_URL: http://submission-placement-service:18025
+      REPORTING_SERVICE_URL: http://reporting-service:18014/reporting
+      PARTY_KYC_SERVICE_URL: http://party-kyc-service:18006
+      REGULATORY_GATEWAY_SERVICE_URL: http://regulatory-gateway-service:18024
+      PAYMENTS_SERVICE_URL: http://payments-service:18004
+      COLLECTIONS_SERVICE_URL: http://collections-service:18025
+      UNDERWRITING_SERVICE_URL: http://underwriting-service:18020
+      NOTIFICATION_SERVICE_URL: http://notification-service:18037
+    depends_on:
+      - auth-service
+      - claims-service
+      - policy-service
+      - billing-service
+      - sales-network-service
+    restart: unless-stopped
+
+  channel-workspace-bff:
+    build:
+      context: .
+      dockerfile: services/channel-workspace-bff/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "3020:3020"
+    environment:
+      NODE_ENV: production
+      PORT: 3020
+      AUTH_SERVICE_URL: http://auth-service:18001
+      POLICY_SERVICE_URL: http://policy-service:18007
+      CLAIM_SERVICE_URL: http://claims-service:18002
+      BILLING_SERVICE_URL: http://billing-service:18039
+      SALES_NETWORK_SERVICE_URL: http://sales-network-service:18022/sales-network
+      PRODUCT_SERVICE_URL: http://product-service:18018
+      SUBMISSION_PLACEMENT_SERVICE_URL: http://submission-placement-service:18025
+    depends_on:
+      - auth-service
+      - sales-network-service
+      - policy-service
+    restart: unless-stopped
+
+  channel-workspace-ui:
+    build:
+      context: .
+      dockerfile: services/channel-workspace-ui/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18045:3030"
+    environment:
+      NODE_ENV: production
+      PORT: 3030
+      NEXT_PUBLIC_API_URL: http://channel-workspace-bff:3020
+    depends_on:
+      - channel-workspace-bff
+    restart: unless-stopped
+
+  broker-portal-ui:
+    build:
+      context: .
+      dockerfile: services/broker-portal-ui/Dockerfile
+      args: *proxy_build_args
+    ports:
+      - "18046:3030"
+    environment:
+      NODE_ENV: production
+      PORT: 3030
+      NEXT_PUBLIC_BROKER_BFF_URL: http://broker-portal-bff:3030
     depends_on:
       - api-gateway
-      - agent-portal-service
+      - broker-portal-bff
     restart: unless-stopped
 
   workflow-service:
@@ -1439,8 +1665,11 @@ services:
       INSURANCE_BANK_ACCOUNT: ${INSURANCE_BANK_ACCOUNT}
       INSURANCE_ESCROW_ACCOUNT: ${INSURANCE_ESCROW_ACCOUNT:-1000000003}
       AUTO_DEPOSIT_ENABLED: ${AUTO_DEPOSIT_ENABLED:-false}
+      POLICY_SERVICE_URL: http://policy-service:18007
+      PAYMENT_SERVICE_URL: http://payments-service:18004
     depends_on:
       - auth-service
+      - policy-service
     restart: unless-stopped
 
   collections-service:

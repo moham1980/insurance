@@ -3,10 +3,15 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { SanhabEvent } from './entities/SanhabEvent';
 import { RegulatoryFailureLog } from './entities/RegulatoryFailureLog';
 import { SanhabSmsInquiry } from './entities/SanhabSmsInquiry';
+import { WarehouseFireInquiryRecord } from './entities/WarehouseFireInquiryRecord';
+import { BrokerLicenseStatusChange } from './entities/BrokerLicenseStatusChange';
 import { RegulatoryController } from './regulatory.controller';
 import { RegulatoryService } from './regulatory.service';
+import { LicenseValidationService } from './license-validation.service';
 import { WarehouseFireInquiryService } from './warehouse-fire/warehouse-fire-inquiry.service';
 import { SanhabSmsInquiryService } from './sanhab-sms/sanhab-sms-inquiry.service';
+import { SanhabController } from './sanhab/sanhab.controller';
+import { SanhabIssuanceService } from './sanhab/sanhab-issuance.service';
 import { HealthController } from './health.controller';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { PermissionsGuard } from './permissions.guard';
@@ -27,12 +32,12 @@ import { OutboxEvent } from '@insurance/shared';
       extra: {
         options: `-c search_path=${process.env.DB_SCHEMA || 'regulatory'},public`,
       },
-      entities: [SanhabEvent, RegulatoryFailureLog, SanhabSmsInquiry, OutboxEvent],
+      entities: [SanhabEvent, RegulatoryFailureLog, SanhabSmsInquiry, WarehouseFireInquiryRecord, BrokerLicenseStatusChange, OutboxEvent],
       synchronize: process.env.NODE_ENV !== 'production' && process.env.DB_SYNC === 'true',
     }),
-    TypeOrmModule.forFeature([SanhabEvent, RegulatoryFailureLog, SanhabSmsInquiry, OutboxEvent]),
+    TypeOrmModule.forFeature([SanhabEvent, RegulatoryFailureLog, SanhabSmsInquiry, WarehouseFireInquiryRecord, BrokerLicenseStatusChange, OutboxEvent]),
   ],
-  controllers: [RegulatoryController, HealthController],
-  providers: [AbacGuard, TenantGuard, RegulatoryService, WarehouseFireInquiryService, SanhabSmsInquiryService, JwtAuthGuard, PermissionsGuard],
+  controllers: [RegulatoryController, SanhabController, HealthController],
+  providers: [AbacGuard, TenantGuard, RegulatoryService, SanhabIssuanceService, LicenseValidationService, WarehouseFireInquiryService, SanhabSmsInquiryService, JwtAuthGuard, PermissionsGuard],
 })
 export class AppModule {}

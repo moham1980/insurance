@@ -1,0 +1,1335 @@
+openapi: 3.0.3
+info:
+  title: P4 Billing Service API
+  version: '1.0.0'
+  description: |
+    OpenAPI contract for the P4 Billing Service (port 18039).
+    Covers premium invoicing, customer payments, escrow management,
+    settlement batches, reconciliation, refunds, clawbacks, reports,
+    accounting, and payment gateway integration.
+servers:
+  - url: http://localhost:18039
+    description: Local development
+security:
+  - BearerAuth: []
+paths:
+  /invoicing/policies/{policyId}/invoices:
+    post:
+      tags: [Premium Invoices]
+      summary: Create a premium invoice for a policy
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: policyId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [organizationId, totalAmount, lines]
+              properties:
+                organizationId: { type: string, format: uuid }
+                endorsementId: { type: string, format: uuid }
+                totalAmount:
+                  type: object
+                  properties:
+                    amountMinor: { type: string }
+                    currency: { type: string }
+                lines:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      feeType: { type: string }
+                      description: { type: string }
+                      amount:
+                        type: object
+                        properties:
+                          amountMinor: { type: string }
+                          currency: { type: string }
+                idempotencyKey: { type: string }
+      responses:
+        '201':
+          description: Invoice created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+    get:
+      tags: [Premium Invoices]
+      summary: List invoices by policy
+      parameters:
+        - name: policyId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: List of invoices
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /invoicing/invoices/{invoiceId}:
+    get:
+      tags: [Premium Invoices]
+      summary: Get invoice by ID
+      parameters:
+        - name: invoiceId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Invoice details
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /invoicing/invoices/{invoiceId}/issue:
+    post:
+      tags: [Premium Invoices]
+      summary: Issue an invoice
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: invoiceId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Invoice issued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /invoicing/invoices/{invoiceId}/cancel:
+    post:
+      tags: [Premium Invoices]
+      summary: Cancel an invoice
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: invoiceId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string }
+      responses:
+        '200':
+          description: Invoice cancelled
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /invoicing/invoices/{invoiceId}/installments:
+    post:
+      tags: [Premium Invoices]
+      summary: Create an installment plan
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: invoiceId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [numberOfInstallments, schedule]
+              properties:
+                numberOfInstallments: { type: integer }
+                schedule:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      dueDate: { type: string, format: date-time }
+                      amountMinor: { type: string }
+                      currency: { type: string }
+      responses:
+        '201':
+          description: Installment plan created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /invoicing/installments/{itemId}/pay:
+    post:
+      tags: [Premium Invoices]
+      summary: Pay a specific installment
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [paymentMethod]
+              properties:
+                paymentMethod: { type: string }
+      responses:
+        '200':
+          description: Installment payment initiated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /brokerage/invoices/{invoiceId}/pay:
+    post:
+      tags: [Customer Payments]
+      summary: Initiate payment for an invoice
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: invoiceId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                paymentMethod: { type: string }
+                idempotencyKey: { type: string }
+      responses:
+        '200':
+          description: Payment initiated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /brokerage/payments/{paymentId}:
+    get:
+      tags: [Customer Payments]
+      summary: Get payment by ID
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: paymentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Payment details
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /brokerage/payments/{paymentId}/retry:
+    post:
+      tags: [Customer Payments]
+      summary: Retry a failed payment
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: paymentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Payment retry initiated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /webhooks/payments:
+    post:
+      tags: [Webhooks]
+      summary: Payment webhook from payment-service
+      parameters:
+        - name: x-signature
+          in: header
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [paymentId, status]
+              properties:
+                paymentId: { type: string, format: uuid }
+                status: { type: string, enum: [SUCCESS, FAILED, PENDING] }
+                amount: { type: string }
+                currency: { type: string }
+                reason: { type: string }
+      responses:
+        '200':
+          description: Webhook processed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /brokerage/settlements/batches:
+    post:
+      tags: [Settlements]
+      summary: Create a settlement batch
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fromOrganizationId, toOrganizationId]
+              properties:
+                fromOrganizationId: { type: string, format: uuid }
+                toOrganizationId: { type: string, format: uuid }
+      responses:
+        '201':
+          description: Batch created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /brokerage/settlements/batches/{batchId}/approve:
+    post:
+      tags: [Settlements]
+      summary: Approve a settlement batch
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: batchId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [approvedByPartyId]
+              properties:
+                approvedByPartyId: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Batch approved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /brokerage/settlements/batches/{batchId}/confirm:
+    post:
+      tags: [Settlements]
+      summary: Confirm and pay a settlement batch
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: batchId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fromAccountId, toAccountId]
+              properties:
+                fromAccountId: { type: string }
+                toAccountId: { type: string }
+      responses:
+        '200':
+          description: Batch confirmed and paid
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /brokerage/settlements/batches/{batchId}/verify:
+    post:
+      tags: [Settlements]
+      summary: Verify settlement batch payment status
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: batchId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Verification result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /brokerage/settlements/batches/{batchId}/reconcile:
+    post:
+      tags: [Settlements]
+      summary: Reconcile a settlement batch
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: batchId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Reconciliation result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /brokerage/refunds:
+    post:
+      tags: [Refunds]
+      summary: Create a refund request
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [invoiceId, amountMinor, currency, reason]
+              properties:
+                invoiceId: { type: string, format: uuid }
+                paymentId: { type: string, format: uuid }
+                amountMinor: { type: string }
+                currency: { type: string }
+                reason: { type: string }
+      responses:
+        '201':
+          description: Refund created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /brokerage/refunds/{refundId}/approve:
+    post:
+      tags: [Refunds]
+      summary: Approve a refund
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: refundId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Refund approved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /brokerage/refunds/{refundId}/send:
+    post:
+      tags: [Refunds]
+      summary: Send a refund to payment service
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: refundId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Refund sent
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /brokerage/clawbacks/calculate:
+    post:
+      tags: [Clawbacks]
+      summary: Calculate clawback amount for a policy
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [policyId]
+              properties:
+                policyId: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Clawback calculation
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /brokerage/clawbacks/apply:
+    post:
+      tags: [Clawbacks]
+      summary: Apply clawback for a cancelled policy
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [policyId, cancellationSourceId, totalClawbackAmountMinor, currency, reason, approvedByPartyId]
+              properties:
+                policyId: { type: string, format: uuid }
+                cancellationSourceId: { type: string, format: uuid }
+                totalClawbackAmountMinor: { type: string }
+                currency: { type: string }
+                reason: { type: string }
+                approvedByPartyId: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Clawback applied
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /brokerage/escrow/holdings:
+    get:
+      tags: [Escrow]
+      summary: List escrow holdings
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: escrowAccountRef
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: List of escrow holdings
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /brokerage/escrow/holdings/{holdingId}/release:
+    post:
+      tags: [Escrow]
+      summary: Release an escrow holding
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: holdingId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amountMinor, destinationAccountRef]
+              properties:
+                amountMinor: { type: string }
+                destinationAccountRef: { type: string }
+                paymentId: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Escrow released
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /brokerage/escrow/holdings/{holdingId}/eligibility:
+    get:
+      tags: [Escrow]
+      summary: Check escrow release eligibility
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: holdingId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Eligibility evaluation
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /brokerage/escrow/holdings/{holdingId}/carrier-approve:
+    post:
+      tags: [Escrow]
+      summary: Mark escrow as carrier-approved
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: holdingId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                approvedBy: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Escrow carrier-approved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /brokerage/escrow/auto-release:
+    post:
+      tags: [Escrow]
+      summary: Auto-release eligible escrow holdings
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Auto-release result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /brokerage/policies/{policyId}/post:
+    post:
+      tags: [Ledger]
+      summary: Post policy issuance ledger entries
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: policyId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [premiumAmount, taxesAmount, totalPayable, currency]
+              properties:
+                premiumAmount: { type: string }
+                taxesAmount: { type: string }
+                totalPayable: { type: string }
+                currency: { type: string }
+      responses:
+        '200':
+          description: Policy posted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /brokerage/commissions/calculate:
+    post:
+      tags: [Commission]
+      summary: Calculate commission splits
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [policyId, premiumGross, premiumNet, currency]
+              properties:
+                policyId: { type: string, format: uuid }
+                premiumGross: { type: string }
+                premiumNet: { type: string }
+                currency: { type: string }
+      responses:
+        '200':
+          description: Commission calculated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /brokerage/commissions/post:
+    post:
+      tags: [Commission]
+      summary: Post commission to ledger
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [policyId]
+              properties:
+                policyId: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Commission posted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /brokerage/journal-entries/{journalEntryId}:
+    get:
+      tags: [Ledger]
+      summary: Get journal entry by ID
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: journalEntryId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Journal entry
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /brokerage/journal-entries/{journalEntryId}/reverse:
+    post:
+      tags: [Ledger]
+      summary: Reverse a journal entry
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: journalEntryId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string }
+      responses:
+        '200':
+          description: Journal entry reversed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /billing/invoices:
+    post:
+      tags: [Billing - Invoices]
+      summary: Create a billing invoice
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '201':
+          description: Invoice created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+    get:
+      tags: [Billing - Invoices]
+      summary: List invoices
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        '200':
+          description: List of invoices
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /billing/invoices/{id}:
+    get:
+      tags: [Billing - Invoices]
+      summary: Get billing invoice by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Invoice details
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /billing/invoices/{id}/issue:
+    put:
+      tags: [Billing - Invoices]
+      summary: Issue a billing invoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Invoice issued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /billing/invoices/{id}/cancel:
+    put:
+      tags: [Billing - Invoices]
+      summary: Cancel a billing invoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string }
+      responses:
+        '200':
+          description: Invoice cancelled
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /billing/invoices/{id}/payment:
+    post:
+      tags: [Billing - Invoices]
+      summary: Record a payment for an invoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: Payment recorded
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /billing/invoices/mark-overdue:
+    post:
+      tags: [Billing - Invoices]
+      summary: Mark overdue invoices
+      responses:
+        '200':
+          description: Overdue invoices marked
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /billing/invoices/{invoiceId}/payments:
+    get:
+      tags: [Billing - Invoices]
+      summary: Get payments for an invoice
+      parameters:
+        - name: invoiceId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: List of payments
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /billing/balance/outstanding:
+    get:
+      tags: [Billing - Invoices]
+      summary: Get outstanding balance
+      responses:
+        '200':
+          description: Outstanding balance
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /billing/payments/initiate:
+    post:
+      tags: [Payment Gateway]
+      summary: Initiate a payment via gateway
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: Payment initiated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /billing/payments/verify:
+    post:
+      tags: [Payment Gateway]
+      summary: Verify a payment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: Payment verified
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /billing/payments/{paymentId}/cancel:
+    post:
+      tags: [Payment Gateway]
+      summary: Cancel a payment
+      parameters:
+        - name: paymentId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Payment cancelled
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /billing/payments/{paymentId}:
+    get:
+      tags: [Payment Gateway]
+      summary: Get payment transaction
+      parameters:
+        - name: paymentId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Payment transaction
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /billing/payments/health-check:
+    get:
+      tags: [Payment Gateway]
+      summary: Payment gateway health check
+      responses:
+        '200':
+          description: Health check result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /billing/auto-deposit/ingest:
+    post:
+      tags: [Auto-Deposit]
+      summary: Ingest a bank transaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: Transaction ingested
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /billing/auto-deposit/{invoiceId}/approve/{transactionId}:
+    post:
+      tags: [Auto-Deposit]
+      summary: Manually approve a deposit
+      parameters:
+        - name: invoiceId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: transactionId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Deposit approved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /billing/auto-deposit/{transactionId}/reject:
+    post:
+      tags: [Auto-Deposit]
+      summary: Reject a transaction
+      parameters:
+        - name: transactionId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Transaction rejected
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /billing/auto-deposit/pending:
+    get:
+      tags: [Auto-Deposit]
+      summary: List pending transactions
+      responses:
+        '200':
+          description: Pending transactions
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /billing/auto-deposit/matches:
+    get:
+      tags: [Auto-Deposit]
+      summary: List pending matches
+      responses:
+        '200':
+          description: Pending matches
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /billing/auto-deposit/reconcile:
+    post:
+      tags: [Auto-Deposit]
+      summary: Reconcile auto-deposit transactions
+      responses:
+        '200':
+          description: Reconciliation result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /billing/auto-deposit/config:
+    get:
+      tags: [Auto-Deposit]
+      summary: Get auto-deposit configuration
+      responses:
+        '200':
+          description: Configuration
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+    put:
+      tags: [Auto-Deposit]
+      summary: Update auto-deposit configuration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: Configuration updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /billing/journal-entries:
+    post:
+      tags: [Accounting]
+      summary: Create a journal entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '201':
+          description: Journal entry created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /billing/journal-entries/{id}/post:
+    put:
+      tags: [Accounting]
+      summary: Post a journal entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Journal entry posted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /billing/journal-entries/{id}/reverse:
+    post:
+      tags: [Accounting]
+      summary: Reverse a journal entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string }
+      responses:
+        '200':
+          description: Journal entry reversed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /billing/accounts:
+    post:
+      tags: [Accounting]
+      summary: Create an account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '201':
+          description: Account created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+    get:
+      tags: [Accounting]
+      summary: List accounts
+      parameters:
+        - name: type
+          in: query
+          schema: { type: string }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        '200':
+          description: List of accounts
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /billing/accounts/{accountCode}:
+    get:
+      tags: [Accounting]
+      summary: Get account by code
+      parameters:
+        - name: accountCode
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Account details
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /billing/accounts/{accountCode}/balance:
+    get:
+      tags: [Accounting]
+      summary: Get account balance
+      parameters:
+        - name: accountCode
+          in: path
+          required: true
+          schema: { type: string }
+        - name: periodId
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Account balance
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /billing/financial-periods:
+    post:
+      tags: [Accounting]
+      summary: Create a financial period
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '201':
+          description: Financial period created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /billing/financial-periods/{id}/close:
+    put:
+      tags: [Accounting]
+      summary: Close a financial period
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Financial period closed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /billing/accounting/trial-balance:
+    get:
+      tags: [Accounting]
+      summary: Get trial balance
+      parameters:
+        - name: periodId
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Trial balance
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /reports/collections:
+    get:
+      tags: [Reports]
+      summary: Collections report
+      parameters:
+        - name: fromDate
+          in: query
+          schema: { type: string, format: date }
+        - name: toDate
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Collections report
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /reports/outstanding-invoices:
+    get:
+      tags: [Reports]
+      summary: Outstanding invoices report
+      responses:
+        '200':
+          description: Outstanding invoices
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /reports/settlements:
+    get:
+      tags: [Reports]
+      summary: Settlements report
+      parameters:
+        - name: fromDate
+          in: query
+          schema: { type: string, format: date }
+        - name: toDate
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Settlements report
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /reports/escrow-balance:
+    get:
+      tags: [Reports]
+      summary: Escrow balance report
+      responses:
+        '200':
+          description: Escrow balance
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    CorrelationId:
+      name: X-Correlation-Id
+      in: header
+      schema: { type: string }
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: { type: object }
+        correlationId: { type: string }
+        error:
+          type: object
+          properties:
+            code: { type: string }
+            message: { type: string }
+    ApiError:
+      type: object
+      properties:
+        success: { type: boolean, default: false }
+        error:
+          type: object
+          properties:
+            code: { type: string }
+            message: { type: string }
+        correlationId: { type: string }

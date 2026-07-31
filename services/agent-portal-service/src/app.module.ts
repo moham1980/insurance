@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { HttpModule } from '@nestjs/axios';
+import { ConfigModule } from '@nestjs/config';
 import { AgentPortalService } from './agent-portal.service';
 import { AgentPortalController } from './agent-portal.controller';
+import { AuthController } from './auth.controller';
 import { AgentSession } from './entities/AgentSession';
 import { HealthController } from './health.controller';
 
@@ -11,6 +13,7 @@ import { TenantGuard } from './tenant.guard';
 import { OutboxEvent } from '@insurance/shared';
 @Module({
   imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.DB_HOST || 'localhost',
@@ -25,7 +28,7 @@ import { OutboxEvent } from '@insurance/shared';
     TypeOrmModule.forFeature([AgentSession]),
     HttpModule,
   ],
-  controllers: [AgentPortalController, HealthController],
+  controllers: [AuthController, AgentPortalController, HealthController],
   providers: [TenantGuard, AbacGuard, AgentPortalService],
 })
 export class AppModule {}

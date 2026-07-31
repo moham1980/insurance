@@ -8,11 +8,11 @@ export class AssertionHelpers {
   }
 
   static assertEventEnvelope(event: any): void {
-    const requiredFields = ['eventType', 'eventId', 'timestamp', 'tenantId', 'data'];
+    const requiredFields = ['eventType', 'eventId', 'occurredAt', 'tenantId', 'payload'];
     this.assertApiContract(event, requiredFields);
 
-    if (typeof event.timestamp !== 'string' || !Date.parse(event.timestamp)) {
-      throw new Error('Invalid timestamp format');
+    if (typeof event.occurredAt !== 'string' || !Date.parse(event.occurredAt)) {
+      throw new Error('Invalid occurredAt format');
     }
 
     if (typeof event.eventId !== 'string' || event.eventId.length === 0) {

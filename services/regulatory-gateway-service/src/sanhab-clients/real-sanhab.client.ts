@@ -2,7 +2,7 @@ import * as http from 'http';
 import * as https from 'https';
 import * as fs from 'fs';
 import * as soap from 'soap';
-import { ISanhabClient, SanhabInquiryResponse, SanhabInquiryResultCode } from './sanhab-client.interface';
+import { ISanhabClient, SanhabInquiryResponse, SanhabInquiryResultCode, SanhabSubmissionRequest, SanhabSubmissionResponse } from './sanhab-client.interface';
 
 /**
  * Real Sanhab Client for production.
@@ -25,6 +25,7 @@ import { ISanhabClient, SanhabInquiryResponse, SanhabInquiryResultCode } from '.
  */
 export class RealSanhabClient implements ISanhabClient {
   private wsdlUrl: string;
+  private serviceEndpoint: string | undefined;
   private apiKey: string;
   private certificatePath: string;
   private certificateKeyPath: string;
@@ -33,6 +34,7 @@ export class RealSanhabClient implements ISanhabClient {
 
   constructor() {
     this.wsdlUrl = process.env.SANHAB_WSDL_URL || '';
+    this.serviceEndpoint = process.env.SANHAB_SERVICE_ENDPOINT || undefined;
     this.apiKey = process.env.SANHAB_API_KEY || '';
     this.certificatePath = process.env.SANHAB_CERT_PATH || '';
     this.certificateKeyPath = process.env.SANHAB_CERT_KEY_PATH || '';
@@ -174,9 +176,11 @@ export class RealSanhabClient implements ISanhabClient {
   private async createSoapClient(): Promise<any> {
     const agent = this.buildHttpsAgent();
     const options: any = {
-      endpoint: this.wsdlUrl,
       request: this.customRequest(agent),
     };
+    if (this.serviceEndpoint) {
+      options.endpoint = this.serviceEndpoint;
+    }
 
     return new Promise((resolve, reject) => {
       soap.createClient(this.wsdlUrl, options, (err: any, client: any) => {
@@ -262,6 +266,40 @@ export class RealSanhabClient implements ISanhabClient {
 
   private generateRequestId(): string {
     return `REQ-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  async submitPolicy(params: SanhabSubmissionRequest): Promise<SanhabSubmissionResponse> {
+    try {
+      const soapClient = await this.createSoapClient();
+
+      const request = {
+        PolicyNumber: params.policyNumber,
+        NationalId: params.nationalId,
+        VehicleVin: params.vin,
+        ApiKey: this.apiKey,
+        RequestId: this.generateRequestId(),
+        Timestamp: new Date().toISOString(),
+        PolicyData: params.policyData || {},
+      };
+
+      const methodName = process.env.SANHAB_SUBMIT_POLICY_METHOD || 'SubmitPolicy';
+      const result = await this.callSoapMethod(soapClient, methodName, request);
+      const mapped = this.mapSoapResponse(result);
+
+      return {
+        resultCode: mapped.resultCode,
+        uniqueCode: mapped.uniqueCode,
+        policyNumber: mapped.policyNumber,
+        insuredNationalId: mapped.insuredNationalId,
+        vehicleVin: mapped.vehicleVin,
+        insurerCode: mapped.insurerCode,
+        issueDate: mapped.issueDate,
+        expiryDate: mapped.expiryDate,
+        errorMessage: mapped.errorMessage,
+      };
+    } catch (error) {
+      throw this.handleSoapError(error);
+    }
   }
 
   /**

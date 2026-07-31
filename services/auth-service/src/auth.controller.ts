@@ -48,6 +48,9 @@ export class AuthController {
         serviceId: body.serviceId,
         permissions: body.permissions,
         tenantId: body.tenantId,
+        agreementId: body.agreementId,
+        organizationId: body.organizationId,
+        fieldAcl: body.fieldAcl,
       });
       return { success: true, data: res, correlationId };
     } catch (e: any) {

@@ -3,7 +3,15 @@ import { NestFactory } from '@nestjs/core';
 import { DataSource } from 'typeorm';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { ValidationPipe } from '@nestjs/common';
+import { createTracer } from '@insurance/shared';
 import { AppModule } from './app.module';
+
+const tracer = createTracer({
+  serviceName: 'auth-service',
+  otlpEndpoint: process.env.OTEL_OTLP_ENDPOINT,
+  jaegerEndpoint: process.env.OTEL_JAEGER_ENDPOINT,
+});
+tracer.start();
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter());

@@ -28,8 +28,9 @@
     "src/copilot.service.ts",
     "src/data-source.ts",
     "src/migrate.ts",
-    "src/entities/**/*"
-    ,"src/migrations/**/*"
+    "src/entities/**/*",
+    "src/nba/**/*",
+    "src/migrations/**/*"
   ],
   "exclude": ["node_modules", "dist"]
 }

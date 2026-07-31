@@ -1,4 +1,4 @@
-export type PermissionKey = 'reporting:view' | 'reporting:ingest' | 'reporting:projections:admin' | 'reporting:manage';
+export type PermissionKey = 'reporting:view' | 'reporting:ingest' | 'reporting:projections:admin' | 'reporting:manage' | 'reporting:admin';
 
 export const permissionsForRoles = (roles: string[] | undefined | null): PermissionKey[] => {
   const rs = Array.isArray(roles) ? roles : [];
