@@ -242,10 +242,10 @@ export default function UnderwritingPage() {
 
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      approved: 'bg-green-100 text-green-800',
-      rejected: 'bg-red-100 text-red-800',
-      review_required: 'bg-blue-100 text-blue-800',
+      pending: 'bg-feedback-warning-subtle text-feedback-warning',
+      approved: 'bg-feedback-success-subtle text-feedback-success',
+      rejected: 'bg-feedback-error-subtle text-feedback-error',
+      review_required: 'bg-brand-primary-subtle text-brand-primary',
     };
 
     const labels: Record<string, string> = {
@@ -264,10 +264,10 @@ export default function UnderwritingPage() {
 
   const getPriorityBadge = (priority: string) => {
     const styles: Record<string, string> = {
-      low: 'bg-gray-100 text-gray-800',
-      medium: 'bg-yellow-100 text-yellow-800',
-      high: 'bg-orange-100 text-orange-800',
-      urgent: 'bg-red-100 text-red-800',
+      low: 'bg-bg-base text-text-primary',
+      medium: 'bg-feedback-warning-subtle text-feedback-warning',
+      high: 'bg-feedback-warning-subtle text-feedback-warning',
+      urgent: 'bg-feedback-error-subtle text-feedback-error',
     };
 
     const labels: Record<string, string> = {
@@ -285,29 +285,29 @@ export default function UnderwritingPage() {
   };
 
   const getRiskScoreColor = (score: number) => {
-    if (score < 30) return 'text-green-600';
-    if (score < 50) return 'text-yellow-600';
-    if (score < 70) return 'text-orange-600';
-    return 'text-red-600';
+    if (score < 30) return 'text-feedback-success';
+    if (score < 50) return 'text-feedback-warning';
+    if (score < 70) return 'text-feedback-warning';
+    return 'text-feedback-error';
   };
 
   return (
     <div className="container mx-auto px-4 py-8" dir="rtl">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">مدیریت صدور (Underwriting)</h1>
-          <p className="text-gray-600 mt-2">بررسی و تایید درخواست‌های صدور بیمه</p>
+          <h1 className="text-3xl font-bold text-text-primary">مدیریت صدور (Underwriting)</h1>
+          <p className="text-text-secondary mt-2">بررسی و تایید درخواست‌های صدور بیمه</p>
         </div>
         <div className="flex gap-3">
           <button
             onClick={() => setShowRules(!showRules)}
-            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+            className="px-4 py-2 bg-bg-base text-text-primary border border-border-default rounded-lg hover:bg-bg-subtle"
           >
             {showRules ? 'بستن قوانین' : 'مدیریت قوانین'}
           </button>
           <button
             onClick={fetchRequests}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="px-4 py-2 bg-brand-primary text-text-on-brand rounded-lg hover:opacity-90"
           >
             بروزرسانی
           </button>
@@ -316,25 +316,25 @@ export default function UnderwritingPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="text-sm text-gray-600 mb-2">کل درخواست‌ها</div>
-          <div className="text-3xl font-bold">{requests.length}</div>
+        <div className="bg-bg-raised rounded-lg shadow p-6">
+          <div className="text-sm text-text-secondary mb-2">کل درخواست‌ها</div>
+          <div className="text-3xl font-bold text-text-primary">{requests.length}</div>
         </div>
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="text-sm text-gray-600 mb-2">در انتظار بررسی</div>
-          <div className="text-3xl font-bold text-yellow-600">
+        <div className="bg-bg-raised rounded-lg shadow p-6">
+          <div className="text-sm text-text-secondary mb-2">در انتظار بررسی</div>
+          <div className="text-3xl font-bold text-feedback-warning">
             {requests.filter(r => r.status === 'pending').length}
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="text-sm text-gray-600 mb-2">نیاز به بررسی</div>
-          <div className="text-3xl font-bold text-blue-600">
+        <div className="bg-bg-raised rounded-lg shadow p-6">
+          <div className="text-sm text-text-secondary mb-2">نیاز به بررسی</div>
+          <div className="text-3xl font-bold text-brand-primary">
             {requests.filter(r => r.status === 'review_required').length}
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="text-sm text-gray-600 mb-2">میانگین امتیاز ریسک</div>
-          <div className="text-3xl font-bold">
+        <div className="bg-bg-raised rounded-lg shadow p-6">
+          <div className="text-sm text-text-secondary mb-2">میانگین امتیاز ریسک</div>
+          <div className="text-3xl font-bold text-text-primary">
             {requests.length > 0
               ? (requests.reduce((sum, r) => sum + r.riskScore, 0) / requests.length).toFixed(0)
               : 0}
@@ -343,14 +343,14 @@ export default function UnderwritingPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-6 mb-8">
+      <div className="bg-bg-raised rounded-lg shadow p-6 mb-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">وضعیت</label>
+            <label className="block text-sm font-medium text-text-secondary mb-2">وضعیت</label>
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-border-default rounded-lg focus:ring-2 focus:ring-brand-primary"
             >
               <option value="all">همه</option>
               <option value="pending">در انتظار</option>
@@ -360,11 +360,11 @@ export default function UnderwritingPage() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">اولویت</label>
+            <label className="block text-sm font-medium text-text-secondary mb-2">اولویت</label>
             <select
               value={filterPriority}
               onChange={(e) => setFilterPriority(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-border-default rounded-lg focus:ring-2 focus:ring-brand-primary"
             >
               <option value="all">همه</option>
               <option value="low">کم</option>
@@ -374,13 +374,13 @@ export default function UnderwritingPage() {
             </select>
           </div>
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">جستجو</label>
+            <label className="block text-sm font-medium text-text-secondary mb-2">جستجو</label>
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="جستجو بر اساس کد، نام مشتری یا محصول..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-border-default rounded-lg focus:ring-2 focus:ring-brand-primary"
             />
           </div>
         </div>
@@ -388,8 +388,8 @@ export default function UnderwritingPage() {
 
       {/* Rules Panel */}
       {showRules && (
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
-          <h2 className="text-xl font-bold mb-4">قوانین صدور (Underwriting Rules)</h2>
+        <div className="bg-bg-raised rounded-lg shadow p-6 mb-8">
+          <h2 className="text-xl font-bold text-text-primary mb-4">قوانین صدور (Underwriting Rules)</h2>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -411,10 +411,10 @@ export default function UnderwritingPage() {
                       <span
                         className={`px-2 py-1 rounded text-xs ${
                           rule.action === 'approve'
-                            ? 'bg-green-100 text-green-800'
+                            ? 'bg-feedback-success-subtle text-feedback-success'
                             : rule.action === 'reject'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-blue-100 text-blue-800'
+                            ? 'bg-feedback-error-subtle text-feedback-error'
+                            : 'bg-brand-primary-subtle text-brand-primary'
                         }`}
                       >
                         {rule.action === 'approve' ? 'تایید' : rule.action === 'reject' ? 'رد' : 'بررسی'}
@@ -422,7 +422,7 @@ export default function UnderwritingPage() {
                     </td>
                     <td className="py-3 px-4">
                       <span
-                        className={`px-2 py-1 rounded text-xs ${rule.enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}
+                        className={`px-2 py-1 rounded text-xs ${rule.enabled ? 'bg-feedback-success-subtle text-feedback-success' : 'bg-bg-base text-text-primary'}`}
                       >
                         {rule.enabled ? 'فعال' : 'غیرفعال'}
                       </span>
@@ -436,10 +436,10 @@ export default function UnderwritingPage() {
       )}
 
       {/* Requests Table */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-6 border-b">
-          <h2 className="text-xl font-bold">درخواست‌های صدور</h2>
-          <p className="text-gray-600 text-sm mt-1">
+      <div className="bg-bg-raised rounded-lg shadow">
+        <div className="p-6 border-b border-border-default">
+          <h2 className="text-xl font-bold text-text-primary">درخواست‌های صدور</h2>
+          <p className="text-text-secondary text-sm mt-1">
             نمایش {filteredRequests.length} از {requests.length} درخواست
           </p>
         </div>
@@ -449,7 +449,7 @@ export default function UnderwritingPage() {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b bg-gray-50">
+                <tr className="border-b border-border-default bg-bg-base">
                   <th className="text-right py-3 px-4">کد درخواست</th>
                   <th className="text-right py-3 px-4">مشتری</th>
                   <th className="text-right py-3 px-4">محصول</th>
@@ -462,7 +462,7 @@ export default function UnderwritingPage() {
               </thead>
               <tbody>
                 {filteredRequests.map((request) => (
-                  <tr key={request.id} className="border-b hover:bg-gray-50">
+                  <tr key={request.id} className="border-b border-border-default hover:bg-bg-base">
                     <td className="py-3 px-4 font-mono">{request.id}</td>
                     <td className="py-3 px-4">{request.customerName}</td>
                     <td className="py-3 px-4">{request.product}</td>
@@ -482,7 +482,7 @@ export default function UnderwritingPage() {
                           setSelectedRequest(request);
                           setShowDetails(true);
                         }}
-                        className="text-blue-600 hover:text-blue-800"
+                        className="text-brand-primary hover:opacity-80"
                       >
                         جزئیات
                       </button>
@@ -497,84 +497,84 @@ export default function UnderwritingPage() {
 
       {/* Details Modal */}
       {showDetails && selectedRequest && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b flex justify-between items-center">
-              <h2 className="text-xl font-bold">جزئیات درخواست صدور</h2>
+        <div className="fixed inset-0 bg-bg-overlay flex items-center justify-center z-50">
+          <div className="bg-bg-raised rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-border-default flex justify-between items-center">
+              <h2 className="text-xl font-bold text-text-primary">جزئیات درخواست صدور</h2>
               <button
                 onClick={() => setShowDetails(false)}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-text-muted hover:text-text-secondary"
               >
                 ✕
               </button>
             </div>
             <div className="p-6">
-              <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">کد درخواست</label>
-                  <div className="text-gray-900">{selectedRequest.id}</div>
+                  <label className="block text-sm font-medium text-text-secondary mb-1">کد درخواست</label>
+                  <div className="text-text-primary">{selectedRequest.id}</div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">کد مشتری</label>
-                  <div className="text-gray-900">{selectedRequest.customerId}</div>
+                  <label className="block text-sm font-medium text-text-secondary mb-1">کد مشتری</label>
+                  <div className="text-text-primary">{selectedRequest.customerId}</div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">نام مشتری</label>
-                  <div className="text-gray-900">{selectedRequest.customerName}</div>
+                  <label className="block text-sm font-medium text-text-secondary mb-1">نام مشتری</label>
+                  <div className="text-text-primary">{selectedRequest.customerName}</div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">نوع بیمه</label>
-                  <div className="text-gray-900">{selectedRequest.policyType}</div>
+                  <label className="block text-sm font-medium text-text-secondary mb-1">نوع بیمه</label>
+                  <div className="text-text-primary">{selectedRequest.policyType}</div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">محصول</label>
-                  <div className="text-gray-900">{selectedRequest.product}</div>
+                  <label className="block text-sm font-medium text-text-secondary mb-1">محصول</label>
+                  <div className="text-text-primary">{selectedRequest.product}</div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">پریمیوم</label>
-                  <div className="text-gray-900">
+                  <label className="block text-sm font-medium text-text-secondary mb-1">پریمیوم</label>
+                  <div className="text-text-primary">
                     {selectedRequest.premium.toLocaleString('fa-IR')} ریال
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">امتیاز ریسک</label>
+                  <label className="block text-sm font-medium text-text-secondary mb-1">امتیاز ریسک</label>
                   <div className={`font-bold ${getRiskScoreColor(selectedRequest.riskScore)}`}>
                     {selectedRequest.riskScore}
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">وضعیت</label>
+                  <label className="block text-sm font-medium text-text-secondary mb-1">وضعیت</label>
                   <div>{getStatusBadge(selectedRequest.status)}</div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">اولویت</label>
+                  <label className="block text-sm font-medium text-text-secondary mb-1">اولویت</label>
                   <div>{getPriorityBadge(selectedRequest.priority)}</div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">تاریخ ثبت</label>
-                  <div className="text-gray-900">
+                  <label className="block text-sm font-medium text-text-secondary mb-1">تاریخ ثبت</label>
+                  <div className="text-text-primary">
                     {new Date(selectedRequest.submittedAt).toLocaleDateString('fa-IR')}
                   </div>
                 </div>
               </div>
 
               {selectedRequest.status === 'pending' && (
-                <div className="flex gap-3 border-t pt-6">
+                <div className="flex gap-3 border-t border-border-default pt-6">
                   <button
                     onClick={() => handleApprove(selectedRequest.id)}
-                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                    className="flex-1 px-4 py-2 bg-feedback-success text-text-on-brand rounded-lg hover:opacity-90"
                   >
                     تایید درخواست
                   </button>
                   <button
                     onClick={() => handleRequestReview(selectedRequest.id)}
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    className="flex-1 px-4 py-2 bg-brand-primary text-text-on-brand rounded-lg hover:opacity-90"
                   >
                     درخواست بررسی بیشتر
                   </button>
                   <button
                     onClick={() => handleReject(selectedRequest.id, 'manual')}
-                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                    className="flex-1 px-4 py-2 bg-feedback-error text-text-on-brand rounded-lg hover:opacity-90"
                   >
                     رد درخواست
                   </button>

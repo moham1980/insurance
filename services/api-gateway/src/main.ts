@@ -9,6 +9,7 @@ import Redis from 'ioredis';
 import { createLogger } from '@insurance/shared';
 import {
   CORS_ORIGINS,
+  getBrandTenantMap,
   getGatewaySignatureSecret,
   isPublicRoute,
   normalizeUrl,
@@ -523,9 +524,12 @@ async function bootstrap() {
     const brandResolution = resolveTenantFromHost(req.headers?.host);
     let brandTenant = brandResolution?.tenant;
 
-    // P0-5: reject requests to unknown host unless public route explicitly allows it.
+    // P0-5: reject requests to unknown host only when multi-brand routing is configured.
+    // In single-tenant or development deployments without BRAND_HOST_TENANT_MAP, skip this check
+    // and rely on JWT-based tenant resolution instead.
     const host = req.headers?.host;
-    if (host && !brandResolution && !publicRoute.public) {
+    const hasBrandMap = Object.keys(getBrandTenantMap()).length > 0;
+    if (hasBrandMap && host && !brandResolution && !publicRoute.public) {
       reply.code(403).send({
         success: false,
         error: { code: 'UNKNOWN_HOST', message: 'Tenant cannot be resolved for this Host' },

@@ -1,0 +1,43 @@
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:39 AM [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:40 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +363ms[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:41 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmCoreModule dependencies initialized[39m[38;5;3m +1553ms[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:41 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +4ms[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:41 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +3ms[39m
+{"level":30,"time":1785620922229,"service":"submission-placement","component":"KafkaProducer","msg":"Kafka producer connected"}
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:42 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mHealthController {/}:[39m[38;5;3m +409ms[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:42 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/health, GET} route[39m[38;5;3m +13ms[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:42 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ready, GET} route[39m[38;5;3m +7ms[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:42 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mSubmissionController {/api/v1}:[39m[38;5;3m +7ms[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:42 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/submissions, POST} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:42 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/submissions, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:42 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/submissions/:submissionId, GET} route[39m[38;5;3m +10ms[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:42 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/submissions/:submissionId, PATCH} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:42 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/submissions/:submissionId/submit, POST} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:42 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/submissions/:submissionId/expire, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:42 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mConnectorConfigController {/api/v1}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:42 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/carrier-connectors, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:42 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/carrier-connectors, GET} route[39m[38;5;3m +5ms[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:42 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/carrier-connectors/:connectorId, GET} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:42 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/carrier-connectors/:connectorId, PUT} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:42 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/carrier-connectors/:carrierOrganizationId/health, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:42 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/carrier-connectors/:carrierOrganizationId/test, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:42 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mRfqController {/api/v1}:[39m[38;5;3m +1ms[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:42 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/submissions/:submissionId/quotes/request, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:42 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/submissions/:submissionId/quotes, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:42 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/quote-requests/:quoteRequestId, GET} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:42 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mComparisonController {/api/v1}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:42 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/quote-requests/:quoteRequestId/compare, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:42 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/quote-requests/:quoteRequestId/compare, GET} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:42 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mPlacementController {/api/v1}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:42 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/quote-responses/:quoteResponseId/select, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:42 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/quote-responses/:quoteResponseId/placement, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:42 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/placements/:placementId/bind, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:42 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/placements/:placementId/retry, POST} route[39m[38;5;3m +10ms[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:42 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/placements/:placementId/cancel, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:42 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/placements, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:42 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/placements/:placementId, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 23828  - [39m08/02/2026, 1:18:42 AM [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +3ms[39m
+{"level":30,"time":1785620922230,"service":"submission-placement","component":"KafkaProducer","msg":"Kafka producer connected"}
+{"level":30,"time":1785620922230,"service":"submission-placement","component":"OutboxWorker","producerName":"submission-placement","pollIntervalMs":5000,"batchSize":50,"msg":"Outbox worker started"}
+{"level":30,"time":1785620922230,"service":"submission-placement","msg":"OutboxWorker started for submission-placement"}
+{"level":30,"time":1785621114041,"service":"submission-placement","correlationId":"unknown","tenantId":"a1b2c3d4-e5f6-7890-abcd-ef1234567890","placementId":"test-placement-001","msg":"placement.bind"}

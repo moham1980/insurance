@@ -52,7 +52,7 @@ export function UserSession() {
 
   if (!authed) {
     return (
-      <Link href="/login" className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50">
+      <Link href="/login" className="rounded-xl border px-3 py-2 text-sm hover:bg-bg-subtle">
         ورود
       </Link>
     );
@@ -64,7 +64,7 @@ export function UserSession() {
         <div className="text-xs font-semibold">
           {user ? `${user.firstName} ${user.lastName}` : 'کاربر'}
         </div>
-        <div className="text-[11px] text-neutral-600">{user?.roles?.[0] || user?.username || ''}</div>
+        <div className="text-[11px] text-text-muted">{user?.roles?.[0] || user?.username || ''}</div>
       </div>
 
       <button
@@ -77,7 +77,7 @@ export function UserSession() {
             // ignore
           }
         }}
-        className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
+        className="rounded-xl border px-3 py-2 text-sm hover:bg-bg-subtle"
       >
         خروج
       </button>

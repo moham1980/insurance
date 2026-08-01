@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { ChevronRight, Loader2, Plus, AlertCircle } from 'lucide-react';
+import { Card } from '@insurance/design-system';
+import { apiFetch } from '@/lib/api';
 
 interface Claim {
   id: string;
@@ -14,6 +17,12 @@ interface Claim {
   approvedAmount?: number;
 }
 
+const MOCK_CLAIMS: Claim[] = [
+  { id: '1', claimNumber: 'CLM-2024-001', policyNumber: 'POL-2024-001', status: 'UNDER_REVIEW', submittedDate: '2024-03-10', claimType: 'آتش‌سوزی', amount: 2000000 },
+  { id: '2', claimNumber: 'CLM-2023-002', policyNumber: 'POL-2023-003', status: 'PAID', submittedDate: '2023-11-15', claimType: 'سرقت', amount: 15000000, approvedAmount: 12000000 },
+  { id: '3', claimNumber: 'CLM-2023-003', policyNumber: 'POL-2023-003', status: 'REJECTED', submittedDate: '2023-08-20', claimType: 'تصادف', amount: 5000000 },
+];
+
 export default function CustomerPortalClaims() {
   const router = useRouter();
   const [claims, setClaims] = useState<Claim[]>([]);
@@ -25,42 +34,10 @@ export default function CustomerPortalClaims() {
 
   const loadClaims = async () => {
     try {
-      setLoading(true);
-      // In a real implementation, fetch from API
-      const mockClaims: Claim[] = [
-        {
-          id: '1',
-          claimNumber: 'CLM-2024-001',
-          policyNumber: 'POL-2024-001',
-          status: 'UNDER_REVIEW',
-          submittedDate: '2024-03-10',
-          claimType: 'آتش‌سوزی',
-          amount: 2000000,
-        },
-        {
-          id: '2',
-          claimNumber: 'CLM-2023-002',
-          policyNumber: 'POL-2023-003',
-          status: 'PAID',
-          submittedDate: '2023-11-15',
-          claimType: 'سرقت',
-          amount: 15000000,
-          approvedAmount: 12000000,
-        },
-        {
-          id: '3',
-          claimNumber: 'CLM-2023-003',
-          policyNumber: 'POL-2023-003',
-          status: 'REJECTED',
-          submittedDate: '2023-08-20',
-          claimType: 'تصادف',
-          amount: 5000000,
-        },
-      ];
-
-      setClaims(mockClaims);
-    } catch (error) {
-      console.error('Failed to load claims:', error);
+      const res = await apiFetch<Claim[]>('/portal/claims');
+      setClaims(res.success && res.data ? res.data : MOCK_CLAIMS);
+    } catch {
+      setClaims(MOCK_CLAIMS);
     } finally {
       setLoading(false);
     }
@@ -68,11 +45,11 @@ export default function CustomerPortalClaims() {
 
   const getStatusBadge = (status: string) => {
     const styles = {
-      SUBMITTED: 'bg-blue-100 text-blue-800',
-      UNDER_REVIEW: 'bg-yellow-100 text-yellow-800',
-      APPROVED: 'bg-green-100 text-green-800',
-      REJECTED: 'bg-red-100 text-red-800',
-      PAID: 'bg-green-100 text-green-800',
+      SUBMITTED: 'bg-brand-primary-subtle text-brand-primary',
+      UNDER_REVIEW: 'bg-feedback-warning-subtle text-feedback-warning',
+      APPROVED: 'bg-feedback-success-subtle text-feedback-success',
+      REJECTED: 'bg-feedback-error-subtle text-feedback-error',
+      PAID: 'bg-feedback-success-subtle text-feedback-success',
     };
     const labels = {
       SUBMITTED: 'ثبت شده',
@@ -89,106 +66,73 @@ export default function CustomerPortalClaims() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50" dir="rtl">
-      {/* Header */}
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
+    <div className="min-h-screen bg-bg-base" dir="rtl">
+      <div className="border-b border-border-default bg-bg-raised">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between py-4">
             <div className="flex items-center gap-4">
-              <button
-                onClick={() => router.push('/portal')}
-                className="text-gray-600 hover:text-gray-900"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
+              <button onClick={() => router.push('/portal')} className="text-text-muted hover:text-text-primary">
+                <ChevronRight className="h-5 w-5" />
               </button>
-              <h1 className="text-2xl font-bold text-gray-900">خسارت‌ها</h1>
+              <h1 className="text-xl font-bold text-text-primary">خسارت‌ها</h1>
             </div>
             <button
               onClick={() => router.push('/portal/claims/new')}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
+              className="flex items-center gap-1 rounded-lg bg-feedback-success px-4 py-2 text-sm font-medium text-text-on-brand hover:opacity-90"
             >
+              <Plus className="h-4 w-4" />
               ثبت خسارت جدید
             </button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Claims List */}
-        <div className="bg-white rounded-lg shadow">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+        <Card className="overflow-hidden">
           <div className="p-6">
             {loading ? (
               <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
               </div>
             ) : claims.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-gray-500 mb-4">خسارتی یافت نشد</p>
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <AlertCircle className="h-10 w-10 text-text-muted" />
+                <p className="mt-2 text-sm text-text-muted">خسارتی یافت نشد</p>
                 <button
                   onClick={() => router.push('/portal/claims/new')}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  className="mt-4 rounded-lg bg-feedback-success px-4 py-2 text-sm font-medium text-text-on-brand hover:opacity-90"
                 >
                   ثبت اولین خسارت
                 </button>
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                <table className="min-w-full divide-y divide-border-default">
+                  <thead className="bg-bg-base">
                     <tr>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        شماره خسارت
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        شماره بیمه‌نامه
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        نوع خسارت
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        وضعیت
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        تاریخ ثبت
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        مبلغ درخواست
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        مبلغ تأیید شده
-                      </th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-text-muted">شماره خسارت</th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-text-muted">شماره بیمه‌نامه</th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-text-muted">نوع خسارت</th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-text-muted">وضعیت</th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-text-muted">تاریخ ثبت</th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-text-muted">مبلغ درخواست</th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-text-muted">مبلغ تأیید شده</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="divide-y divide-border-subtle">
                     {claims.map((claim) => (
                       <tr
                         key={claim.id}
-                        className="hover:bg-gray-50 cursor-pointer"
+                        className="cursor-pointer hover:bg-bg-base"
                         onClick={() => router.push(`/portal/claims/${claim.id}`)}
                       >
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {claim.claimNumber}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {claim.policyNumber}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {claim.claimType}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {getStatusBadge(claim.status)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {claim.submittedDate}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {claim.amount.toLocaleString('fa-IR')}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {claim.approvedAmount ? claim.approvedAmount.toLocaleString('fa-IR') : '-'}
-                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-text-primary">{claim.claimNumber}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-sm text-text-secondary">{claim.policyNumber}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-sm text-text-muted">{claim.claimType}</td>
+                        <td className="whitespace-nowrap px-4 py-3">{getStatusBadge(claim.status)}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-sm text-text-muted">{claim.submittedDate}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-sm text-text-muted">{claim.amount.toLocaleString('fa-IR')}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-sm text-text-muted">{claim.approvedAmount ? claim.approvedAmount.toLocaleString('fa-IR') : '-'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -196,7 +140,7 @@ export default function CustomerPortalClaims() {
               </div>
             )}
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   );

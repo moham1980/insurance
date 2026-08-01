@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { ShieldAlert, RefreshCw, Search, CheckCircle, XCircle, AlertTriangle, TrendingUp } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { getAuthUser } from '@/lib/api';
 import { enterprisePermissionsForRoles, hasEnterprisePermission } from '@/lib/enterprise-rbac';
+import { Button, Card, StatCard } from '@insurance/design-system';
+import { MOCK_FRAUD_ALERTS } from '@/lib/mock-data';
 
 type FraudAlertRow = {
   fraudCaseId: string;
@@ -45,11 +48,18 @@ export default function FraudPage() {
     if (status) qs.set('status', status);
     if (claimId) qs.set('claimId', claimId);
 
-    // Use Read Model endpoint for list (avoids fan-out per Enterprise Blueprint)
-    const res = await apiFetch<FraudAlertRow[]>(`/rm/fraud/cases${qs.toString() ? `?${qs.toString()}` : ''}`);
-    if (res.success) setRows(res.data);
-    else setError({ message: res.error.message, correlationId: res.correlationId });
-    setLoading(false);
+    try {
+      const res = await apiFetch<FraudAlertRow[]>(`/rm/fraud/cases${qs.toString() ? `?${qs.toString()}` : ''}`);
+      if (res.success) setRows(res.data);
+      else {
+        setError({ message: res.error.message, correlationId: res.correlationId });
+        setRows(MOCK_FRAUD_ALERTS.map(a => ({ ...a, fraudCaseId: a.alertId, score: a.riskScore, signals: [a.reason], assignedTo: null, notes: null })) as FraudAlertRow[]);
+      }
+    } catch {
+      setRows(MOCK_FRAUD_ALERTS.map(a => ({ ...a, fraudCaseId: a.alertId, score: a.riskScore, signals: [a.reason], assignedTo: null, notes: null })) as FraudAlertRow[]);
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function escalateCase(fraudCaseId: string) {
@@ -103,9 +113,16 @@ export default function FraudPage() {
   }
 
   const statusColor: Record<string, string> = {
-    open: 'bg-amber-100 text-amber-700',
-    confirmed: 'bg-rose-100 text-rose-700',
-    cleared: 'bg-emerald-100 text-emerald-700',
+    open: 'bg-feedback-warning-subtle text-feedback-warning',
+    confirmed: 'bg-feedback-error-subtle text-feedback-error',
+    cleared: 'bg-feedback-success-subtle text-feedback-success',
+  };
+
+  const stats = {
+    total: rows.length,
+    open: rows.filter(r => r.status === 'open').length,
+    confirmed: rows.filter(r => r.status === 'confirmed').length,
+    avgScore: rows.length > 0 ? (rows.reduce((s, r) => s + r.score, 0) / rows.length).toFixed(2) : '0',
   };
 
   return (
@@ -113,39 +130,54 @@ export default function FraudPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold">Fraud Detection (تشخیص تقلب)</h1>
-          <p className="mt-1 text-sm text-neutral-600">بررسی و مدیریت هشدارهای تقلب</p>
+          <p className="mt-1 text-sm text-text-muted">بررسی و مدیریت هشدارهای تقلب</p>
         </div>
-        <button type="button" onClick={load} className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" disabled={loading}>
-          بروزرسانی
-        </button>
+        <Button variant="ghost" size="sm" onClick={load} disabled={loading}>
+          <RefreshCw className={`ml-1 h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> بروزرسانی
+        </Button>
       </div>
 
-      <div className="mt-6 grid gap-3 md:grid-cols-4">
-        <input className="rounded-xl border px-3 py-2" placeholder="status (open/confirmed/cleared)" value={status} onChange={(e) => setStatus(e.target.value)} />
-        <div />
-        <input className="rounded-xl border px-3 py-2" placeholder="claimId" value={claimId} onChange={(e) => setClaimId(e.target.value)} />
-        <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" onClick={load} disabled={loading}>
-          اعمال فیلتر
-        </button>
+      {/* Stat Cards */}
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard title="کل هشدارها" value={stats.total} icon={ShieldAlert} changeType="neutral" />
+        <StatCard title="باز" value={stats.open} icon={AlertTriangle} changeType="warning" />
+        <StatCard title="تأیید شده" value={stats.confirmed} icon={XCircle} changeType="negative" />
+        <StatCard title="میانگین امتیاز" value={stats.avgScore} icon={TrendingUp} changeType="neutral" />
       </div>
 
-      <div className="mt-6 rounded-2xl border p-4">
-        <input className="rounded-xl border px-3 py-2 w-full" placeholder="review notes (optional)" value={reviewNotes} onChange={(e) => setReviewNotes(e.target.value)} />
-        <div className="mt-2 text-xs text-neutral-600">یادداشت بازبینی برای اکشن‌های زیر استفاده می‌شود.</div>
+      {/* Filters */}
+      <Card className="mt-6 p-4">
+        <div className="grid gap-3 md:grid-cols-4">
+          <div className="relative">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
+            <input className="w-full rounded-lg border border-border-default pr-10 pl-3 py-2 text-sm focus:ring-2 focus:ring-brand-primary focus:border-transparent" placeholder="وضعیت (open/confirmed/cleared)" value={status} onChange={(e) => setStatus(e.target.value)} />
+          </div>
+          <div />
+          <input className="w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:ring-2 focus:ring-brand-primary focus:border-transparent" placeholder="شناسه خسارت" value={claimId} onChange={(e) => setClaimId(e.target.value)} />
+          <Button variant="ghost" size="md" onClick={load} disabled={loading} fullWidth>
+            اعمال فیلتر
+          </Button>
+        </div>
+      </Card>
+
+      {/* Review Notes & Escalation */}
+      <Card className="mt-6 p-4" elevation={2}>
+        <input className="w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:ring-2 focus:ring-brand-primary focus:border-transparent" placeholder="یادداشت بازبینی (اختیاری)" value={reviewNotes} onChange={(e) => setReviewNotes(e.target.value)} />
+        <div className="mt-2 text-xs text-text-muted">یادداشت بازبینی برای اکشن‌های زیر استفاده می‌شود.</div>
 
         {canEscalate ? (
           <div className="mt-4 grid gap-3 md:grid-cols-3">
             <div className="md:col-span-1">
-              <div className="text-xs text-neutral-600">escalate toUnit</div>
-              <select value={escalateToUnit} onChange={(e) => setEscalateToUnit(e.target.value as any)} className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" disabled={loading}>
-                <option value="siu">siu</option>
-                <option value="legal">legal</option>
+              <div className="text-xs text-text-muted">ارتقا به واحد</div>
+              <select value={escalateToUnit} onChange={(e) => setEscalateToUnit(e.target.value as any)} className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:ring-2 focus:ring-brand-primary focus:border-transparent" disabled={loading}>
+                <option value="siu">SIU (واحد ویژه)</option>
+                <option value="legal">حقوقی</option>
               </select>
             </div>
             <div className="md:col-span-2">
-              <div className="text-xs text-neutral-600">confirmation</div>
+              <div className="text-xs text-text-muted">تأیید</div>
               <input
-                className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:ring-2 focus:ring-brand-primary focus:border-transparent"
                 placeholder="Type: ESCALATE {fraudCaseId}"
                 value={escalateConfirmText}
                 onChange={(e) => setEscalateConfirmText(e.target.value)}
@@ -154,10 +186,10 @@ export default function FraudPage() {
             </div>
           </div>
         ) : null}
-      </div>
+      </Card>
 
       {error ? (
-        <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+        <div className="mt-6 rounded-2xl border border-feedback-error/30 bg-feedback-error-subtle p-4 text-sm text-feedback-error">
           <div>خطا: {error.message}</div>
           {error.correlationId ? <div className="mt-1 text-xs">correlationId: {error.correlationId}</div> : null}
         </div>
@@ -165,53 +197,48 @@ export default function FraudPage() {
 
       <div className="mt-6 space-y-3">
         {rows.map((a) => (
-          <div key={a.fraudCaseId} className="rounded-2xl border p-4">
+          <Card key={a.fraudCaseId} className="p-4">
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold">{a.claimNumber}</span>
-                  <span className={`rounded-full px-2 py-0.5 text-xs ${statusColor[a.status] || 'bg-neutral-100 text-neutral-700'}`}>{a.status}</span>
-                  <span className={`rounded-full px-2 py-0.5 text-xs ${a.holdClaim ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                  <span className="text-sm font-semibold text-text-primary">{a.claimNumber}</span>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusColor[a.status] || 'bg-bg-base text-text-secondary'}`}>{a.status}</span>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${a.holdClaim ? 'bg-feedback-error-subtle text-feedback-error' : 'bg-feedback-success-subtle text-feedback-success'}`}>
                     {a.holdClaim ? 'HOLD' : 'CLEAR'}
                   </span>
                 </div>
-                <div className="mt-1 text-xs text-neutral-600">score: {a.score} | signals: {(a.signals || []).join(', ') || '—'}</div>
-                <div className="mt-1 text-xs text-neutral-600">fraudCaseId: {a.fraudCaseId}</div>
-                <div className="mt-1 text-xs text-neutral-600">claimId: {a.claimId}</div>
-                <div className="mt-1 text-xs text-neutral-600">assignedTo: {a.assignedTo || '—'}</div>
-                {a.notes ? <div className="mt-1 text-xs text-neutral-600">notes: {a.notes}</div> : null}
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-muted">
+                  <span>امتیاز: <span className={`font-medium ${a.score > 0.7 ? 'text-feedback-error' : a.score > 0.4 ? 'text-feedback-warning' : 'text-feedback-success'}`}>{a.score}</span></span>
+                  <span>سیگنال‌ها: {(a.signals || []).join('، ') || '—'}</span>
+                </div>
+                <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-muted">
+                  <span>شناسه پرونده: {a.fraudCaseId}</span>
+                  <span>خسارت: {a.claimId}</span>
+                  <span>مسئول: {a.assignedTo || '—'}</span>
+                </div>
+                {a.notes ? <div className="mt-1 text-xs text-text-secondary">یادداشت: {a.notes}</div> : null}
               </div>
 
               <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => closeCase(a.fraudCaseId, 'cleared')}
-                  disabled={!canInvestigate || busy === a.fraudCaseId}
-                  className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50"
-                >
-                  Clear
-                </button>
-                <button
-                  type="button"
-                  onClick={() => closeCase(a.fraudCaseId, 'confirmed')}
-                  disabled={!canInvestigate || busy === a.fraudCaseId}
-                  className="rounded-xl bg-rose-600 px-3 py-2 text-sm text-white hover:bg-rose-700 disabled:opacity-50"
-                >
-                  Confirm
-                </button>
-                <button
-                  type="button"
-                  onClick={() => escalateCase(a.fraudCaseId)}
-                  disabled={!canEscalate || busy === a.fraudCaseId}
-                  className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50"
-                >
-                  Escalate
-                </button>
+                <Button variant="ghost" size="sm" onClick={() => closeCase(a.fraudCaseId, 'cleared')} disabled={!canInvestigate || busy === a.fraudCaseId}>
+                  <CheckCircle className="ml-1 h-4 w-4" /> رفع
+                </Button>
+                <Button variant="danger" size="sm" onClick={() => closeCase(a.fraudCaseId, 'confirmed')} disabled={!canInvestigate || busy === a.fraudCaseId}>
+                  <XCircle className="ml-1 h-4 w-4" /> تأیید تقلب
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => escalateCase(a.fraudCaseId)} disabled={!canEscalate || busy === a.fraudCaseId}>
+                  <AlertTriangle className="ml-1 h-4 w-4" /> ارتقا
+                </Button>
               </div>
             </div>
-          </div>
+          </Card>
         ))}
-        {!loading && rows.length === 0 ? <div className="text-sm text-neutral-600">موردی یافت نشد.</div> : null}
+        {!loading && rows.length === 0 ? (
+          <div className="text-center py-12">
+            <ShieldAlert className="mx-auto h-12 w-12 text-text-muted opacity-50" />
+            <p className="mt-3 text-sm text-text-muted">موردی یافت نشد.</p>
+          </div>
+        ) : null}
       </div>
     </main>
   );

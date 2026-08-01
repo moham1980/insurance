@@ -1,4 +1,6 @@
-import { Body, Controller, Get, Headers, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Inject, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { PermissionsGuard } from './permissions.guard';
 import { RequirePermissions } from './permissions.decorator';
@@ -13,6 +15,7 @@ import { ClawbackService } from './clawback/clawback.service';
 import { EscrowService } from './escrow/escrow.service';
 import { EscrowRulesService } from './escrow/escrow-rules.service';
 import { CustomerPaymentService } from './payments/customer-payment.service';
+import { CommissionSplit } from './commission/commission-split.entity';
 
 @Controller()
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -29,6 +32,7 @@ export class BrokerageController {
     private readonly escrowService: EscrowService,
     private readonly escrowRulesService: EscrowRulesService,
     private readonly customerPaymentService: CustomerPaymentService,
+    @InjectRepository(CommissionSplit) private readonly commissionSplitRepo: Repository<CommissionSplit>,
   ) {}
 
   private ok<T>(data: T, correlationId: string) {
@@ -75,6 +79,30 @@ export class BrokerageController {
     } catch (e: any) {
       return this.fail('POSTING_FAILED', e.message, correlationId);
     }
+  }
+
+  @Get('/brokerage/commissions')
+  @RequirePermissions('billing:view_entry')
+  async listCommissions(
+    @Req() req: any,
+    @Headers() headers: Record<string, any>,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+    @Query('status') status?: string,
+    @Query('organizationId') organizationId?: string,
+  ) {
+    const correlationId = this.getCorrelationId(headers);
+    const tenantId = req?.user?.tenantId as string | undefined;
+    const lim = Math.min(parseInt(limit || '50', 10) || 50, 200);
+    const off = parseInt(offset || '0', 10) || 0;
+
+    const qb = this.commissionSplitRepo.createQueryBuilder('c');
+    if (tenantId) qb.andWhere('c.tenant_id = :tenantId', { tenantId });
+    if (status) qb.andWhere('c.status = :status', { status });
+    if (organizationId) qb.andWhere('c.organization_id = :organizationId', { organizationId });
+    qb.orderBy('c.created_at', 'DESC').take(lim).skip(off);
+    const [rows, total] = await qb.getManyAndCount();
+    return this.ok({ rows, total, limit: lim, offset: off }, correlationId);
   }
 
   @Post('/brokerage/commissions/calculate')

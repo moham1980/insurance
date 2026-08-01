@@ -1,4 +1,4 @@
-FROM oven/bun:1.3.9-slim AS builder
+FROM node:18-slim AS builder
 WORKDIR /app
 
 ARG HTTP_PROXY
@@ -19,20 +19,17 @@ ENV no_proxy=${no_proxy}
 ENV ALL_PROXY=${ALL_PROXY}
 ENV all_proxy=${all_proxy}
 
-ENV PATH=/app/node_modules/.bin:$PATH
-
 COPY package.json bun.lock ./
 COPY services/channel-workspace-bff/package.json ./services/channel-workspace-bff/
 
-RUN for i in 1 2 3; do NODE_TLS_REJECT_UNAUTHORIZED=0 bun install --network-concurrency=8 && break || sleep 10; done
+RUN npm install --legacy-peer-deps
 
 COPY services/channel-workspace-bff ./services/channel-workspace-bff
 
 WORKDIR /app/services/channel-workspace-bff
-RUN for i in 1 2 3; do NODE_TLS_REJECT_UNAUTHORIZED=0 bun install --network-concurrency=8 && break || sleep 10; done
-RUN bun run build
+RUN npx tsc
 
-FROM oven/bun:1.3.9-slim
+FROM node:18-slim
 
 WORKDIR /app
 
@@ -41,7 +38,7 @@ COPY --from=builder /app/services/channel-workspace-bff/package.json ./services/
 
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/bun.lock ./
-RUN for i in 1 2 3; do NODE_TLS_REJECT_UNAUTHORIZED=0 bun install --production --network-concurrency=8 && break || sleep 10; done
+RUN npm install --production --legacy-peer-deps
 
 WORKDIR /app/services/channel-workspace-bff
 
@@ -49,4 +46,4 @@ ENV NODE_ENV=production
 
 EXPOSE 3020
 
-CMD ["bun", "run", "dist/main.js"]
+CMD ["node", "dist/main.js"]

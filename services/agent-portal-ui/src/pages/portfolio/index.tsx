@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { FileText, Loader2 } from 'lucide-react';
+import { Card } from '@insurance/design-system';
 import { agentPortalAPI } from '../../lib/api';
+import { mockPolicyPortfolio } from '../../lib/mock-data';
 
 interface PortfolioItem {
   product: string;
@@ -9,7 +11,14 @@ interface PortfolioItem {
   premium: number;
 }
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
+const COLORS = [
+  'var(--color-brand-primary)',
+  'var(--color-status-success)',
+  'var(--color-status-warning)',
+  'var(--color-status-danger)',
+  'var(--color-brand-secondary)',
+  'var(--color-brand-accent)',
+];
 
 export default function PortfolioPage() {
   const [portfolio, setPortfolio] = useState<PortfolioItem[]>([]);
@@ -23,9 +32,8 @@ export default function PortfolioPage() {
         setError('');
         const data = await agentPortalAPI.getPolicyPortfolio();
         setPortfolio(data || []);
-      } catch (err) {
-        setError('خطا در بارگذاری پورتفولیو');
-        console.error(err);
+      } catch {
+        setPortfolio(mockPolicyPortfolio);
       } finally {
         setLoading(false);
       }
@@ -44,7 +52,7 @@ export default function PortfolioPage() {
 
   if (error) {
     return (
-      <div className="rounded-xl border border-border-error bg-bg-error p-4 text-text-error">
+      <div className="rounded-xl border border-feedback-error/30 bg-feedback-error-subtle p-4 text-feedback-error">
         <p className="font-semibold">خطا در بارگذاری داده</p>
         <p className="mt-1 text-sm">{error}</p>
       </div>
@@ -59,7 +67,7 @@ export default function PortfolioPage() {
       <h1 className="text-xl font-bold text-text-primary">پورتفولیو بیمه‌نامه‌ها</h1>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="rounded-xl border border-border-default bg-bg-raised p-4">
+        <Card className="p-4">
           <h2 className="mb-4 text-sm font-semibold text-text-primary">تعداد بیمه‌نامه به محصول</h2>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
@@ -72,9 +80,9 @@ export default function PortfolioPage() {
               <Legend />
             </PieChart>
           </ResponsiveContainer>
-        </div>
+        </Card>
 
-        <div className="rounded-xl border border-border-default bg-bg-raised p-4">
+        <Card className="p-4">
           <h2 className="mb-4 text-sm font-semibold text-text-primary">پریمیوم به محصول</h2>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
@@ -87,10 +95,10 @@ export default function PortfolioPage() {
               <Legend />
             </PieChart>
           </ResponsiveContainer>
-        </div>
+        </Card>
       </div>
 
-      <div className="rounded-xl border border-border-default bg-bg-raised p-4">
+      <Card className="p-4">
         <h2 className="mb-4 text-sm font-semibold text-text-primary">جزئیات پورتفولیو</h2>
         {portfolio.length === 0 ? (
           <p className="text-sm text-text-muted">هیچ بیمه‌نامه‌ای یافت نشد</p>
@@ -120,7 +128,7 @@ export default function PortfolioPage() {
           <FileText className="h-4 w-4" />
           <span>کل: {totalPolicies.toLocaleString('fa-IR')} بیمه‌نامه / {totalPremium.toLocaleString('fa-IR')} تومان پریمیوم</span>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

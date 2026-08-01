@@ -1,0 +1,104 @@
+[32m[Nest] 34016  - [39m08/02/2026, 1:18:56 AM [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:18:56 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +392ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:18:56 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmCoreModule dependencies initialized[39m[38;5;3m +220ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:18:56 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +82ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:18:56 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +102ms[39m
+{"level":30,"time":1785620943597,"service":"claims-service","component":"KafkaProducer","msg":"Kafka producer connected"}
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:03 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mClaimsController {/}:[39m[38;5;3m +6656ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:03 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/claims, POST} route[39m[38;5;3m +384ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:04 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/claims/:claimId/assess, POST} route[39m[38;5;3m +94ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:04 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/claims/:claimId/approve, POST} route[39m[38;5;3m +65ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:04 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/claims/:claimId/reject, POST} route[39m[38;5;3m +112ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:04 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/claims/:claimId/pay, POST} route[39m[38;5;3m +56ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:04 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/claims/:claimId/close, POST} route[39m[38;5;3m +43ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:04 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/claims/:claimId/refer-to-adjuster, POST} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:04 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/claims/:claimId, GET} route[39m[38;5;3m +34ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:04 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/claims/:claimId, PATCH} route[39m[38;5;3m +120ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:04 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/claims, GET} route[39m[38;5;3m +48ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:04 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/claims/:claimId/calculate-deductible, POST} route[39m[38;5;3m +36ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:04 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/claims/fnol/form-defaults, GET} route[39m[38;5;3m +23ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:04 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/claims/fnol, POST} route[39m[38;5;3m +33ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:04 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/claims/:claimId/validate-policy, POST} route[39m[38;5;3m +26ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:04 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/claims/:claimId/acknowledge, POST} route[39m[38;5;3m +58ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:04 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/claims/:claimId/submit-to-carrier, POST} route[39m[38;5;3m +22ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:04 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/claims/:claimId/appeal, POST} route[39m[38;5;3m +32ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:04 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/claims/:claimId/history, GET} route[39m[38;5;3m +44ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:04 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mClaimAdvocacyController {/}:[39m[38;5;3m +54ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:04 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/claims/:claimId/advocacy-cases, POST} route[39m[38;5;3m +26ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:04 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/advocacy-cases, GET} route[39m[38;5;3m +45ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:04 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/advocacy-cases/:caseId, GET} route[39m[38;5;3m +25ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:05 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/advocacy-cases/:caseId/tasks, GET} route[39m[38;5;3m +29ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:05 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/advocacy-cases/:caseId/tasks, POST} route[39m[38;5;3m +59ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:05 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/advocacy-cases/:caseId/tasks/:taskId, PATCH} route[39m[38;5;3m +106ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:05 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/advocacy-cases/:caseId/communications, POST} route[39m[38;5;3m +45ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:05 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/advocacy-cases/:caseId/escalate, POST} route[39m[38;5;3m +23ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:05 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/advocacy-cases/:caseId/close, POST} route[39m[38;5;3m +11ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:05 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/claims/:claimId/adjuster-referrals, POST} route[39m[38;5;3m +3ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:05 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/claims/:claimId/adjuster-referrals, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:05 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/adjuster-referrals/:referralId/accept, POST} route[39m[38;5;3m +6ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:05 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/adjuster-referrals/:referralId/reject, POST} route[39m[38;5;3m +4ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:05 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/adjuster-referrals/:referralId/submit-report, POST} route[39m[38;5;3m +14ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:05 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/adjuster-referrals/:referralId/communications, POST} route[39m[38;5;3m +22ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:05 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/claims/:claimId/projections, GET} route[39m[38;5;3m +9ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:05 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/claims/:claimId/projections, POST} route[39m[38;5;3m +3ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:05 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/claims/:claimId/recovery, POST} route[39m[38;5;3m +8ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:05 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/recovery/:recoveryId, GET} route[39m[38;5;3m +12ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:05 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/claims/:claimId/recovery, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:05 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/recovery/:recoveryId/status, PATCH} route[39m[38;5;3m +4ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:05 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/claims/:claimId/documents, POST} route[39m[38;5;3m +4ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:05 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/claims/:claimId/documents, GET} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:05 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/claims/:claimId/documents/:documentId/download, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:05 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/claims/:claimId/documents/:documentId/scan-status, GET} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:05 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mHealthController {/}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:05 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/health, GET} route[39m[38;5;3m +1ms[39m
+{"level":30,"time":1785620943604,"service":"claims-service","component":"OutboxWorker","producerName":"claims-service","pollIntervalMs":1000,"batchSize":50,"msg":"Outbox worker started"}
+{"level":"INFO","timestamp":"2026-08-01T21:49:06.120Z","logger":"kafkajs","message":"[Consumer] Starting","groupId":"claims-events-v1"}
+{"level":"INFO","timestamp":"2026-08-01T21:49:09.538Z","logger":"kafkajs","message":"[ConsumerGroup] Consumer has joined the group","groupId":"claims-events-v1","memberId":"claims-service-5cff4c23-5adb-4b01-b1b8-6b7e7cb16d8d","leaderId":"claims-service-5cff4c23-5adb-4b01-b1b8-6b7e7cb16d8d","isLeader":true,"memberAssignment":{"insurance.fraud.case.escalated":[0],"insurance.fraud.case.resolved":[0],"insurance.payment.executed":[0],"insurance.payment.failed":[0],"insurance.claim.registered":[0],"insurance.claim.acknowledged":[0],"insurance.claim.submitted_to_carrier":[0],"insurance.claim.status_updated":[0],"insurance.claim.assessed":[0],"insurance.claim.approved":[0],"insurance.claim.rejected":[0],"insurance.claim.paid":[0],"insurance.claim.closed":[0],"insurance.claim.appealed":[0],"insurance.claim.adjuster_assigned":[0]},"groupProtocol":"RoundRobinAssigner","duration":3313}
+[32m[Nest] 34016  - [39m08/02/2026, 1:19:09 AM [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +4208ms[39m
+[01:19:09.567] [32mINFO[39m: [36mClaims events consumer started[39m
+    service: "claims-service"
+    groupId: "claims-events-v1"
+    topics: [
+      "insurance.fraud.case.escalated",
+      "insurance.fraud.case.resolved",
+      "insurance.payment.executed",
+      "insurance.payment.failed",
+      "insurance.claim.registered",
+      "insurance.claim.acknowledged",
+      "insurance.claim.submitted_to_carrier",
+      "insurance.claim.status_updated",
+      "insurance.claim.assessed",
+      "insurance.claim.approved",
+      "insurance.claim.rejected",
+      "insurance.claim.paid",
+      "insurance.claim.closed",
+      "insurance.claim.appealed",
+      "insurance.claim.adjuster_assigned"
+    ]
+[01:21:33.647] [32mINFO[39m: [36mclaims.fnol.create.request[39m
+    service: "claims-service"
+    correlationId: "1785621093647-oap1z5ce9"
+    tenantId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    actor: "broker_owner-user"
+    action: "claims:register"
+[01:21:54.418] [31mERROR[39m: [36mclaims.advocacy.open.failed[39m
+    service: "claims-service"
+    correlationId: "1785621114411-5hu7ezu0k"
+    tenantId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    claimId: "test-claim-001"
+    error: {
+      "message": "invalid input syntax for type uuid: \"test-claim-001\"",
+      "stack":
+          QueryFailedError: invalid input syntax for type uuid: "test-claim-001"
+              at PostgresQueryRunner.query (D:\CascadeProjects\old\insurance\node_modules\typeorm\src\driver\postgres\PostgresQueryRunner.ts:325:19)
+              at processTicksAndRejections (node:internal/process/task_queues:103:5)
+              at async SelectQueryBuilder.loadRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3868:25)
+              at async SelectQueryBuilder.executeEntitiesAndRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3614:26)
+              at async SelectQueryBuilder.getRawAndEntities (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1671:29)
+              at async SelectQueryBuilder.getOne (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1698:25)
+              at async ClaimAdvocacyService.openAdvocacyCase (D:\CascadeProjects\old\insurance\services\claims-service\src\advocacy\advocacy.service.ts:80:19)
+              at async ClaimAdvocacyController.openAdvocacyCase (D:\CascadeProjects\old\insurance\services\claims-service\src\advocacy\advocacy.controller.ts:67:17)
+              at async D:\CascadeProjects\old\insurance\node_modules\@nestjs\core\router\router-execution-context.js:46:28
+              at async Object.<anonymous> (D:\CascadeProjects\old\insurance\node_modules\@nestjs\core\router\router-proxy.js:9:17)
+      "name": "QueryFailedError"
+    }

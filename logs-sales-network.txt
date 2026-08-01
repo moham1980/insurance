@@ -1,0 +1,219 @@
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:41 AM [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:42 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +618ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:42 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mHttpModule dependencies initialized[39m[38;5;3m +4ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:43 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmCoreModule dependencies initialized[39m[38;5;3m +1110ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:43 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +41ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:43 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +16ms[39m
+{"level":30,"time":1785620924270,"service":"sales-network","component":"KafkaProducer","msg":"Kafka producer connected"}
+OutboxWorker started for sales-network
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mHealthController {/}:[39m[38;5;3m +569ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/health, GET} route[39m[38;5;3m +5ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mSalesNetworkController {/}:[39m[38;5;3m +9ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/partners, GET} route[39m[38;5;3m +28ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/ledger/:ledgerEntryId/void, POST} route[39m[38;5;3m +8ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/ledger/:ledgerEntryId/pay, POST} route[39m[38;5;3m +25ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/partners, POST} route[39m[38;5;3m +19ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/partners/:orgUnitId/verify, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/partners/:orgUnitId/status, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/contracts, GET} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/contracts, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/contracts/:contractId/activate, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/ledger, GET} route[39m[38;5;3m +18ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/kpi/daily, GET} route[39m[38;5;3m +7ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/agent/summary, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/agents/:agentId/policies, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/commission/calculate, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/commission/recalculate, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/performance/trend, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/performance/compare-periods, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/performance/top-performers, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/agents/:agentId/stats, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/agents/:agentId/claims, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/agents/:agentId/customers, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/agents/:agentId/commissions, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/agents/:agentId/kpis, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/agreements, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/agreements/:agreementId, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/agreements, POST} route[39m[38;5;3m +4ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/agreements/:agreementId/activate, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/agreements/:agreementId/terminate, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/agreements/:agreementId/tiers, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/agreements/:agreementId/tiers, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/tiers/:tierId/delete, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/agreements/:agreementId/clawback-rules, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/agreements/:agreementId/clawback-rules, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/clawback-rules/:ruleId/delete, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/broker/:brokerPartnerId/sub-agents, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/broker/:brokerPartnerId/sub-agents, POST} route[39m[38;5;3m +12ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/broker/:brokerPartnerId/sub-agents/:subAgentPartnerId/suspend, POST} route[39m[38;5;3m +12ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/broker/:brokerPartnerId/sub-agents/:subAgentPartnerId/terminate, POST} route[39m[38;5;3m +34ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/broker/:brokerPartnerId/dashboard, GET} route[39m[38;5;3m +59ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/contracts/:contractId/terminate, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/ledger/reconciliation, GET} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/leads, POST} route[39m[38;5;3m +32ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/leads, GET} route[39m[38;5;3m +98ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/leads/:leadId, PATCH} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/leads/:leadId/assign, POST} route[39m[38;5;3m +25ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/sales-network/leads/:leadId/convert, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mDistributionAgreementController {/api/v1/distribution-agreements}:[39m[38;5;3m +1ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/distribution-agreements, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/distribution-agreements, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/distribution-agreements/:agreementId, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/distribution-agreements/:agreementId/versions, POST} route[39m[38;5;3m +7ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/distribution-agreements/:agreementId/activate, POST} route[39m[38;5;3m +5ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/distribution-agreements/:agreementId/terminate, POST} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/distribution-agreements/:agreementId/eligibility, GET} route[39m[38;5;3m +4ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/distribution-agreements/:agreementId/submit-for-approval, POST} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/distribution-agreements/:agreementId/approve, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/distribution-agreements/:agreementId/reject, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/distribution-agreements/:agreementId/return, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/distribution-agreements/:agreementId/approvals, GET} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/distribution-agreements/:agreementId/history, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/distribution-agreements/:agreementId/binding-authority, GET} route[39m[38;5;3m +13ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/distribution-agreements/binding-authority-profiles, POST} route[39m[38;5;3m +5ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/distribution-agreements/binding-authority-profiles, GET} route[39m[38;5;3m +50ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/distribution-agreements/binding-authority-profiles/:profileId, GET} route[39m[38;5;3m +10ms[39m
+[32m[Nest] 35080  - [39m08/02/2026, 1:18:44 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/distribution-agreements/binding-authority-profiles/:profileId/activate, POST} route[39m[38;5;3m +1ms[39m
+{"level":30,"time":1785620924274,"service":"sales-network","component":"KafkaProducer","msg":"Kafka producer connected"}
+{"level":30,"time":1785620924274,"service":"sales-network","component":"OutboxWorker","producerName":"sales-network","pollIntervalMs":5000,"batchSize":50,"msg":"Outbox worker started"}
+{"level":"INFO","timestamp":"2026-08-01T21:48:46.732Z","logger":"kafkajs","message":"[Consumer] Starting","groupId":"sales-network-v1"}
+[01:18:46.731] [32mINFO[39m: [36mKafka consumer started[39m
+    service: "sales-network-service"
+    groupId: "sales-network-v1"
+{"level":"INFO","timestamp":"2026-08-01T21:49:04.140Z","logger":"kafkajs","message":"[ConsumerGroup] Consumer has joined the group","groupId":"sales-network-v1","memberId":"sales-network-service-f5a98f48-15d9-4909-a603-dd695b47c395","leaderId":"sales-network-service-f5a98f48-15d9-4909-a603-dd695b47c395","isLeader":true,"memberAssignment":{"insurance.policy.issued":[0],"insurance.policy.renewed":[0],"insurance.policy.cancelled":[0],"insurance.policy.endorsed":[0],"insurance.policy.sales_network_sync":[0],"insurance.complaint.created":[0],"insurance.party.kyc_status_changed":[0]},"groupProtocol":"RoundRobinAssigner","duration":17386}
+[32m[Nest] 35080  - [39m08/02/2026, 1:19:04 AM [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +19727ms[39m
+[sales-network-service] listening on 18022
+[01:19:24.424] [32mINFO[39m: [36msales_network.agent.summary.request[39m
+    service: "sales-network-service"
+    correlationId: "1785620964424-kx99axnsd"
+    tenantId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    action: "sales_network:agent:view"
+[01:19:34.015] [32mINFO[39m: [36msales_network.partners.list.request[39m
+    service: "sales-network-service"
+    correlationId: "1785620974015-9rrxpvm9k"
+    tenantId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    action: "sales_network:partners:view"
+[01:21:32.693] [32mINFO[39m: [36msales_network.agent.summary.request[39m
+    service: "sales-network-service"
+    correlationId: "1785621092693-mauxgmnbt"
+    tenantId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    action: "sales_network:agent:view"
+[01:21:32.759] [32mINFO[39m: [36msales_network.agreements.list.request[39m
+    service: "sales-network-service"
+    correlationId: "1785621092759-tnh3zy8ea"
+    tenantId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    action: "sales_network:agreements:view"
+[01:21:52.276] [32mINFO[39m: [36msales_network.partners.list.request[39m
+    service: "sales-network-service"
+    correlationId: "1785621112276-ph1u1fvfc"
+    tenantId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    action: "sales_network:partners:view"
+[01:22:04.424] [32mINFO[39m: [36msales_network.agreements.list.request[39m
+    service: "sales-network-service"
+    correlationId: "1785621124424-he6yj3c29"
+    tenantId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    action: "sales_network:agreements:view"
+[01:22:05.114] [32mINFO[39m: [36msales_network.agreements.list.request[39m
+    service: "sales-network-service"
+    correlationId: "1785621125114-pmck5dlsi"
+    tenantId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    action: "sales_network:agreements:view"
+[01:22:25.506] [32mINFO[39m: [36msales_network.ledger.list.request[39m
+    service: "sales-network-service"
+    correlationId: "1785621145485-9bem7kcww"
+    tenantId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    action: "sales_network:ledger:view"
+[01:22:25.525] [32mINFO[39m: [36msales_network.agreements.list.request[39m
+    service: "sales-network-service"
+    correlationId: "1785621145514-u8qbnbwav"
+    tenantId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    action: "sales_network:agreements:view"
+[01:22:25.557] [32mINFO[39m: [36msales_network.broker.sub_agents.list.request[39m
+    service: "sales-network-service"
+    correlationId: "1785621145544-til0nurer"
+    tenantId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    action: "sales_network:broker:sub_agents:view"
+    brokerPartnerId: "test-broker-001"
+[01:22:25.604] [32mINFO[39m: [36msales_network.broker.dashboard.request[39m
+    service: "sales-network-service"
+    correlationId: "1785621145585-feu3i4ku0"
+    tenantId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    action: "sales_network:broker:dashboard:view"
+    brokerPartnerId: "test-broker-001"
+[01:22:26.250] [32mINFO[39m: [36msales_network.partners.list.request[39m
+    service: "sales-network-service"
+    correlationId: "1785621146238-48pzm0l7v"
+    tenantId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    action: "sales_network:partners:view"
+[01:22:26.290] [32mINFO[39m: [36msales_network.partners.list.request[39m
+    service: "sales-network-service"
+    correlationId: "1785621146283-7dirbba63"
+    tenantId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    action: "sales_network:partners:view"
+[01:22:26.684] [32mINFO[39m: [36msales_network.ledger.reconciliation.request[39m
+    service: "sales-network-service"
+    correlationId: "1785621146582-e8pl4jr80"
+    tenantId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    action: "sales_network:ledger:view"
+    orgUnitId: "test-org-001"
+[01:22:26.960] [32mINFO[39m: [36msales_network.broker.sub_agents.list.request[39m
+    service: "sales-network-service"
+    correlationId: "1785621146898-gvfmbh3np"
+    tenantId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    action: "sales_network:broker:sub_agents:view"
+    brokerPartnerId: "undefined"
+[01:22:27.102] [32mINFO[39m: [36msales_network.broker.sub_agents.suspend.request[39m
+    service: "sales-network-service"
+    correlationId: "1785621147077-ytik33qbl"
+    tenantId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    action: "sales_network:broker:sub_agents:manage"
+    brokerPartnerId: "test-broker-001"
+    subAgentPartnerId: "test-subagent-001"
+[01:22:27.205] [32mINFO[39m: [36msales_network.broker.sub_agents.terminate.request[39m
+    service: "sales-network-service"
+    correlationId: "1785621147197-f4zhgohvx"
+    tenantId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    action: "sales_network:broker:sub_agents:manage"
+    brokerPartnerId: "test-broker-001"
+    subAgentPartnerId: "test-subagent-001"
+[01:22:27.263] [32mINFO[39m: [36msales_network.agreements.get.request[39m
+    service: "sales-network-service"
+    correlationId: "1785621147244-uyfu9bael"
+    tenantId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    action: "sales_network:agreements:view"
+    agreementId: "test-agreement-001"
+[01:22:27.361] [32mINFO[39m: [36msales_network.tiers.list.request[39m
+    service: "sales-network-service"
+    correlationId: "1785621147333-ifbqyox3q"
+    action: "sales_network:agreements:view"
+    agreementId: "test-agreement-001"
+[01:22:27.505] [32mINFO[39m: [36msales_network.clawback_rules.list.request[39m
+    service: "sales-network-service"
+    correlationId: "1785621147448-feovoh6wh"
+    action: "sales_network:agreements:view"
+    agreementId: "test-agreement-001"
+[01:22:27.868] [32mINFO[39m: [36msales_network.partners.list.request[39m
+    service: "sales-network-service"
+    correlationId: "1785621147863-5qk1mm19n"
+    tenantId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    action: "sales_network:partners:view"
+[01:22:27.887] [32mINFO[39m: [36msales_network.partners.list.request[39m
+    service: "sales-network-service"
+    correlationId: "1785621147880-xh9y9z6hg"
+    tenantId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    action: "sales_network:partners:view"
+[01:22:28.002] [32mINFO[39m: [36msales_network.ledger.list.request[39m
+    service: "sales-network-service"
+    correlationId: "1785621147991-7d8f27a37"
+    tenantId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    action: "sales_network:ledger:view"
+[01:22:28.016] [32mINFO[39m: [36msales_network.ledger.reconciliation.request[39m
+    service: "sales-network-service"
+    correlationId: "1785621148008-jpr7ks18c"
+    tenantId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    action: "sales_network:ledger:view"
+[01:22:28.036] [32mINFO[39m: [36msales_network.agreements.list.request[39m
+    service: "sales-network-service"
+    correlationId: "1785621148030-tsi7e9ayj"
+    tenantId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    action: "sales_network:agreements:view"

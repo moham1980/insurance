@@ -71,13 +71,13 @@ export default function RealtimeTestPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold">تست اتصال زنده (Realtime)</h1>
-          <p className="mt-1 text-sm text-neutral-600">تست و نمایش رویدادهای زنده از طریق SSE</p>
+          <p className="mt-1 text-sm text-text-muted">تست و نمایش رویدادهای زنده از طریق SSE</p>
         </div>
         <div className="flex gap-2">
           <button
             type="button"
             onClick={clearEvents}
-            className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
+            className="rounded-xl border px-3 py-2 text-sm hover:bg-bg-base"
           >
             پاک کردن رویدادها
           </button>
@@ -88,10 +88,10 @@ export default function RealtimeTestPage() {
         <div className="rounded-2xl border p-4">
           <h2 className="text-sm font-semibold mb-3">وضعیت اتصال</h2>
           <div className="flex items-center gap-2">
-            <div className={`h-3 w-3 rounded-full ${isConnected ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+            <div className={`h-3 w-3 rounded-full ${isConnected ? 'bg-feedback-success' : 'bg-feedback-error'}`} />
             <span className="text-sm">{isConnected ? 'متصل' : 'قطع'}</span>
           </div>
-          <div className="mt-2 text-xs text-neutral-600">
+          <div className="mt-2 text-xs text-text-muted">
             تعداد رویدادهای دریافت شده: {events.length}
           </div>
         </div>
@@ -110,7 +110,7 @@ export default function RealtimeTestPage() {
               type="button"
               onClick={sendTestEvent}
               disabled={!testMessage.trim() || !isConnected}
-              className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50"
+              className="rounded-xl border px-3 py-2 text-sm hover:bg-bg-base disabled:opacity-50"
             >
               ارسال
             </button>
@@ -124,7 +124,7 @@ export default function RealtimeTestPage() {
           <button
             type="button"
             onClick={() => setEvents(events.filter(() => true))}
-            className="rounded-xl border px-3 py-1 text-xs hover:bg-neutral-50"
+            className="rounded-xl border px-3 py-1 text-xs hover:bg-bg-base"
           >
             همه ({events.length})
           </button>
@@ -132,7 +132,7 @@ export default function RealtimeTestPage() {
             <button
               key={type}
               onClick={() => setEvents(events.filter((e) => e.type === type))}
-              className="rounded-xl border px-3 py-1 text-xs hover:bg-neutral-50"
+              className="rounded-xl border px-3 py-1 text-xs hover:bg-bg-base"
             >
               {type} ({events.filter((e) => e.type === type).length})
             </button>
@@ -146,19 +146,19 @@ export default function RealtimeTestPage() {
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold bg-neutral-100 px-2 py-1 rounded">
+                  <span className="text-xs font-semibold bg-bg-base px-2 py-1 rounded">
                     {event.type}
                   </span>
-                  <span className="text-xs text-neutral-600">
+                  <span className="text-xs text-text-muted">
                     {new Date(event.timestamp).toLocaleTimeString('fa-IR')}
                   </span>
                   {event.correlationId && (
-                    <span className="text-xs text-neutral-600">
+                    <span className="text-xs text-text-muted">
                       ID: {event.correlationId}
                     </span>
                   )}
                 </div>
-                <div className="mt-1 text-sm text-neutral-700">
+                <div className="mt-1 text-sm text-text-secondary">
                   {typeof event.data === 'string'
                     ? event.data
                     : JSON.stringify(event.data, null, 2)}
@@ -168,7 +168,7 @@ export default function RealtimeTestPage() {
           </div>
         ))}
         {events.length === 0 && (
-          <div className="text-center text-sm text-neutral-600 py-8">
+          <div className="text-center text-sm text-text-muted py-8">
             هنوز رویدادی دریافت نشده است
           </div>
         )}

@@ -39,42 +39,67 @@ export class ApiClient {
   }
 
   async get<T = any>(url: string, config?: AxiosRequestConfig): Promise<any> {
-    const response = await this.client.get<T>(url, config);
-    return response.data;
+    try {
+      const response = await this.client.get<T>(url, config);
+      return response.data;
+    } catch (error: any) {
+      if (error.response?.data) return error.response.data;
+      throw error;
+    }
   }
 
   async post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<any> {
-    if (data === undefined) {
-      const response = await this.client.post<T>(url, undefined, {
-        ...config,
-        headers: { ...config?.headers, 'Content-Type': undefined },
-      });
+    try {
+      if (data === undefined) {
+        const response = await this.client.post<T>(url, undefined, {
+          ...config,
+          headers: { ...config?.headers, 'Content-Type': undefined },
+        });
+        return response.data;
+      }
+      const response = await this.client.post<T>(url, data, config);
       return response.data;
+    } catch (error: any) {
+      if (error.response?.data) return error.response.data;
+      throw error;
     }
-    const response = await this.client.post<T>(url, data, config);
-    return response.data;
   }
 
   async put<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<any> {
-    if (data === undefined) {
-      const response = await this.client.put<T>(url, undefined, {
-        ...config,
-        headers: { ...config?.headers, 'Content-Type': undefined },
-      });
+    try {
+      if (data === undefined) {
+        const response = await this.client.put<T>(url, undefined, {
+          ...config,
+          headers: { ...config?.headers, 'Content-Type': undefined },
+        });
+        return response.data;
+      }
+      const response = await this.client.put<T>(url, data, config);
       return response.data;
+    } catch (error: any) {
+      if (error.response?.data) return error.response.data;
+      throw error;
     }
-    const response = await this.client.put<T>(url, data, config);
-    return response.data;
   }
 
   async delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<any> {
-    const response = await this.client.delete<T>(url, config);
-    return response.data;
+    try {
+      const response = await this.client.delete<T>(url, config);
+      return response.data;
+    } catch (error: any) {
+      if (error.response?.data) return error.response.data;
+      throw error;
+    }
   }
 
   async patch<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<any> {
-    const response = await this.client.patch<T>(url, data, config);
-    return response.data;
+    try {
+      const response = await this.client.patch<T>(url, data, config);
+      return response.data;
+    } catch (error: any) {
+      if (error.response?.data) return error.response.data;
+      throw error;
+    }
   }
 }
 

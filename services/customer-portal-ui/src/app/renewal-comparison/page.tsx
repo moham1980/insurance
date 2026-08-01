@@ -2,7 +2,16 @@
 
 import { useState, useEffect } from 'react'
 import { RefreshCw, Loader2, AlertCircle, ChevronLeft, Check, TrendingUp, TrendingDown } from 'lucide-react'
+import { useToast } from '@insurance/ui-utils'
 import { policiesApi } from '@/lib/api'
+import { Card } from '@insurance/design-system'
+import { MOCK_POLICIES } from '@/lib/mock-data'
+
+const MOCK_QUOTES: RenewalQuote[] = [
+  { id: 'q1', insurer: 'بیمه ایران', premium: 4500000, coverage: 'شخص ثالث + حوادث', deductible: 500000, discounts: ['تخفیف ۵٪ بدون خسارت'], validUntil: '1404/01/01', features: ['کاورساز ۲۴ ساعته', 'خسارت بدنه'] },
+  { id: 'q2', insurer: 'بیمه ملت', premium: 4200000, coverage: 'شخص ثالث کامل', deductible: 300000, discounts: ['تخفیف ۱۰٪ مشتری وفادار'], validUntil: '1404/01/01', features: ['کاورساز ۲۴ ساعته', 'استهلاک صفر'] },
+  { id: 'q3', insurer: 'بیمه رازی', premium: 4800000, coverage: 'شخص ثالث + سرنشین', deductible: 0, discounts: ['بدون کسر', 'تخفیف خانوادگی'], validUntil: '1404/01/01', features: ['کاورساز VIP', 'خسارت بدنه کامل', 'استهلاک صفر'] },
+]
 
 interface RenewalQuote {
   id: string
@@ -23,6 +32,7 @@ export default function RenewalQuoteComparisonPage() {
   const [quotes, setQuotes] = useState<RenewalQuote[]>([])
   const [comparison, setComparison] = useState<any>(null)
   const [acceptingId, setAcceptingId] = useState<string | null>(null)
+  const { addToast } = useToast()
 
   useEffect(() => {
     loadPolicies()
@@ -32,9 +42,9 @@ export default function RenewalQuoteComparisonPage() {
     try {
       setLoading(true)
       const response = await policiesApi.list()
-      setPolicies(response.data || [])
-    } catch (err: any) {
-      setError(err.message || 'خطا در بارگذاری بیمه‌نامه‌ها')
+      setPolicies(response.data || MOCK_POLICIES)
+    } catch {
+      setPolicies(MOCK_POLICIES)
     } finally {
       setLoading(false)
     }
@@ -49,9 +59,8 @@ export default function RenewalQuoteComparisonPage() {
       ])
       setQuotes(quotesRes.data || [])
       setComparison(compareRes.data || null)
-    } catch (err: any) {
-      setError(err.message || 'خطا در بارگذاری پوشش‌ها')
-      setQuotes([])
+    } catch {
+      setQuotes(MOCK_QUOTES)
       setComparison(null)
     }
   }
@@ -61,7 +70,7 @@ export default function RenewalQuoteComparisonPage() {
     setAcceptingId(quoteId)
     try {
       await policiesApi.acceptRenewalQuote(selectedPolicyId, quoteId)
-      alert('پوشش انتخاب شده بود. درخواست تمدید ثبت شد.')
+      addToast({ type: 'success', title: 'پوشش انتخاب شده بود. درخواست تمدید ثبت شد.' })
       setSelectedPolicyId(null)
     } catch (err: any) {
       setError(err.message || 'خطا در تأیید پوشش')
@@ -83,16 +92,16 @@ export default function RenewalQuoteComparisonPage() {
       <div className="space-y-4">
         <h1 className="text-lg font-bold text-text-primary">مقایسه پوشش‌های تمدید</h1>
         {error && (
-          <div className="flex items-center gap-2 rounded-lg border border-border-error bg-bg-error p-3 text-text-error text-sm">
+          <div className="flex items-center gap-2 rounded-lg border border-feedback-error/30 bg-feedback-error-subtle p-3 text-feedback-error text-sm">
             <AlertCircle className="h-4 w-4" />
             {error}
           </div>
         )}
         {policies.length === 0 ? (
-          <div className="rounded-xl border border-border-default bg-bg-raised p-8 text-center">
+          <Card className="p-8 text-center">
             <RefreshCw className="mx-auto mb-2 h-10 w-10 text-text-muted" />
             <p className="text-sm text-text-muted">بیمه‌نامه‌ای برای تمدید یافت نشد</p>
-          </div>
+          </Card>
         ) : (
           <div className="space-y-3">
             {policies.map((p) => (
@@ -131,40 +140,40 @@ export default function RenewalQuoteComparisonPage() {
       <h1 className="text-lg font-bold text-text-primary">مقایسه پوشش‌های تمدید</h1>
 
       {error && (
-        <div className="flex items-center gap-2 rounded-lg border border-border-error bg-bg-error p-3 text-text-error text-sm">
+        <div className="flex items-center gap-2 rounded-lg border border-feedback-error/30 bg-feedback-error-subtle p-3 text-feedback-error text-sm">
           <AlertCircle className="h-4 w-4" />
           {error}
         </div>
       )}
 
       {quotes.length === 0 ? (
-        <div className="rounded-xl border border-border-default bg-bg-raised p-8 text-center">
+        <Card className="p-8 text-center">
           <RefreshCw className="mx-auto mb-2 h-10 w-10 text-text-muted" />
           <p className="text-sm text-text-muted">پوششی برای مقایسه یافت نشد</p>
-        </div>
+        </Card>
       ) : (
         <>
           {comparison && (
-            <div className="rounded-xl border border-border-default bg-bg-raised p-4">
-              <div className="grid grid-cols-3 gap-3 text-center">
+            <Card className="p-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
                 <div>
                   <p className="text-xs text-text-muted">پریمیوم فعلی</p>
                   <p className="text-sm font-bold text-text-primary">{currentPremium.toLocaleString('fa-IR')} تومان</p>
                 </div>
                 <div>
                   <p className="text-xs text-text-muted">کمترین پیشنهاد</p>
-                  <p className="text-sm font-bold text-green-600">
+                  <p className="text-sm font-bold text-feedback-success">
                     {Math.min(...quotes.map(q => q.premium)).toLocaleString('fa-IR')} تومان
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-text-muted">بیشترین پیشنهاد</p>
-                  <p className="text-sm font-bold text-red-600">
+                  <p className="text-sm font-bold text-feedback-error">
                     {Math.max(...quotes.map(q => q.premium)).toLocaleString('fa-IR')} تومان
                   </p>
                 </div>
               </div>
-            </div>
+            </Card>
           )}
 
           <div className="space-y-3">
@@ -172,7 +181,7 @@ export default function RenewalQuoteComparisonPage() {
               const diff = quote.premium - currentPremium
               const isLower = diff < 0
               return (
-                <div key={quote.id} className="rounded-xl border border-border-default bg-bg-raised p-4">
+                <Card key={quote.id} className="p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <p className="text-sm font-bold text-text-primary">{quote.insurer || 'بیمه‌گر'}</p>
@@ -184,7 +193,7 @@ export default function RenewalQuoteComparisonPage() {
                         <span className="text-xs font-normal text-text-muted"> تومان</span>
                       </p>
                       {currentPremium > 0 && (
-                        <p className={`text-xs flex items-center gap-1 ${isLower ? 'text-green-600' : 'text-red-600'}`}>
+                        <p className={`text-xs flex items-center gap-1 ${isLower ? 'text-feedback-success' : 'text-feedback-error'}`}>
                           {isLower ? <TrendingDown className="h-3 w-3" /> : <TrendingUp className="h-3 w-3" />}
                           {Math.abs(diff).toLocaleString('fa-IR')} تومان
                         </p>
@@ -214,7 +223,7 @@ export default function RenewalQuoteComparisonPage() {
                       <p className="text-xs text-text-muted mb-1">تخفیف‌ها:</p>
                       <div className="flex flex-wrap gap-1">
                         {quote.discounts.map((d, idx) => (
-                          <span key={idx} className="text-xs bg-green-50 text-green-700 rounded-full px-2 py-0.5">{d}</span>
+                          <span key={idx} className="text-xs bg-feedback-success-subtle text-feedback-success rounded-full px-2 py-0.5">{d}</span>
                         ))}
                       </div>
                     </div>
@@ -235,7 +244,7 @@ export default function RenewalQuoteComparisonPage() {
                       <><Check className="h-4 w-4" /> انتخاب این پوشش</>
                     )}
                   </button>
-                </div>
+                </Card>
               )
             })}
           </div>

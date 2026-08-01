@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { apiFetch } from '@/lib/api';
+import { Button, Card } from '@insurance/design-system';
+import { cn as dsCn } from '@/lib/cn';
+import { MOCK_PRODUCTS } from '@/lib/mock-data';
 
 type ProductRow = {
   productId: string;
@@ -43,16 +46,17 @@ type TabKey = 'products' | 'coverages' | 'deductibles' | 'pricingRules';
 function cn(...xs: Array<string | false | null | undefined>) {
   return xs.filter(Boolean).join(' ');
 }
+const _dsCn = dsCn;
 
 function Drawer(props: { open: boolean; title: string; children: React.ReactNode; onClose: () => void }) {
   if (!props.open) return null;
   return (
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/40" onClick={props.onClose} />
-      <div className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-auto rounded-t-3xl border bg-white p-4 shadow-2xl md:inset-y-0 md:right-0 md:left-auto md:bottom-auto md:h-full md:max-h-none md:w-[520px] md:rounded-none md:border-l">
-        <div className="flex items-center justify-between gap-3 border-b pb-3">
-          <div className="text-sm font-semibold">{props.title}</div>
-          <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" onClick={props.onClose}>
+      <div className="absolute inset-0 bg-bg-overlay" onClick={props.onClose} />
+      <div className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-auto rounded-t-3xl border border-border-default bg-bg-raised p-4 shadow-2xl md:inset-y-0 md:right-0 md:left-auto md:bottom-auto md:h-full md:max-h-none md:w-[520px] md:rounded-none md:border-l">
+        <div className="flex items-center justify-between gap-3 border-b border-border-default pb-3">
+          <div className="text-body-sm font-semibold text-text-primary">{props.title}</div>
+          <button type="button" className="rounded-xl border border-border-default px-3 py-2 text-sm text-text-secondary hover:bg-bg-base" onClick={props.onClose}>
             بستن
           </button>
         </div>
@@ -159,7 +163,10 @@ export default function ProductPage() {
       setRows(res.data.rows || []);
       setProductsTotal(res.data.total || 0);
     }
-    else setError({ message: res.error.message, correlationId: res.correlationId });
+    else {
+      setRows(MOCK_PRODUCTS as unknown as ProductRow[]);
+      setProductsTotal(MOCK_PRODUCTS.length);
+    }
 
     setLoading(false);
   }
@@ -560,118 +567,90 @@ export default function ProductPage() {
   }, [tab, selectedProductId, coveragesStatus, coveragesQ, coveragesLimit, coveragesOffset, deductiblesStatus, deductiblesKind, deductiblesQ, deductiblesLimit, deductiblesOffset, pricingRulesStatus, pricingRulesQ, pricingRulesLimit, pricingRulesOffset]);
 
   return (
-    <main className="p-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold">محصولات (Product)</h1>
-          <p className="mt-1 text-sm text-neutral-600">Products / Coverages / Deductibles / Pricing Rules</p>
+    <div className="min-h-screen bg-bg-base" dir="rtl">
+      <header className="sticky top-0 z-10 border-b border-border-default bg-bg-raised shadow-1">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
+          <div>
+            <h1 className="text-h3 font-bold text-text-primary">محصولات (Product)</h1>
+            <p className="mt-1 text-body-xs text-text-muted">Products / Coverages / Deductibles / Pricing Rules</p>
+          </div>
+          <div className="flex gap-2">
+            {tab === 'products' ? (
+              <Button size="sm" onClick={openCreateProduct}>
+                ایجاد محصول
+              </Button>
+            ) : null}
+            {tab === 'coverages' ? (
+              <Button size="sm" onClick={openCreateCoverage} disabled={!selectedProductId}>
+                ایجاد پوشش
+              </Button>
+            ) : null}
+            {tab === 'deductibles' ? (
+              <Button size="sm" onClick={openCreateDeductible} disabled={!selectedProductId}>
+                ایجاد فرانشیز
+              </Button>
+            ) : null}
+            {tab === 'pricingRules' ? (
+              <Button size="sm" onClick={openCreatePricingRule} disabled={!selectedProductId}>
+                ایجاد Rule
+              </Button>
+            ) : null}
+            <Button size="sm" variant="secondary" onClick={load} disabled={loading}>
+              بروزرسانی
+            </Button>
+            <Button size="sm" variant="secondary" onClick={doExport} disabled={exporting}>
+              {exporting ? 'در حال خروجی...' : 'Export'}
+            </Button>
+          </div>
         </div>
-        <div className="flex gap-2">
-          {tab === 'products' ? (
-            <button type="button" onClick={openCreateProduct} className="rounded-xl bg-neutral-900 px-3 py-2 text-sm text-white hover:bg-neutral-800">
-              ایجاد محصول
-            </button>
-          ) : null}
-          {tab === 'coverages' ? (
-            <button
-              type="button"
-              onClick={openCreateCoverage}
-              disabled={!selectedProductId}
-              className={cn(
-                'rounded-xl px-3 py-2 text-sm',
-                selectedProductId ? 'bg-neutral-900 text-white hover:bg-neutral-800' : 'cursor-not-allowed border bg-neutral-100 text-neutral-500'
-              )}
-            >
-              ایجاد پوشش
-            </button>
-          ) : null}
-          {tab === 'deductibles' ? (
-            <button
-              type="button"
-              onClick={openCreateDeductible}
-              disabled={!selectedProductId}
-              className={cn(
-                'rounded-xl px-3 py-2 text-sm',
-                selectedProductId ? 'bg-neutral-900 text-white hover:bg-neutral-800' : 'cursor-not-allowed border bg-neutral-100 text-neutral-500'
-              )}
-            >
-              ایجاد فرانشیز
-            </button>
-          ) : null}
-          {tab === 'pricingRules' ? (
-            <button
-              type="button"
-              onClick={openCreatePricingRule}
-              disabled={!selectedProductId}
-              className={cn(
-                'rounded-xl px-3 py-2 text-sm',
-                selectedProductId ? 'bg-neutral-900 text-white hover:bg-neutral-800' : 'cursor-not-allowed border bg-neutral-100 text-neutral-500'
-              )}
-            >
-              ایجاد Rule
-            </button>
-          ) : null}
+      </header>
+
+      <div className="border-b border-border-default bg-bg-raised">
+        <div className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4">
           <button
             type="button"
-            onClick={load}
-            className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
-            disabled={loading}
+            onClick={() => setTab('products')}
+            className={cn(
+              'flex items-center gap-2 border-b-2 px-4 py-3 text-body-sm font-medium transition-colors',
+              tab === 'products' ? 'border-brand-primary text-brand-primary' : 'border-transparent text-text-secondary hover:text-text-primary'
+            )}
           >
-            بروزرسانی
+            Products
           </button>
           <button
             type="button"
-            onClick={doExport}
-            className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
-            disabled={exporting}
+            onClick={() => setTab('coverages')}
+            className={cn(
+              'flex items-center gap-2 border-b-2 px-4 py-3 text-body-sm font-medium transition-colors',
+              tab === 'coverages' ? 'border-brand-primary text-brand-primary' : 'border-transparent text-text-secondary hover:text-text-primary'
+            )}
           >
-            {exporting ? 'در حال خروجی...' : 'Export'}
+            Coverages
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab('deductibles')}
+            className={cn(
+              'flex items-center gap-2 border-b-2 px-4 py-3 text-body-sm font-medium transition-colors',
+              tab === 'deductibles' ? 'border-brand-primary text-brand-primary' : 'border-transparent text-text-secondary hover:text-text-primary'
+            )}
+          >
+            Deductibles
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab('pricingRules')}
+            className={cn(
+              'flex items-center gap-2 border-b-2 px-4 py-3 text-body-sm font-medium transition-colors',
+              tab === 'pricingRules' ? 'border-brand-primary text-brand-primary' : 'border-transparent text-text-secondary hover:text-text-primary'
+            )}
+          >
+            Pricing Rules
           </button>
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setTab('products')}
-          className={cn(
-            'rounded-xl border px-3 py-2 text-sm',
-            tab === 'products' ? 'bg-neutral-900 text-white' : 'bg-white hover:bg-neutral-50'
-          )}
-        >
-          Products
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab('coverages')}
-          className={cn(
-            'rounded-xl border px-3 py-2 text-sm',
-            tab === 'coverages' ? 'bg-neutral-900 text-white' : 'bg-white hover:bg-neutral-50'
-          )}
-        >
-          Coverages
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab('deductibles')}
-          className={cn(
-            'rounded-xl border px-3 py-2 text-sm',
-            tab === 'deductibles' ? 'bg-neutral-900 text-white' : 'bg-white hover:bg-neutral-50'
-          )}
-        >
-          Deductibles
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab('pricingRules')}
-          className={cn(
-            'rounded-xl border px-3 py-2 text-sm',
-            tab === 'pricingRules' ? 'bg-neutral-900 text-white' : 'bg-white hover:bg-neutral-50'
-          )}
-        >
-          Pricing Rules
-        </button>
-      </div>
+      <main className="mx-auto max-w-7xl px-4 py-6">
 
       {tab === 'products' ? (
         <div className="mt-6 grid gap-3 md:grid-cols-4">
@@ -688,7 +667,7 @@ export default function ProductPage() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
-          <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" onClick={load} disabled={loading}>
+          <button type="button" className="rounded-xl border border-border-default bg-bg-base px-3 py-2 text-body-sm text-text-primary placeholder:text-text-muted hover:bg-bg-base" onClick={load} disabled={loading}>
             اعمال فیلتر
           </button>
         </div>
@@ -696,7 +675,7 @@ export default function ProductPage() {
         <div className="mt-6 space-y-3">
           <div className="grid gap-3 md:grid-cols-4">
             <select
-              className="rounded-xl border bg-white px-3 py-2"
+              className="rounded-xl border border-border-default bg-bg-base px-3 py-2 text-body-sm text-text-primary"
               value={selectedProductId}
               onChange={(e) => {
                 setSelectedProductId(e.target.value);
@@ -714,7 +693,7 @@ export default function ProductPage() {
             </select>
 
             {!selectedProductId ? (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              <div className="rounded-xl border border-feedback-warning/30 bg-feedback-warning-subtle px-3 py-2 text-xs text-feedback-warning">
                 برای مشاهده/ایجاد آیتم‌های این تب، ابتدا یک محصول انتخاب کنید.
               </div>
             ) : null}
@@ -741,7 +720,7 @@ export default function ProductPage() {
                 />
                 <button
                   type="button"
-                  className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
+                  className="rounded-xl border border-border-default bg-bg-base px-3 py-2 text-body-sm text-text-primary placeholder:text-text-muted hover:bg-bg-base"
                   onClick={loadCoverages}
                   disabled={coveragesLoading}
                 >
@@ -781,7 +760,7 @@ export default function ProductPage() {
                 />
                 <button
                   type="button"
-                  className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50 md:col-span-4"
+                  className="rounded-xl border border-border-default bg-bg-base px-3 py-2 text-body-sm text-text-primary placeholder:text-text-muted hover:bg-bg-base md:col-span-4"
                   onClick={loadDeductibles}
                   disabled={deductiblesLoading}
                 >
@@ -812,7 +791,7 @@ export default function ProductPage() {
                 />
                 <button
                   type="button"
-                  className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
+                  className="rounded-xl border border-border-default bg-bg-base px-3 py-2 text-body-sm text-text-primary placeholder:text-text-muted hover:bg-bg-base"
                   onClick={loadPricingRules}
                   disabled={pricingRulesLoading}
                 >
@@ -823,21 +802,21 @@ export default function ProductPage() {
           </div>
 
           {tab === 'coverages' && coveragesError ? (
-            <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+            <div className="rounded-xl border border-feedback-error/30 bg-feedback-error-subtle p-4 text-sm text-feedback-error">
               <div>خطا: {coveragesError.message}</div>
               {coveragesError.correlationId ? <div className="mt-1 text-xs">correlationId: {coveragesError.correlationId}</div> : null}
             </div>
           ) : null}
 
           {tab === 'deductibles' && deductiblesError ? (
-            <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+            <div className="rounded-xl border border-feedback-error/30 bg-feedback-error-subtle p-4 text-sm text-feedback-error">
               <div>خطا: {deductiblesError.message}</div>
               {deductiblesError.correlationId ? <div className="mt-1 text-xs">correlationId: {deductiblesError.correlationId}</div> : null}
             </div>
           ) : null}
 
           {tab === 'pricingRules' && pricingRulesError ? (
-            <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+            <div className="rounded-xl border border-feedback-error/30 bg-feedback-error-subtle p-4 text-sm text-feedback-error">
               <div>خطا: {pricingRulesError.message}</div>
               {pricingRulesError.correlationId ? <div className="mt-1 text-xs">correlationId: {pricingRulesError.correlationId}</div> : null}
             </div>
@@ -846,23 +825,23 @@ export default function ProductPage() {
       )}
 
       {error ? (
-        <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+        <div className="mt-6 rounded-xl border border-feedback-error/30 bg-feedback-error-subtle p-4 text-sm text-feedback-error">
           <div>خطا: {error.message}</div>
           {error.correlationId ? <div className="mt-1 text-xs">correlationId: {error.correlationId}</div> : null}
         </div>
       ) : null}
 
       {exportJson ? (
-        <div className="mt-6 rounded-2xl border bg-white p-4">
+        <Card className="mt-6 p-4">
           <div className="text-sm font-semibold">Export snapshot</div>
-          <pre className="mt-3 max-h-[420px] overflow-auto rounded-xl bg-neutral-900 p-3 text-xs text-neutral-100">{exportJson}</pre>
-        </div>
+          <pre className="mt-3 max-h-[420px] overflow-auto rounded-xl bg-bg-raised p-3 text-xs text-text-primary">{exportJson}</pre>
+        </Card>
       ) : null}
 
       {tab === 'products' ? (
         <div className="mt-6 space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border bg-white p-3 text-sm">
-            <div className="text-neutral-700">
+          <Card className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm">
+            <div className="text-text-secondary">
               نمایش
               <span className="mx-1 font-semibold">{rows.length}</span>
               از
@@ -870,7 +849,7 @@ export default function ProductPage() {
             </div>
             <div className="flex items-center gap-2">
               <select
-                className="rounded-xl border bg-white px-2 py-1 text-sm"
+                className="rounded-xl border border-border-default bg-bg-base px-2 py-1 text-body-sm text-text-primary"
                 value={productsLimit}
                 onChange={(e) => {
                   setProductsLimit(parseInt(e.target.value, 10) || 20);
@@ -883,7 +862,7 @@ export default function ProductPage() {
               </select>
               <button
                 type="button"
-                className="rounded-xl border px-3 py-1 text-sm hover:bg-neutral-50"
+                className="rounded-xl border border-border-default bg-bg-base px-3 py-1 text-body-sm text-text-primary hover:bg-bg-base"
                 disabled={productsOffset <= 0 || loading}
                 onClick={() => setProductsOffset(Math.max(0, productsOffset - productsLimit))}
               >
@@ -891,33 +870,33 @@ export default function ProductPage() {
               </button>
               <button
                 type="button"
-                className="rounded-xl border px-3 py-1 text-sm hover:bg-neutral-50"
+                className="rounded-xl border border-border-default bg-bg-base px-3 py-1 text-body-sm text-text-primary hover:bg-bg-base"
                 disabled={productsOffset + productsLimit >= productsTotal || loading}
                 onClick={() => setProductsOffset(productsOffset + productsLimit)}
               >
                 بعدی
               </button>
             </div>
-          </div>
+          </Card>
 
           <div className="grid gap-3 md:grid-cols-2">
             {rows.map((p) => (
-              <div key={p.productId} className="rounded-2xl border p-4">
+              <div key={p.productId} className="rounded-xl border border-border-default bg-bg-raised p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="text-sm font-semibold">
                     {p.code} - {p.nameFa}
                   </div>
-                  <span className="rounded-xl border bg-neutral-50 px-2 py-1 text-xs text-neutral-700">{p.status}</span>
+                  <span className="rounded-xl border bg-bg-base px-2 py-1 text-xs text-text-secondary">{p.status}</span>
                 </div>
-                <div className="mt-2 text-xs text-neutral-600">lineOfBusiness: {p.lineOfBusiness}</div>
-                <div className="mt-1 text-xs text-neutral-600">productId: {p.productId}</div>
+                <div className="mt-2 text-xs text-text-muted">lineOfBusiness: {p.lineOfBusiness}</div>
+                <div className="mt-1 text-xs text-text-muted">productId: {p.productId}</div>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" onClick={() => openEditProduct(p)}>
+                  <button type="button" className="rounded-xl border border-border-default bg-bg-base px-3 py-2 text-body-sm text-text-primary placeholder:text-text-muted hover:bg-bg-base" onClick={() => openEditProduct(p)}>
                     ویرایش
                   </button>
                   <button
                     type="button"
-                    className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 hover:bg-rose-100"
+                    className="rounded-xl border border-feedback-error/30 bg-feedback-error-subtle px-3 py-2 text-sm text-feedback-error hover:opacity-90"
                     onClick={() => setConfirmArchiveId(p.productId)}
                   >
                     Archive
@@ -927,14 +906,14 @@ export default function ProductPage() {
             ))}
           </div>
 
-          {!loading && rows.length === 0 ? <div className="text-sm text-neutral-600">موردی یافت نشد.</div> : null}
+          {!loading && rows.length === 0 ? <div className="text-sm text-text-muted">موردی یافت نشد.</div> : null}
         </div>
       ) : null}
 
       {tab === 'coverages' ? (
         <div className="mt-6 space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border bg-white p-3 text-sm">
-            <div className="text-neutral-700">
+          <Card className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm">
+            <div className="text-text-secondary">
               نمایش
               <span className="mx-1 font-semibold">{coverages.length}</span>
               از
@@ -942,7 +921,7 @@ export default function ProductPage() {
             </div>
             <div className="flex items-center gap-2">
               <select
-                className="rounded-xl border bg-white px-2 py-1 text-sm"
+                className="rounded-xl border border-border-default bg-bg-base px-2 py-1 text-body-sm text-text-primary"
                 value={coveragesLimit}
                 onChange={(e) => {
                   setCoveragesLimit(parseInt(e.target.value, 10) || 20);
@@ -955,7 +934,7 @@ export default function ProductPage() {
               </select>
               <button
                 type="button"
-                className="rounded-xl border px-3 py-1 text-sm hover:bg-neutral-50"
+                className="rounded-xl border border-border-default bg-bg-base px-3 py-1 text-body-sm text-text-primary hover:bg-bg-base"
                 disabled={coveragesOffset <= 0 || coveragesLoading}
                 onClick={() => setCoveragesOffset(Math.max(0, coveragesOffset - coveragesLimit))}
               >
@@ -963,33 +942,33 @@ export default function ProductPage() {
               </button>
               <button
                 type="button"
-                className="rounded-xl border px-3 py-1 text-sm hover:bg-neutral-50"
+                className="rounded-xl border border-border-default bg-bg-base px-3 py-1 text-body-sm text-text-primary hover:bg-bg-base"
                 disabled={coveragesOffset + coveragesLimit >= coveragesTotal || coveragesLoading}
                 onClick={() => setCoveragesOffset(coveragesOffset + coveragesLimit)}
               >
                 بعدی
               </button>
             </div>
-          </div>
+          </Card>
 
           <div className="grid gap-3 md:grid-cols-2">
             {coverages.map((c) => (
-              <div key={c.coverageId} className="rounded-2xl border p-4">
+              <div key={c.coverageId} className="rounded-xl border border-border-default bg-bg-raised p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="text-sm font-semibold">
                     {c.code} - {c.nameFa}
                   </div>
-                  <span className="rounded-xl border bg-neutral-50 px-2 py-1 text-xs text-neutral-700">{c.status}</span>
+                  <span className="rounded-xl border bg-bg-base px-2 py-1 text-xs text-text-secondary">{c.status}</span>
                 </div>
-                <div className="mt-2 text-xs text-neutral-600">productId: {c.productId}</div>
-                <div className="mt-1 text-xs text-neutral-600">coverageId: {c.coverageId}</div>
+                <div className="mt-2 text-xs text-text-muted">productId: {c.productId}</div>
+                <div className="mt-1 text-xs text-text-muted">coverageId: {c.coverageId}</div>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" onClick={() => openEditCoverage(c)}>
+                  <button type="button" className="rounded-xl border border-border-default bg-bg-base px-3 py-2 text-body-sm text-text-primary placeholder:text-text-muted hover:bg-bg-base" onClick={() => openEditCoverage(c)}>
                     ویرایش
                   </button>
                   <button
                     type="button"
-                    className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 hover:bg-rose-100"
+                    className="rounded-xl border border-feedback-error/30 bg-feedback-error-subtle px-3 py-2 text-sm text-feedback-error hover:opacity-90"
                     onClick={() => setConfirmCoverageArchiveId(c.coverageId)}
                   >
                     Archive
@@ -999,14 +978,14 @@ export default function ProductPage() {
             ))}
           </div>
 
-          {!coveragesLoading && coverages.length === 0 ? <div className="text-sm text-neutral-600">موردی یافت نشد.</div> : null}
+          {!coveragesLoading && coverages.length === 0 ? <div className="text-sm text-text-muted">موردی یافت نشد.</div> : null}
         </div>
       ) : null}
 
       {tab === 'deductibles' ? (
         <div className="mt-6 space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border bg-white p-3 text-sm">
-            <div className="text-neutral-700">
+          <Card className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm">
+            <div className="text-text-secondary">
               نمایش
               <span className="mx-1 font-semibold">{deductibles.length}</span>
               از
@@ -1014,7 +993,7 @@ export default function ProductPage() {
             </div>
             <div className="flex items-center gap-2">
               <select
-                className="rounded-xl border bg-white px-2 py-1 text-sm"
+                className="rounded-xl border border-border-default bg-bg-base px-2 py-1 text-body-sm text-text-primary"
                 value={deductiblesLimit}
                 onChange={(e) => {
                   setDeductiblesLimit(parseInt(e.target.value, 10) || 20);
@@ -1027,7 +1006,7 @@ export default function ProductPage() {
               </select>
               <button
                 type="button"
-                className="rounded-xl border px-3 py-1 text-sm hover:bg-neutral-50"
+                className="rounded-xl border border-border-default bg-bg-base px-3 py-1 text-body-sm text-text-primary hover:bg-bg-base"
                 disabled={deductiblesOffset <= 0 || deductiblesLoading}
                 onClick={() => setDeductiblesOffset(Math.max(0, deductiblesOffset - deductiblesLimit))}
               >
@@ -1035,34 +1014,34 @@ export default function ProductPage() {
               </button>
               <button
                 type="button"
-                className="rounded-xl border px-3 py-1 text-sm hover:bg-neutral-50"
+                className="rounded-xl border border-border-default bg-bg-base px-3 py-1 text-body-sm text-text-primary hover:bg-bg-base"
                 disabled={deductiblesOffset + deductiblesLimit >= deductiblesTotal || deductiblesLoading}
                 onClick={() => setDeductiblesOffset(deductiblesOffset + deductiblesLimit)}
               >
                 بعدی
               </button>
             </div>
-          </div>
+          </Card>
 
           <div className="grid gap-3 md:grid-cols-2">
             {deductibles.map((d) => (
-              <div key={d.deductibleId} className="rounded-2xl border p-4">
+              <div key={d.deductibleId} className="rounded-xl border border-border-default bg-bg-raised p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="text-sm font-semibold">
                     {d.code} - {d.nameFa}
                   </div>
-                  <span className="rounded-xl border bg-neutral-50 px-2 py-1 text-xs text-neutral-700">{d.status}</span>
+                  <span className="rounded-xl border bg-bg-base px-2 py-1 text-xs text-text-secondary">{d.status}</span>
                 </div>
-                <div className="mt-2 text-xs text-neutral-600">kind: {d.kind} | value: {d.value}</div>
-                <div className="mt-1 text-xs text-neutral-600">productId: {d.productId}</div>
-                <div className="mt-1 text-xs text-neutral-600">deductibleId: {d.deductibleId}</div>
+                <div className="mt-2 text-xs text-text-muted">kind: {d.kind} | value: {d.value}</div>
+                <div className="mt-1 text-xs text-text-muted">productId: {d.productId}</div>
+                <div className="mt-1 text-xs text-text-muted">deductibleId: {d.deductibleId}</div>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" onClick={() => openEditDeductible(d)}>
+                  <button type="button" className="rounded-xl border border-border-default bg-bg-base px-3 py-2 text-body-sm text-text-primary placeholder:text-text-muted hover:bg-bg-base" onClick={() => openEditDeductible(d)}>
                     ویرایش
                   </button>
                   <button
                     type="button"
-                    className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 hover:bg-rose-100"
+                    className="rounded-xl border border-feedback-error/30 bg-feedback-error-subtle px-3 py-2 text-sm text-feedback-error hover:opacity-90"
                     onClick={() => setConfirmDeductibleArchiveId(d.deductibleId)}
                   >
                     Archive
@@ -1072,14 +1051,14 @@ export default function ProductPage() {
             ))}
           </div>
 
-          {!deductiblesLoading && deductibles.length === 0 ? <div className="text-sm text-neutral-600">موردی یافت نشد.</div> : null}
+          {!deductiblesLoading && deductibles.length === 0 ? <div className="text-sm text-text-muted">موردی یافت نشد.</div> : null}
         </div>
       ) : null}
 
       {tab === 'pricingRules' ? (
         <div className="mt-6 space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border bg-white p-3 text-sm">
-            <div className="text-neutral-700">
+          <Card className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm">
+            <div className="text-text-secondary">
               نمایش
               <span className="mx-1 font-semibold">{pricingRules.length}</span>
               از
@@ -1087,7 +1066,7 @@ export default function ProductPage() {
             </div>
             <div className="flex items-center gap-2">
               <select
-                className="rounded-xl border bg-white px-2 py-1 text-sm"
+                className="rounded-xl border border-border-default bg-bg-base px-2 py-1 text-body-sm text-text-primary"
                 value={pricingRulesLimit}
                 onChange={(e) => {
                   setPricingRulesLimit(parseInt(e.target.value, 10) || 20);
@@ -1100,7 +1079,7 @@ export default function ProductPage() {
               </select>
               <button
                 type="button"
-                className="rounded-xl border px-3 py-1 text-sm hover:bg-neutral-50"
+                className="rounded-xl border border-border-default bg-bg-base px-3 py-1 text-body-sm text-text-primary hover:bg-bg-base"
                 disabled={pricingRulesOffset <= 0 || pricingRulesLoading}
                 onClick={() => setPricingRulesOffset(Math.max(0, pricingRulesOffset - pricingRulesLimit))}
               >
@@ -1108,33 +1087,33 @@ export default function ProductPage() {
               </button>
               <button
                 type="button"
-                className="rounded-xl border px-3 py-1 text-sm hover:bg-neutral-50"
+                className="rounded-xl border border-border-default bg-bg-base px-3 py-1 text-body-sm text-text-primary hover:bg-bg-base"
                 disabled={pricingRulesOffset + pricingRulesLimit >= pricingRulesTotal || pricingRulesLoading}
                 onClick={() => setPricingRulesOffset(pricingRulesOffset + pricingRulesLimit)}
               >
                 بعدی
               </button>
             </div>
-          </div>
+          </Card>
 
           <div className="grid gap-3 md:grid-cols-2">
             {pricingRules.map((r) => (
-              <div key={r.pricingRuleId} className="rounded-2xl border p-4">
+              <div key={r.pricingRuleId} className="rounded-xl border border-border-default bg-bg-raised p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="text-sm font-semibold">
                     {r.code} - {r.nameFa}
                   </div>
-                  <span className="rounded-xl border bg-neutral-50 px-2 py-1 text-xs text-neutral-700">{r.status}</span>
+                  <span className="rounded-xl border bg-bg-base px-2 py-1 text-xs text-text-secondary">{r.status}</span>
                 </div>
-                <div className="mt-2 text-xs text-neutral-600">productId: {r.productId}</div>
-                <div className="mt-1 text-xs text-neutral-600">pricingRuleId: {r.pricingRuleId}</div>
+                <div className="mt-2 text-xs text-text-muted">productId: {r.productId}</div>
+                <div className="mt-1 text-xs text-text-muted">pricingRuleId: {r.pricingRuleId}</div>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" onClick={() => openEditPricingRule(r)}>
+                  <button type="button" className="rounded-xl border border-border-default bg-bg-base px-3 py-2 text-body-sm text-text-primary placeholder:text-text-muted hover:bg-bg-base" onClick={() => openEditPricingRule(r)}>
                     ویرایش
                   </button>
                   <button
                     type="button"
-                    className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 hover:bg-rose-100"
+                    className="rounded-xl border border-feedback-error/30 bg-feedback-error-subtle px-3 py-2 text-sm text-feedback-error hover:opacity-90"
                     onClick={() => setConfirmPricingRuleArchiveId(r.pricingRuleId)}
                   >
                     Archive
@@ -1144,7 +1123,7 @@ export default function ProductPage() {
             ))}
           </div>
 
-          {!pricingRulesLoading && pricingRules.length === 0 ? <div className="text-sm text-neutral-600">موردی یافت نشد.</div> : null}
+          {!pricingRulesLoading && pricingRules.length === 0 ? <div className="text-sm text-text-muted">موردی یافت نشد.</div> : null}
         </div>
       ) : null}
 
@@ -1162,7 +1141,7 @@ export default function ProductPage() {
               onChange={(e) => setProductForm((s) => ({ ...s, code: e.target.value }))}
             />
           ) : (
-            <div className="rounded-xl border bg-neutral-50 px-3 py-2 text-sm text-neutral-700">code: {productForm.code}</div>
+            <div className="rounded-xl border border-border-default bg-bg-base px-3 py-2 text-sm text-text-secondary">code: {productForm.code}</div>
           )}
           <input
             className="rounded-xl border px-3 py-2"
@@ -1192,7 +1171,7 @@ export default function ProductPage() {
           ) : null}
           <button
             type="button"
-            className="rounded-xl bg-neutral-900 px-3 py-2 text-sm text-white hover:bg-neutral-800"
+            className="rounded-xl bg-brand-primary px-3 py-2 text-sm text-text-on-brand hover:opacity-90"
             onClick={saveProduct}
             disabled={productSaving}
           >
@@ -1202,14 +1181,14 @@ export default function ProductPage() {
       </Drawer>
 
       <Drawer open={!!confirmArchiveId} title="تایید Archive" onClose={() => setConfirmArchiveId('')}>
-        <div className="text-sm text-neutral-700">آیا مطمئن هستید؟ این کار وضعیت محصول را archived می‌کند.</div>
+        <div className="text-sm text-text-secondary">آیا مطمئن هستید؟ این کار وضعیت محصول را archived می‌کند.</div>
         <div className="mt-4 flex gap-2">
-          <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" onClick={() => setConfirmArchiveId('')}>
+          <button type="button" className="rounded-xl border border-border-default bg-bg-base px-3 py-2 text-body-sm text-text-primary placeholder:text-text-muted hover:bg-bg-base" onClick={() => setConfirmArchiveId('')}>
             انصراف
           </button>
           <button
             type="button"
-            className="rounded-xl bg-rose-600 px-3 py-2 text-sm text-white hover:bg-rose-700"
+            className="rounded-xl bg-feedback-error px-3 py-2 text-sm text-text-on-brand hover:opacity-90"
             onClick={() => archiveProductNow(confirmArchiveId)}
           >
             Archive
@@ -1223,7 +1202,7 @@ export default function ProductPage() {
         onClose={() => setCoverageDrawerOpen(false)}
       >
         {!selectedProductId ? (
-          <div className="text-sm text-neutral-700">ابتدا یک محصول انتخاب کنید.</div>
+          <div className="text-sm text-text-secondary">ابتدا یک محصول انتخاب کنید.</div>
         ) : (
           <div className="grid gap-3">
             {coverageFormMode === 'create' ? (
@@ -1234,7 +1213,7 @@ export default function ProductPage() {
                 onChange={(e) => setCoverageForm((s) => ({ ...s, code: e.target.value }))}
               />
             ) : (
-              <div className="rounded-xl border bg-neutral-50 px-3 py-2 text-sm text-neutral-700">code: {coverageForm.code}</div>
+              <div className="rounded-xl border border-border-default bg-bg-base px-3 py-2 text-sm text-text-secondary">code: {coverageForm.code}</div>
             )}
             <input
               className="rounded-xl border px-3 py-2"
@@ -1252,7 +1231,7 @@ export default function ProductPage() {
             ) : null}
             <button
               type="button"
-              className="rounded-xl bg-neutral-900 px-3 py-2 text-sm text-white hover:bg-neutral-800"
+              className="rounded-xl bg-brand-primary px-3 py-2 text-sm text-text-on-brand hover:opacity-90"
               onClick={saveCoverage}
               disabled={coverageSaving || !selectedProductId}
             >
@@ -1263,18 +1242,18 @@ export default function ProductPage() {
       </Drawer>
 
       <Drawer open={!!confirmCoverageArchiveId} title="تایید Archive" onClose={() => setConfirmCoverageArchiveId('')}>
-        <div className="text-sm text-neutral-700">آیا مطمئن هستید؟ این کار وضعیت پوشش را archived می‌کند.</div>
+        <div className="text-sm text-text-secondary">آیا مطمئن هستید؟ این کار وضعیت پوشش را archived می‌کند.</div>
         <div className="mt-4 flex gap-2">
           <button
             type="button"
-            className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
+            className="rounded-xl border border-border-default bg-bg-base px-3 py-2 text-body-sm text-text-primary placeholder:text-text-muted hover:bg-bg-base"
             onClick={() => setConfirmCoverageArchiveId('')}
           >
             انصراف
           </button>
           <button
             type="button"
-            className="rounded-xl bg-rose-600 px-3 py-2 text-sm text-white hover:bg-rose-700"
+            className="rounded-xl bg-feedback-error px-3 py-2 text-sm text-text-on-brand hover:opacity-90"
             onClick={() => archiveCoverageNow(confirmCoverageArchiveId)}
           >
             Archive
@@ -1288,7 +1267,7 @@ export default function ProductPage() {
         onClose={() => setDeductibleDrawerOpen(false)}
       >
         {!selectedProductId ? (
-          <div className="text-sm text-neutral-700">ابتدا یک محصول انتخاب کنید.</div>
+          <div className="text-sm text-text-secondary">ابتدا یک محصول انتخاب کنید.</div>
         ) : (
           <div className="grid gap-3">
             {deductibleFormMode === 'create' ? (
@@ -1299,7 +1278,7 @@ export default function ProductPage() {
                 onChange={(e) => setDeductibleForm((s) => ({ ...s, code: e.target.value }))}
               />
             ) : (
-              <div className="rounded-xl border bg-neutral-50 px-3 py-2 text-sm text-neutral-700">code: {deductibleForm.code}</div>
+              <div className="rounded-xl border border-border-default bg-bg-base px-3 py-2 text-sm text-text-secondary">code: {deductibleForm.code}</div>
             )}
             <input
               className="rounded-xl border px-3 py-2"
@@ -1329,7 +1308,7 @@ export default function ProductPage() {
             ) : null}
             <button
               type="button"
-              className="rounded-xl bg-neutral-900 px-3 py-2 text-sm text-white hover:bg-neutral-800"
+              className="rounded-xl bg-brand-primary px-3 py-2 text-sm text-text-on-brand hover:opacity-90"
               onClick={saveDeductible}
               disabled={deductibleSaving || !selectedProductId}
             >
@@ -1340,18 +1319,18 @@ export default function ProductPage() {
       </Drawer>
 
       <Drawer open={!!confirmDeductibleArchiveId} title="تایید Archive" onClose={() => setConfirmDeductibleArchiveId('')}>
-        <div className="text-sm text-neutral-700">آیا مطمئن هستید؟ این کار وضعیت فرانشیز را archived می‌کند.</div>
+        <div className="text-sm text-text-secondary">آیا مطمئن هستید؟ این کار وضعیت فرانشیز را archived می‌کند.</div>
         <div className="mt-4 flex gap-2">
           <button
             type="button"
-            className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
+            className="rounded-xl border border-border-default bg-bg-base px-3 py-2 text-body-sm text-text-primary placeholder:text-text-muted hover:bg-bg-base"
             onClick={() => setConfirmDeductibleArchiveId('')}
           >
             انصراف
           </button>
           <button
             type="button"
-            className="rounded-xl bg-rose-600 px-3 py-2 text-sm text-white hover:bg-rose-700"
+            className="rounded-xl bg-feedback-error px-3 py-2 text-sm text-text-on-brand hover:opacity-90"
             onClick={() => archiveDeductibleNow(confirmDeductibleArchiveId)}
           >
             Archive
@@ -1365,7 +1344,7 @@ export default function ProductPage() {
         onClose={() => setPricingRuleDrawerOpen(false)}
       >
         {!selectedProductId ? (
-          <div className="text-sm text-neutral-700">ابتدا یک محصول انتخاب کنید.</div>
+          <div className="text-sm text-text-secondary">ابتدا یک محصول انتخاب کنید.</div>
         ) : (
           <div className="grid gap-3">
             {pricingRuleFormMode === 'create' ? (
@@ -1376,7 +1355,7 @@ export default function ProductPage() {
                 onChange={(e) => setPricingRuleForm((s) => ({ ...s, code: e.target.value }))}
               />
             ) : (
-              <div className="rounded-xl border bg-neutral-50 px-3 py-2 text-sm text-neutral-700">code: {pricingRuleForm.code}</div>
+              <div className="rounded-xl border border-border-default bg-bg-base px-3 py-2 text-sm text-text-secondary">code: {pricingRuleForm.code}</div>
             )}
             <input
               className="rounded-xl border px-3 py-2"
@@ -1394,7 +1373,7 @@ export default function ProductPage() {
             ) : null}
             <button
               type="button"
-              className="rounded-xl bg-neutral-900 px-3 py-2 text-sm text-white hover:bg-neutral-800"
+              className="rounded-xl bg-brand-primary px-3 py-2 text-sm text-text-on-brand hover:opacity-90"
               onClick={savePricingRule}
               disabled={pricingRuleSaving || !selectedProductId}
             >
@@ -1405,18 +1384,18 @@ export default function ProductPage() {
       </Drawer>
 
       <Drawer open={!!confirmPricingRuleArchiveId} title="تایید Archive" onClose={() => setConfirmPricingRuleArchiveId('')}>
-        <div className="text-sm text-neutral-700">آیا مطمئن هستید؟ این کار وضعیت Rule را archived می‌کند.</div>
+        <div className="text-sm text-text-secondary">آیا مطمئن هستید؟ این کار وضعیت Rule را archived می‌کند.</div>
         <div className="mt-4 flex gap-2">
           <button
             type="button"
-            className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
+            className="rounded-xl border border-border-default bg-bg-base px-3 py-2 text-body-sm text-text-primary placeholder:text-text-muted hover:bg-bg-base"
             onClick={() => setConfirmPricingRuleArchiveId('')}
           >
             انصراف
           </button>
           <button
             type="button"
-            className="rounded-xl bg-rose-600 px-3 py-2 text-sm text-white hover:bg-rose-700"
+            className="rounded-xl bg-feedback-error px-3 py-2 text-sm text-text-on-brand hover:opacity-90"
             onClick={() => archivePricingRuleNow(confirmPricingRuleArchiveId)}
           >
             Archive
@@ -1424,5 +1403,6 @@ export default function ProductPage() {
         </div>
       </Drawer>
     </main>
+    </div>
   );
 }

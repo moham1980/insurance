@@ -63,7 +63,7 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { PermissionsGuard } from './permissions.guard';
 
 import { TenantGuard } from './tenant.guard';
-import { OutboxEvent } from '@insurance/shared';
+import { OutboxEvent, DeadLetterEvent, ConsumedEvent } from '@insurance/shared';
 
 const entities = [
   Invoice,
@@ -91,6 +91,8 @@ const entities = [
   EscrowRelease,
   RefundRequest,
   OutboxEvent,
+  DeadLetterEvent,
+  ConsumedEvent,
 ];
 
 @Module({

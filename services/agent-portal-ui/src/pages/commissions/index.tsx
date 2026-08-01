@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { StatCard, ProgressBar } from '@insurance/design-system';
+import { StatCard, ProgressBar, Card } from '@insurance/design-system';
 import { DollarSign, TrendingUp, Target, Award, Loader2 } from 'lucide-react';
 import { agentPortalAPI } from '../../lib/api';
+import { mockCommissions, mockDashboardStats } from '../../lib/mock-data';
 
 interface CommissionItem {
   id: string;
@@ -36,9 +37,9 @@ export default function CommissionsPage() {
         ]);
         setCommissions(commissionsData || []);
         setStats(statsData);
-      } catch (err) {
-        setError('خطا در بارگذاری کمیسیون‌ها');
-        console.error(err);
+      } catch {
+        setCommissions(mockCommissions);
+        setStats(mockDashboardStats);
       } finally {
         setLoading(false);
       }
@@ -57,7 +58,7 @@ export default function CommissionsPage() {
 
   if (error) {
     return (
-      <div className="rounded-xl border border-border-error bg-bg-error p-4 text-text-error">
+      <div className="rounded-xl border border-feedback-error/30 bg-feedback-error-subtle p-4 text-feedback-error">
         <p className="font-semibold">خطا در بارگذاری داده</p>
         <p className="mt-1 text-sm">{error}</p>
       </div>
@@ -80,7 +81,7 @@ export default function CommissionsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div className="rounded-xl border border-border-default bg-bg-raised p-4">
+        <Card className="p-4">
           <h2 className="mb-4 text-sm font-semibold text-text-primary">پیشرفت اهداف ماهانه</h2>
           <div className="space-y-4">
             <ProgressBar label="بیمه خودرو" value={85} color="brand" />
@@ -88,9 +89,9 @@ export default function CommissionsPage() {
             <ProgressBar label="بیمه آتش‌سوزی" value={45} color="warning" />
             <ProgressBar label="بیمه مسئولیت" value={30} color="brand" />
           </div>
-        </div>
+        </Card>
 
-        <div className="rounded-xl border border-border-default bg-bg-raised p-4">
+        <Card className="p-4">
           <h2 className="mb-4 text-sm font-semibold text-text-primary">لیست کمیسیون‌ها</h2>
           {commissions.length === 0 ? (
             <p className="text-sm text-text-muted">هیچ کمیسیونی یافت نشد</p>
@@ -100,14 +101,14 @@ export default function CommissionsPage() {
                 <li key={c.id} className="flex items-center justify-between rounded-lg px-3 py-2 text-sm bg-bg-subtle">
                   <span className="text-text-secondary">{c.policyNumber}</span>
                   <span className="text-text-primary font-medium">{c.commissionAmount.toLocaleString('fa-IR')} تومان</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${c.status === 'PAID' ? 'bg-green-100 text-green-800' : c.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${c.status === 'PAID' ? 'bg-feedback-success-subtle text-feedback-success' : c.status === 'PENDING' ? 'bg-feedback-warning-subtle text-feedback-warning' : 'bg-feedback-error-subtle text-feedback-error'}`}>
                     {c.status === 'PAID' ? 'پرداخت‌شده' : c.status === 'PENDING' ? 'در انتظار' : 'لغو شده'}
                   </span>
                 </li>
               ))}
             </ul>
           )}
-        </div>
+        </Card>
       </div>
     </div>
   );

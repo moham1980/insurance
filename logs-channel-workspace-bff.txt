@@ -1,0 +1,58 @@
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mHttpModule dependencies initialized[39m[38;5;3m +20ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigHostModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mChannelController {/api/v1/channel}:[39m[38;5;3m +8ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/channel/dashboard, GET} route[39m[38;5;3m +4ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/channel/workspaces, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/channel/workspaces/:workspaceId, GET} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/channel/workspaces/mine, GET} route[39m[38;5;3m +4ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/channel/offerings, GET} route[39m[38;5;3m +5ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/channel/submissions, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/channel/submissions, POST} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/channel/submissions/:submissionId/quotes/compare, GET} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/channel/commissions, GET} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/channel/customers, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/channel/partners, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/channel/partners, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/channel/sub-agents, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/channel/copilot/chat, POST} route[39m[38;5;3m +14ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mBrokerController {/api/v1/broker}:[39m[38;5;3m +1ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker/dashboard, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker/carrier-agreement, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker/product-offerings, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker/placements, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker/settlements, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker/claim-advocacy-cases, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker/partners, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker/partners, POST} route[39m[38;5;3m +17ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker/contracts, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker/contracts, POST} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker/contracts/:contractId, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker/contracts/:contractId/terminate, POST} route[39m[38;5;3m +25ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker/sales-network/ledger, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker/sales-network/ledger/reconciliation, GET} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker/sub-agents, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker/sub-agents, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker/sales-network/broker/:brokerPartnerId/sub-agents, GET} route[39m[38;5;3m +6ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker/sales-network/broker/:brokerPartnerId/sub-agents, POST} route[39m[38;5;3m +15ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker/sales-network/broker/:brokerPartnerId/sub-agents/:subAgentPartnerId/suspend, POST} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker/sales-network/broker/:brokerPartnerId/sub-agents/:subAgentPartnerId/terminate, POST} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker/sales-network/broker/:brokerPartnerId/dashboard, GET} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker/sales-network/agreements, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker/sales-network/agreements/:agreementId, GET} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker/sales-network/agreements, POST} route[39m[38;5;3m +3ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker/sales-network/agreements/:agreementId/activate, POST} route[39m[38;5;3m +5ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker/sales-network/agreements/:agreementId/terminate, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker/sales-network/agreements/:agreementId/tiers, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker/sales-network/agreements/:agreementId/tiers, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker/sales-network/tiers/:tierId/delete, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker/sales-network/agreements/:agreementId/clawback-rules, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker/sales-network/agreements/:agreementId/clawback-rules, POST} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker/sales-network/clawback-rules/:ruleId/delete, POST} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker/copilot/chat, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mHealthController {/api/v1/health}:[39m[38;5;3m +1ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/health, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 38776  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +2ms[39m
+Channel Workspace BFF listening on port 3020

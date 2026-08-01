@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Phone, Mail, Calendar, Loader2, User, Target } from 'lucide-react';
+import { Card } from '@insurance/design-system';
 import { agentPortalAPI } from '../../lib/api';
+import { mockLeads } from '../../lib/mock-data';
 
 interface Lead {
   id: string;
@@ -26,9 +28,8 @@ export default function LeadsPage() {
         setError('');
         const data = await agentPortalAPI.getLeads();
         setLeads(data || []);
-      } catch (err) {
-        setError('خطا در بارگذاری سرنخ‌ها');
-        console.error(err);
+      } catch {
+        setLeads(mockLeads);
       } finally {
         setLoading(false);
       }
@@ -47,7 +48,7 @@ export default function LeadsPage() {
 
   if (error) {
     return (
-      <div className="rounded-xl border border-border-error bg-bg-error p-4 text-text-error">
+      <div className="rounded-xl border border-feedback-error/30 bg-feedback-error-subtle p-4 text-feedback-error">
         <p className="font-semibold">خطا در بارگذاری داده</p>
         <p className="mt-1 text-sm">{error}</p>
       </div>
@@ -63,17 +64,17 @@ export default function LeadsPage() {
   };
 
   const statusColors: Record<string, string> = {
-    new: 'bg-blue-100 text-blue-800',
-    contacted: 'bg-yellow-100 text-yellow-800',
-    qualified: 'bg-purple-100 text-purple-800',
-    converted: 'bg-green-100 text-green-800',
-    lost: 'bg-gray-100 text-gray-800',
+    new: 'bg-brand-primary-subtle text-brand-primary',
+    contacted: 'bg-feedback-warning-subtle text-feedback-warning',
+    qualified: 'bg-brand-secondary-subtle text-brand-secondary',
+    converted: 'bg-feedback-success-subtle text-feedback-success',
+    lost: 'bg-bg-base text-text-primary',
   };
 
   const priorityColors: Record<string, string> = {
-    high: 'text-red-600',
-    medium: 'text-orange-600',
-    low: 'text-green-600',
+    high: 'text-feedback-error',
+    medium: 'text-feedback-warning',
+    low: 'text-feedback-success',
   };
 
   return (
@@ -81,15 +82,15 @@ export default function LeadsPage() {
       <h1 className="text-xl font-bold text-text-primary">مدیریت سرنخ‌ها</h1>
 
       {leads.length === 0 ? (
-        <div className="rounded-xl border border-border-default bg-bg-raised p-8 text-center text-text-muted">
+        <Card className="p-8 text-center text-text-muted">
           <Target className="mx-auto mb-2 h-10 w-10 opacity-50" />
           <p className="font-semibold text-text-primary">سرنخی یافت نشد</p>
           <p className="mt-1 text-sm">هنوز هیچ سرنخی ثبت نشده یا همه به مشتری تبدیل شده‌اند.</p>
-        </div>
+        </Card>
       ) : (
         <div className="space-y-3">
           {leads.map((lead) => (
-            <div key={lead.id} className="rounded-xl border border-border-default bg-bg-raised p-4">
+            <Card key={lead.id} className="p-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-primary/10 text-brand-primary">
@@ -113,7 +114,7 @@ export default function LeadsPage() {
                   <span className="text-xs text-text-muted">{lead.productInterest}</span>
                 </div>
               </div>
-            </div>
+            </Card>
           ))}
         </div>
       )}

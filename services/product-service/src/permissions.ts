@@ -132,6 +132,42 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     'product:offerings:activate',
     'insurer:products:publish',
   ],
+  broker_owner: [
+    'product:products:view',
+    'product:products:list',
+    'product:coverages:view',
+    'product:coverages:list',
+    'product:deductibles:view',
+    'product:deductibles:list',
+    'product:pricing_rules:view',
+    'product:pricing_rules:list',
+    'product:quote',
+    'product:visibility:view',
+    'product:offerings:view',
+  ],
+  broker_staff: [
+    'product:products:view',
+    'product:products:list',
+    'product:coverages:view',
+    'product:coverages:list',
+    'product:deductibles:view',
+    'product:deductibles:list',
+    'product:pricing_rules:view',
+    'product:pricing_rules:list',
+    'product:quote',
+    'product:visibility:view',
+    'product:offerings:view',
+  ],
+  agency_owner: [
+    'product:products:view',
+    'product:products:list',
+    'product:offerings:view',
+  ],
+  agency_staff: [
+    'product:products:view',
+    'product:products:list',
+    'product:offerings:view',
+  ],
 };
 
 export function permissionsForRoles(roles: string[] | undefined | null): PermissionKey[] {

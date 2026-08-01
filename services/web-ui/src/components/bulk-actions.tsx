@@ -47,18 +47,18 @@ export function BulkActions({ selectedCount, actions, onAction, onClear, disable
 
   return (
     <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-auto z-40">
-      <div className="rounded-2xl border bg-white p-4 shadow-2xl">
+      <div className="rounded-2xl border border-border-default bg-bg-raised p-4 shadow-2xl">
         {confirmingAction && action ? (
           <div className="flex items-center gap-3">
             <div className="flex-1">
               <div className="text-sm font-semibold">{action.label}</div>
-              {action.confirmText && <div className="mt-1 text-xs text-neutral-600">{action.confirmText}</div>}
+              {action.confirmText && <div className="mt-1 text-xs text-text-secondary">{action.confirmText}</div>}
             </div>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={handleCancel}
-                className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
+                className="rounded-xl border px-3 py-2 text-sm hover:bg-bg-base"
               >
                 انصراف
               </button>
@@ -66,7 +66,7 @@ export function BulkActions({ selectedCount, actions, onAction, onClear, disable
                 type="button"
                 onClick={handleConfirm}
                 className={`rounded-xl px-3 py-2 text-sm ${
-                  action.danger ? 'bg-rose-600 text-white hover:bg-rose-700' : 'bg-neutral-900 text-white hover:bg-neutral-800'
+                  action.danger ? 'bg-feedback-error text-text-on-brand hover:opacity-90' : 'bg-brand-primary text-text-on-brand hover:opacity-90'
                 }`}
               >
                 تأیید
@@ -87,8 +87,8 @@ export function BulkActions({ selectedCount, actions, onAction, onClear, disable
                   disabled={disabled}
                   className={`rounded-xl px-3 py-2 text-sm ${
                     action.danger
-                      ? 'border-rose-200 text-rose-700 hover:bg-rose-50 disabled:opacity-50'
-                      : 'border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50'
+                      ? 'border-feedback-error/30 text-feedback-error hover:bg-feedback-error-subtle disabled:opacity-50'
+                      : 'border px-3 py-2 text-sm hover:bg-bg-base disabled:opacity-50'
                   }`}
                 >
                   {action.label}
@@ -97,7 +97,7 @@ export function BulkActions({ selectedCount, actions, onAction, onClear, disable
               <button
                 type="button"
                 onClick={onClear}
-                className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
+                className="rounded-xl border px-3 py-2 text-sm hover:bg-bg-base"
               >
                 پاک کردن
               </button>

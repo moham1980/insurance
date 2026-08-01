@@ -6,7 +6,7 @@ import { PaymentTransaction as PaymentTransactionEntity } from '../entities/Paym
 import { OutboxPublisher } from '@insurance/shared';
 import { v4 as uuidv4 } from 'uuid';
 
-export type PaymentProvider = 'ZARINPAL' | 'IDPAY' | 'PAYIR' | 'BEHPARDAKHT' | 'SAMAN' | 'MELLAT' | 'PASARGAD' | 'ECOSYSTEM';
+export type PaymentProvider = 'ZARINPAL' | 'IDPAY' | 'PAYIR' | 'BEHPARDAKHT' | 'SAMAN' | 'MELLAT' | 'PASARGAD' | 'ECOSYSTEM' | 'MOCK';
 
 export interface PaymentRequest {
   tenantId: string;
@@ -70,7 +70,7 @@ export class PaymentGatewayService {
   ) {}
 
   private getProvider(): PaymentProvider {
-    const provider = (process.env.PAYMENT_PROVIDER || 'ZARINPAL').toUpperCase() as PaymentProvider;
+    const provider = (process.env.PAYMENT_PROVIDER || 'MOCK').toUpperCase() as PaymentProvider;
     return provider;
   }
 
@@ -84,6 +84,7 @@ export class PaymentGatewayService {
       ZARINPAL: 'https://api.zarinpal.com/pg/v4/payment',
       IDPAY: 'https://api.idpay.ir/v1.1',
       PAYIR: 'https://pay.ir/pg',
+      MOCK: '',
       BEHPARDAKHT: 'https://bpm.shaparak.ir/pgwchannel/services/pgwport/v2',
       SAMAN: 'https://sep.shaparak.ir/Payment.aspx',
       MELLAT: 'https://bpm.shaparak.ir/pgwchannel/services/pgwport/v2',
@@ -220,6 +221,8 @@ export class PaymentGatewayService {
         return this.createPayirRequest(merchantId, apiUrl, transaction, params);
       case 'ECOSYSTEM':
         return this.createEcosystemRequest(apiUrl, transaction, params);
+      case 'MOCK':
+        return this.createMockRequest(transaction, params);
       default:
         throw new Error(`Payment provider ${provider} not yet implemented`);
     }
@@ -509,6 +512,8 @@ export class PaymentGatewayService {
         return this.verifyPayirPayment(merchantId, apiUrl, transaction);
       case 'ECOSYSTEM':
         return this.verifyEcosystemPayment(apiUrl, transaction);
+      case 'MOCK':
+        return this.verifyMockPayment(transaction);
       default:
         throw new Error(`Payment provider ${provider} not yet implemented`);
     }
@@ -663,11 +668,37 @@ export class PaymentGatewayService {
     return entities.map(this.toInterface);
   }
 
+  private async createMockRequest(
+    transaction: PaymentTransactionEntity,
+    params: PaymentRequest
+  ): Promise<string> {
+    this.logger.log(`Mock payment created for invoice ${params.invoiceId}, amount ${params.amount}`);
+    transaction.authority = `MOCK-${transaction.id}`;
+    transaction.refId = `MOCK-REF-${Date.now()}`;
+    await this.transactionRepo.save(transaction);
+    return `${params.callbackUrl}?mock=1&authority=${transaction.authority}&status=success`;
+  }
+
+  private async verifyMockPayment(
+    transaction: PaymentTransactionEntity
+  ): Promise<PaymentVerificationResponse> {
+    this.logger.log(`Mock payment verified for transaction ${transaction.id}`);
+    return {
+      success: true,
+      refId: transaction.refId || `MOCK-REF-${Date.now()}`,
+      message: 'Mock payment verified successfully',
+    };
+  }
+
   async healthCheck(): Promise<{ healthy: boolean; provider: PaymentProvider; message: string }> {
     try {
       const provider = this.getProvider();
-      const merchantId = this.getMerchantId();
 
+      if (provider === 'MOCK') {
+        return { healthy: true, provider, message: 'Mock payment provider active (demo mode)' };
+      }
+
+      const merchantId = this.getMerchantId();
       if (!merchantId) {
         return {
           healthy: false,

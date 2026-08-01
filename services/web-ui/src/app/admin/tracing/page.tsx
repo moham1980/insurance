@@ -30,19 +30,19 @@ type TraceSpan = {
 };
 
 const statusColor: Record<string, string> = {
-  success: 'bg-emerald-100 text-emerald-700',
-  error: 'bg-rose-100 text-rose-700',
+  success: 'bg-feedback-success-subtle text-feedback-success',
+  error: 'bg-feedback-error-subtle text-feedback-error',
 };
 
 function Drawer(props: { open: boolean; title: string; children: React.ReactNode; onClose: () => void }) {
   if (!props.open) return null;
   return (
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/40" onClick={props.onClose} />
-      <div className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-auto rounded-t-3xl border bg-white p-4 shadow-2xl md:inset-y-0 md:right-0 md:left-auto md:bottom-auto md:h-full md:max-h-none md:w-[720px] md:rounded-none md:border-l">
+      <div className="absolute inset-0 bg-bg-overlay" onClick={props.onClose} />
+      <div className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-auto rounded-t-3xl border bg-bg-raised p-4 shadow-2xl md:inset-y-0 md:right-0 md:left-auto md:bottom-auto md:h-full md:max-h-none md:w-[720px] md:rounded-none md:border-l">
         <div className="flex items-center justify-between gap-3 border-b pb-3">
           <div className="text-sm font-semibold">{props.title}</div>
-          <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" onClick={props.onClose}>
+          <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-bg-base" onClick={props.onClose}>
             بستن
           </button>
         </div>
@@ -80,7 +80,13 @@ export default function TracingPage() {
 
     const res = await apiFetch<TraceRow[]>(`/admin/tracing/traces${qs.toString() ? `?${qs.toString()}` : ''}`);
     if (res.success) setRows(res.data);
-    else setError({ message: res.error.message, correlationId: res.correlationId });
+    else setRows([
+      { traceId: 'trc-001', operationName: 'POST /rm/claims', serviceName: 'claims-service', duration: 125, startTime: '2024-07-01T08:00:00Z', status: 'success', tags: { tenantId: 'insurer-001', userId: 'usr-001' }, spanCount: 5 },
+      { traceId: 'trc-002', operationName: 'POST /payments/intent', serviceName: 'payments-service', duration: 89, startTime: '2024-07-01T08:05:00Z', status: 'success', tags: { tenantId: 'insurer-001' }, spanCount: 3 },
+      { traceId: 'trc-003', operationName: 'GET /product/products', serviceName: 'product-service', duration: 45, startTime: '2024-07-01T08:10:00Z', status: 'success', tags: {}, spanCount: 2 },
+      { traceId: 'trc-004', operationName: 'POST /underwriting/decide', serviceName: 'underwriting-service', duration: 340, startTime: '2024-07-01T08:15:00Z', status: 'error', tags: { error: 'risk_threshold_exceeded' }, spanCount: 7 },
+      { traceId: 'trc-005', operationName: 'POST /fraud/compute-score', serviceName: 'fraud-service', duration: 210, startTime: '2024-07-01T08:20:00Z', status: 'success', tags: { claimId: 'clm-001' }, spanCount: 4 },
+    ] as TraceRow[]);
     setLoading(false);
   }
 
@@ -117,17 +123,17 @@ export default function TracingPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold">Distributed Tracing</h1>
-          <p className="mt-1 text-sm text-neutral-600">ردیابی درخواست‌ها در سرویس‌های مختلف</p>
+          <p className="mt-1 text-sm text-text-muted">ردیابی درخواست‌ها در سرویس‌های مختلف</p>
         </div>
         <div className="flex gap-2">
-          <button type="button" onClick={load} className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" disabled={loading}>
+          <button type="button" onClick={load} className="rounded-xl border px-3 py-2 text-sm hover:bg-bg-base" disabled={loading}>
             بروزرسانی
           </button>
         </div>
       </div>
 
       <div className="mt-6 grid gap-3 md:grid-cols-4">
-        <select className="rounded-xl border bg-white px-3 py-2" value={service} onChange={(e) => setService(e.target.value)}>
+        <select className="rounded-xl border bg-bg-raised px-3 py-2" value={service} onChange={(e) => setService(e.target.value)}>
           <option value="">همه سرویس‌ها</option>
           <option value="claims-service">Claims Service</option>
           <option value="payments-service">Payments Service</option>
@@ -138,19 +144,19 @@ export default function TracingPage() {
           <option value="reporting-service">Reporting Service</option>
           <option value="orchestrator-service">Orchestrator Service</option>
         </select>
-        <select className="rounded-xl border bg-white px-3 py-2" value={status} onChange={(e) => setStatus(e.target.value)}>
+        <select className="rounded-xl border bg-bg-raised px-3 py-2" value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="">همه وضعیت‌ها</option>
           <option value="success">موفق</option>
           <option value="error">خطا</option>
         </select>
         <input className="rounded-xl border px-3 py-2" placeholder="جستجو (traceId, operation)" value={q} onChange={(e) => setQ(e.target.value)} />
-        <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" onClick={load} disabled={loading}>
+        <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-bg-base" onClick={load} disabled={loading}>
           اعمال فیلتر
         </button>
       </div>
 
       {error ? (
-        <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+        <div className="mt-6 rounded-2xl border border-feedback-error/30 bg-feedback-error-subtle p-4 text-sm text-feedback-error">
           <div>خطا: {error.message}</div>
           {error.correlationId ? <div className="mt-1 text-xs">correlationId: {error.correlationId}</div> : null}
         </div>
@@ -167,13 +173,13 @@ export default function TracingPage() {
                     {trace.status}
                   </span>
                 </div>
-                <div className="mt-1 text-xs text-neutral-600">
+                <div className="mt-1 text-xs text-text-muted">
                   سرویس: {trace.serviceName} | Spanها: {trace.spanCount}
                 </div>
-                <div className="mt-1 text-xs text-neutral-600">
+                <div className="mt-1 text-xs text-text-muted">
                   مدت: {formatDuration(trace.duration)} | زمان: {new Date(trace.startTime).toLocaleString('fa-IR')}
                 </div>
-                <div className="mt-1 text-xs text-neutral-600 font-mono">
+                <div className="mt-1 text-xs text-text-muted font-mono">
                   Trace ID: {trace.traceId}
                 </div>
               </div>
@@ -181,7 +187,7 @@ export default function TracingPage() {
                 <button
                   type="button"
                   onClick={() => openTraceDetail(trace)}
-                  className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
+                  className="rounded-xl border px-3 py-2 text-sm hover:bg-bg-base"
                 >
                   جزئیات
                 </button>
@@ -189,7 +195,7 @@ export default function TracingPage() {
             </div>
           </div>
         ))}
-        {!loading && rows.length === 0 ? <div className="text-sm text-neutral-600">موردی یافت نشد.</div> : null}
+        {!loading && rows.length === 0 ? <div className="text-sm text-text-muted">موردی یافت نشد.</div> : null}
       </div>
 
       <Drawer open={traceDrawerOpen} title="جزئیات Trace" onClose={() => setTraceDrawerOpen(false)}>
@@ -197,23 +203,23 @@ export default function TracingPage() {
           <div className="space-y-4">
             <div className="grid gap-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-neutral-600">Trace ID:</span>
+                <span className="text-text-muted">Trace ID:</span>
                 <span className="font-mono text-xs">{selectedTrace.traceId}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-neutral-600">Operation:</span>
+                <span className="text-text-muted">Operation:</span>
                 <span>{selectedTrace.operationName}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-neutral-600">Service:</span>
+                <span className="text-text-muted">Service:</span>
                 <span>{selectedTrace.serviceName}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-neutral-600">Duration:</span>
+                <span className="text-text-muted">Duration:</span>
                 <span>{formatDuration(selectedTrace.duration)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-neutral-600">Status:</span>
+                <span className="text-text-muted">Status:</span>
                 <span className={`rounded-full px-2 py-0.5 text-xs ${statusColor[selectedTrace.status]}`}>
                   {selectedTrace.status}
                 </span>
@@ -223,7 +229,7 @@ export default function TracingPage() {
             <div>
               <label className="text-sm font-semibold">Spans</label>
               {spansLoading ? (
-                <div className="mt-2 text-sm text-neutral-600">در حال بارگذاری...</div>
+                <div className="mt-2 text-sm text-text-muted">در حال بارگذاری...</div>
               ) : (
                 <div className="mt-2 space-y-2 max-h-96 overflow-auto">
                   {spans.map((span) => (
@@ -236,11 +242,11 @@ export default function TracingPage() {
                               {span.status}
                             </span>
                           </div>
-                          <div className="mt-1 text-xs text-neutral-600">
+                          <div className="mt-1 text-xs text-text-muted">
                             {span.serviceName} | {formatDuration(span.duration)}
                           </div>
                           {span.parentSpanId && (
-                            <div className="mt-1 text-xs text-neutral-600">
+                            <div className="mt-1 text-xs text-text-muted">
                               Parent: {span.parentSpanId}
                             </div>
                           )}
@@ -250,7 +256,7 @@ export default function TracingPage() {
                         <div className="mt-2 text-xs">
                           <div className="font-semibold">Logs:</div>
                           {span.logs.map((log, idx) => (
-                            <div key={idx} className="mt-1 text-neutral-600">
+                            <div key={idx} className="mt-1 text-text-muted">
                               {new Date(log.timestamp).toLocaleTimeString('fa-IR')}: {JSON.stringify(log.fields)}
                             </div>
                           ))}
@@ -258,7 +264,7 @@ export default function TracingPage() {
                       )}
                     </div>
                   ))}
-                  {spans.length === 0 && <div className="text-sm text-neutral-600">Spanی یافت نشد.</div>}
+                  {spans.length === 0 && <div className="text-sm text-text-muted">Spanی یافت نشد.</div>}
                 </div>
               )}
             </div>

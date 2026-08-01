@@ -1,4 +1,4 @@
-FROM oven/bun:1.3.9-slim AS builder
+FROM node:18-slim AS builder
 WORKDIR /app
 
 ARG HTTP_PROXY
@@ -19,23 +19,21 @@ ENV no_proxy=${no_proxy}
 ENV ALL_PROXY=${ALL_PROXY}
 ENV all_proxy=${all_proxy}
 
-ENV PATH=/app/node_modules/.bin:$PATH
-
 COPY package.json bun.lock ./
 COPY packages/shared/package.json ./packages/shared/
 COPY services/underwriting-service/package.json ./services/underwriting-service/
 
-RUN for i in 1 2 3; do NODE_TLS_REJECT_UNAUTHORIZED=0 bun install --network-concurrency=8 && break || sleep 10; done
+RUN npm install --legacy-peer-deps
 
 COPY packages/shared ./packages/shared
 COPY services/underwriting-service ./services/underwriting-service
 
-RUN cd packages/shared && bun run build
+RUN cd packages/shared && npx tsc
 
 WORKDIR /app/services/underwriting-service
-RUN bun run build
+RUN npx tsc
 
-FROM oven/bun:1.3.9-slim
+FROM node:18-slim
 
 WORKDIR /app
 
@@ -44,10 +42,9 @@ COPY --from=builder /app/packages/shared/package.json ./packages/shared/
 COPY --from=builder /app/services/underwriting-service/dist ./services/underwriting-service/dist
 COPY --from=builder /app/services/underwriting-service/package.json ./services/underwriting-service/
 
-# Install only production dependencies (much faster than copying full node_modules)
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/bun.lock ./
-RUN for i in 1 2 3; do NODE_TLS_REJECT_UNAUTHORIZED=0 bun install --production --network-concurrency=8 && break || sleep 10; done
+RUN npm install --production --legacy-peer-deps
 
 WORKDIR /app/services/underwriting-service
 
@@ -55,4 +52,4 @@ ENV NODE_ENV=production
 
 EXPOSE 3020
 
-CMD ["bun", "run", "dist/main.js"]
+CMD ["node", "dist/main.js"]

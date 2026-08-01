@@ -2,9 +2,9 @@ import type { Metadata, Viewport } from 'next'
 import '@insurance/design-system/themes/light.css';
 import '@insurance/design-system/themes/dark.css';
 import './globals.css'
-import { PortalShell } from '@/components/portal-shell'
 import { ThemeProvider } from '@/components/theme-provider'
 import { ToastProvider, ToastViewport } from '@/components/toast-provider'
+import { PortalShell } from '@/components/portal-shell'
 import { BrandProvider } from '@/config/brand-provider'
 
 export const metadata: Metadata = {

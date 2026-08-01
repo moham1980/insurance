@@ -1,5 +1,5 @@
 import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
-import { BrokerageJournalEntry } from './journal-entry.entity';
+import type { BrokerageJournalEntry } from './journal-entry.entity';
 
 @Entity('brokerage_journal_lines')
 @Index(['journalEntryId'])
@@ -14,7 +14,7 @@ export class BrokerageJournalLine {
   @Column({ name: 'journal_entry_id', type: 'uuid' })
   journalEntryId!: string;
 
-  @ManyToOne(() => BrokerageJournalEntry, (entry) => entry.lines)
+  @ManyToOne('BrokerageJournalEntry', (entry: BrokerageJournalEntry) => entry.lines)
   @JoinColumn({ name: 'journal_entry_id' })
   journalEntry!: BrokerageJournalEntry;
 

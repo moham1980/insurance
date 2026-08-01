@@ -6,13 +6,13 @@ import { firstValueFrom } from 'rxjs';
 export class ChannelBffService {
   private readonly logger = new Logger(ChannelBffService.name);
 
-  private readonly authUrl = process.env.AUTH_SERVICE_URL || 'http://localhost:18000';
-  private readonly policyUrl = process.env.POLICY_SERVICE_URL || 'http://localhost:18010';
-  private readonly claimUrl = process.env.CLAIM_SERVICE_URL || 'http://localhost:18020';
-  private readonly billingUrl = process.env.BILLING_SERVICE_URL || 'http://localhost:18030';
-  private readonly salesNetworkUrl = process.env.SALES_NETWORK_SERVICE_URL || 'http://localhost:18040';
+  private readonly authUrl = process.env.AUTH_SERVICE_URL || 'http://localhost:18001';
+  private readonly policyUrl = process.env.POLICY_SERVICE_URL || 'http://localhost:18007';
+  private readonly claimUrl = process.env.CLAIM_SERVICE_URL || 'http://localhost:18002';
+  private readonly billingUrl = process.env.BILLING_SERVICE_URL || 'http://localhost:18039';
+  private readonly salesNetworkUrl = process.env.SALES_NETWORK_SERVICE_URL || 'http://localhost:18022';
   private readonly productUrl = process.env.PRODUCT_SERVICE_URL || 'http://localhost:18018';
-  private readonly submissionPlacementUrl = process.env.SUBMISSION_PLACEMENT_SERVICE_URL || 'http://localhost:18012';
+  private readonly submissionPlacementUrl = process.env.SUBMISSION_PLACEMENT_SERVICE_URL || 'http://localhost:18005';
 
   constructor(private readonly http: HttpService) {}
 
@@ -491,6 +491,22 @@ export class ChannelBffService {
     const { data } = await firstValueFrom(
       this.http.post(`${this.salesNetworkUrl}/sales-network/clawback-rules/${ruleId}/delete`, {}, {
         headers: this.authHeaders(authToken),
+      }),
+    );
+    return data;
+  }
+
+  // --- Copilot proxy ---
+  private readonly copilotUrl = process.env.COPILOT_SERVICE_URL || 'http://localhost:18030';
+
+  async copilotChat(authToken: string, message: string, conversationHistory?: { role: 'user' | 'assistant'; content: string }[]) {
+    const { data } = await firstValueFrom(
+      this.http.post(`${this.copilotUrl}/copilot/chat`, { message, conversationHistory }, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: authToken,
+          'X-AI-Enabled': 'true',
+        },
       }),
     );
     return data;

@@ -112,6 +112,10 @@ export class AddSharedTables1720000000000 implements MigrationInterface {
     `);
 
     await queryRunner.query(`
+      ALTER TABLE dead_letter_queue ADD COLUMN IF NOT EXISTS tenant_id TEXT NOT NULL DEFAULT 'unknown';
+    `);
+
+    await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS consent_records (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         customer_id TEXT NOT NULL,

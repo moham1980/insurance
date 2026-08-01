@@ -4,17 +4,22 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import {
-  LayoutDashboard, Calculator, Users, BarChart3, Settings, Command, Bell, Search,
+  LayoutDashboard, Users, BarChart3, Command, Bell, Search,
+  Briefcase, Target, Wallet, Gavel, Stethoscope, RefreshCw,
 } from 'lucide-react';
 import { cn } from '@insurance/ui-utils';
-import { ThemeToggle, CommandPalette } from '@insurance/design-system';
+import { ThemeToggle, CommandPalette, SkipLink } from '@insurance/design-system';
 
 const sidebarNav = [
   { href: '/', label: 'داشبورد', icon: LayoutDashboard },
-  { href: '/quotes', label: 'پیشنهادات', icon: Calculator },
   { href: '/customers', label: 'مشتریان', icon: Users },
+  { href: '/leads', label: 'سرنخ‌ها', icon: Target },
   { href: '/commissions', label: 'کمیسیون', icon: BarChart3 },
-  { href: '/settings', label: 'تنظیمات', icon: Settings },
+  { href: '/portfolio', label: 'پرتفوی', icon: Wallet },
+  { href: '/claims', label: 'خسارات', icon: Briefcase },
+  { href: '/advocacy', label: 'وکالت خسارت', icon: Gavel },
+  { href: '/adjuster-referrals', label: 'ارجاع به کارشناس', icon: Stethoscope },
+  { href: '/recovery', label: 'بازیافت', icon: RefreshCw },
 ];
 
 export function AgentShell({ children }: { children: React.ReactNode }) {
@@ -23,9 +28,11 @@ export function AgentShell({ children }: { children: React.ReactNode }) {
 
   const commands = [
     { id: 'dash', label: 'برو به داشبورد', icon: LayoutDashboard, action: () => router.push('/') },
-    { id: 'quote', label: 'پیشنهاد جدید', icon: Calculator, action: () => router.push('/quotes/new') },
     { id: 'cust', label: 'جستجوی مشتری', icon: Users, action: () => router.push('/customers') },
+    { id: 'leads', label: 'سرنخ‌ها', icon: Target, action: () => router.push('/leads') },
     { id: 'comm', label: 'گزارش کمیسیون', icon: BarChart3, action: () => router.push('/commissions') },
+    { id: 'portfolio', label: 'پرتفوی', icon: Wallet, action: () => router.push('/portfolio') },
+    { id: 'claims', label: 'خسارات', icon: Briefcase, action: () => router.push('/claims') },
   ];
 
   useEffect(() => {
@@ -41,6 +48,7 @@ export function AgentShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-bg-base">
+      <SkipLink targetId="main-content" label="پرش به محتوای اصلی" />
       {/* Top bar */}
       <header className="sticky top-0 z-10 border-b border-border-default bg-bg-raised/80 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-3">
@@ -93,7 +101,7 @@ export function AgentShell({ children }: { children: React.ReactNode }) {
         </aside>
 
         {/* Main */}
-        <main className="rounded-2xl border border-border-default bg-bg-raised p-6">
+        <main id="main-content" className="rounded-2xl border border-border-default bg-bg-raised p-6">
           {children}
         </main>
       </div>

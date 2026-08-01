@@ -21,11 +21,6 @@ export class CopilotController {
     return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
 
-  @Get('/health')
-  health() {
-    return { status: 'ok', service: 'copilot-service' };
-  }
-
   @Post('/copilot/claims/:claimId/summary')
   @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
   @RequirePermissions('copilot:claims:summary')
@@ -119,6 +114,49 @@ export class CopilotController {
     const result = await this.copilotService.getNextBestAction({
       contextType: body?.contextType,
       resourceId: body?.resourceId,
+      headers,
+      correlationId,
+      tenantId,
+      actorUserId: actor,
+      provider: body?.provider,
+    });
+
+    return res.status(result.status).json(result.body);
+  }
+
+  @Post('/copilot/chat')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('copilot:qa')
+  async chat(
+    @Body() body: any,
+    @Headers() headers: Record<string, any>,
+    @Req() req: any,
+    @Res() res: any
+  ) {
+    const correlationId = this.getCorrelationId(headers);
+    const tenantId = req?.user?.tenantId as string | undefined;
+    const actor = req?.user?.userId as string | undefined;
+
+    auditLogger.info('copilot.chat.request', {
+      correlationId,
+      tenantId,
+      actor,
+      action: 'copilot:chat',
+      messageLength: body?.message?.length || 0,
+      historyLength: body?.conversationHistory?.length || 0,
+    });
+
+    if (!body?.message || typeof body.message !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'message is required' },
+        correlationId,
+      });
+    }
+
+    const result = await this.copilotService.chat({
+      message: body.message,
+      conversationHistory: body.conversationHistory,
       headers,
       correlationId,
       tenantId,

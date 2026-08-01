@@ -14,7 +14,7 @@ export class RateLimitGuard implements CanActivate {
   private readonly cleanupInterval: NodeJS.Timeout;
 
   constructor() {
-    this.maxRequests = parseInt(process.env.BFF_RATE_LIMIT_MAX || '100', 10);
+    this.maxRequests = parseInt(process.env.BFF_RATE_LIMIT_MAX || '500', 10);
     this.windowMs = parseInt(process.env.BFF_RATE_LIMIT_WINDOW_MS || String(60 * 1000), 10);
     this.cleanupInterval = setInterval(() => this.cleanup(), 5 * 60 * 1000);
   }

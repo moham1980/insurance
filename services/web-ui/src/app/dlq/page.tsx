@@ -2,8 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { AlertCircle, RefreshCw, Search, X } from 'lucide-react';
 import { apiFetch, getAuthUser } from '@/lib/api';
 import { enterprisePermissionsForRoles, hasEnterprisePermission } from '@/lib/enterprise-rbac';
+import { Button, Card, StatCard } from '@insurance/design-system';
+import { MOCK_DLQ_MESSAGES } from '@/lib/mock-data';
 
 type DlqStats = { total: number; pending: number; retrying: number; failed: number; resolved: number };
 
@@ -104,6 +107,8 @@ export default function DlqPage() {
       }
     } catch (e: any) {
       setError({ message: e?.message || 'Failed to load DLQ' });
+      setRows(MOCK_DLQ_MESSAGES.map(m => ({ ...m, dlqId: m.id, originalEventId: m.id, partition: m.partition, offset: String(m.offset), key: null, value: JSON.parse(m.payload), headers: {}, errorMessage: m.error, errorStack: null, consumerGroup: 'default', retryCount: 0, maxRetries: 3, status: 'pending', nextRetryAt: null, lastErrorAt: m.timestamp, resolvedAt: null, createdAt: m.timestamp })) as DlqRow[]);
+      setStats({ total: MOCK_DLQ_MESSAGES.length, pending: MOCK_DLQ_MESSAGES.length, retrying: 0, failed: 0, resolved: 0 });
     } finally {
       setLoading(false);
     }
@@ -173,55 +178,55 @@ export default function DlqPage() {
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">DLQ</h1>
-          <p className="mt-1 text-sm text-neutral-600">Kafka consumer failures + retry + resolve</p>
+          <p className="mt-1 text-sm text-text-muted">Kafka consumer failures + retry + resolve</p>
         </div>
-        <button type="button" onClick={() => load()} className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" disabled={loading}>
-          بروزرسانی
-        </button>
+        <Button variant="ghost" size="sm" onClick={() => load()} disabled={loading}>
+          <RefreshCw className={`ml-1 h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> بروزرسانی
+        </Button>
       </div>
 
+      {/* Stat Cards */}
+      {canStats ? (
+        <div className="mt-6 grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
+          <StatCard title="کل" value={loading ? '…' : String(stats?.total ?? '—')} icon={AlertCircle} changeType="neutral" />
+          <StatCard title="در انتظار" value={loading ? '…' : String(stats?.pending ?? '—')} icon={AlertCircle} changeType="warning" />
+          <StatCard title="در حال تلاش" value={loading ? '…' : String(stats?.retrying ?? '—')} icon={RefreshCw} changeType="warning" />
+          <StatCard title="ناموفق" value={loading ? '…' : String(stats?.failed ?? '—')} icon={X} changeType="negative" />
+          <StatCard title="حل شده" value={loading ? '…' : String(stats?.resolved ?? '—')} icon={AlertCircle} changeType="positive" />
+        </div>
+      ) : null}
+
       {error ? (
-        <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+        <div className="mt-6 rounded-2xl border border-feedback-error/30 bg-feedback-error-subtle p-4 text-sm text-feedback-error">
           <div>خطا: {error.message}</div>
           {error.correlationId ? <div className="mt-1 text-xs">correlationId: {error.correlationId}</div> : null}
         </div>
       ) : null}
 
-      {canStats ? (
-        <div className="mt-6 grid gap-3 md:grid-cols-5">
-          {['total', 'pending', 'retrying', 'failed', 'resolved'].map((k) => (
-            <div key={k} className="rounded-2xl border p-4">
-              <div className="text-xs text-neutral-600">{k}</div>
-              <div className="mt-2 text-xl font-semibold">{loading ? '…' : String((stats as any)?.[k] ?? '—')}</div>
-            </div>
-          ))}
-        </div>
-      ) : null}
-
       {canList ? (
-        <div className="mt-6 rounded-2xl border p-4">
+        <Card className="mt-6 p-4">
           <div className="grid gap-3 md:grid-cols-3">
             <div>
-              <div className="text-xs text-neutral-600">status</div>
-              <input value={status} onChange={(e) => setStatus(e.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" placeholder="pending | retrying | failed | resolved" />
+              <div className="text-xs text-text-muted">وضعیت</div>
+              <input value={status} onChange={(e) => setStatus(e.target.value)} className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:ring-2 focus:ring-brand-primary focus:border-transparent" placeholder="pending | retrying | failed | resolved" />
             </div>
             <div className="md:col-span-2">
-              <div className="text-xs text-neutral-600">topic</div>
-              <input value={topic} onChange={(e) => setTopic(e.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" placeholder="insurance.*" />
+              <div className="text-xs text-text-muted">topic</div>
+              <input value={topic} onChange={(e) => setTopic(e.target.value)} className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:ring-2 focus:ring-brand-primary focus:border-transparent" placeholder="insurance.*" />
             </div>
           </div>
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
-              <button type="button" onClick={applyFilters} className="rounded-xl bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-800" disabled={loading}>
+              <Button variant="primary" size="sm" onClick={applyFilters} disabled={loading}>
                 اعمال فیلتر
-              </button>
-              <button type="button" onClick={clearFilters} className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" disabled={loading}>
+              </Button>
+              <Button variant="ghost" size="sm" onClick={clearFilters} disabled={loading}>
                 پاک کردن
-              </button>
+              </Button>
             </div>
 
             <div className="flex items-center gap-2">
-              <div className="text-xs text-neutral-600">page size</div>
+              <div className="text-xs text-text-muted">تعداد در صفحه</div>
               <select
                 value={String(limit)}
                 onChange={(e) => {
@@ -231,7 +236,7 @@ export default function DlqPage() {
                   setSelected(null);
                   void load({ offset: 0 });
                 }}
-                className="rounded-xl border px-3 py-2 text-sm"
+                className="rounded-lg border border-border-default px-3 py-2 text-sm focus:ring-2 focus:ring-brand-primary focus:border-transparent"
                 disabled={loading}
               >
                 <option value="25">25</option>
@@ -240,46 +245,36 @@ export default function DlqPage() {
               </select>
             </div>
           </div>
-        </div>
+        </Card>
       ) : null}
 
       {canList ? (
         <div className="mt-6 grid gap-6 md:grid-cols-[1fr_420px]">
           <div className="space-y-3">
-            <div className="flex items-center justify-between gap-3 rounded-2xl border bg-white p-3">
-              <div className="text-sm text-neutral-700">
+            <Card className="flex items-center justify-between gap-3 p-3">
+              <div className="text-sm text-text-secondary">
                 {total != null ? (
                   <span>
-                    total: <span className="font-semibold">{total}</span>
+                    کل: <span className="font-semibold">{total}</span>
                   </span>
                 ) : (
-                  <span>total: —</span>
+                  <span>کل: —</span>
                 )}
               </div>
 
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
-                  disabled={loading || offset <= 0}
-                  onClick={() => load({ offset: Math.max(0, offset - limit) })}
-                >
+                <Button variant="ghost" size="sm" disabled={loading || offset <= 0} onClick={() => load({ offset: Math.max(0, offset - limit) })}>
                   قبلی
-                </button>
-                <div className="text-xs text-neutral-600">
-                  page {currentPage}
+                </Button>
+                <div className="text-xs text-text-muted">
+                  صفحه {currentPage}
                   {totalPages ? ` / ${totalPages}` : ''}
                 </div>
-                <button
-                  type="button"
-                  className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
-                  disabled={loading || total == null || offset + limit >= total}
-                  onClick={() => load({ offset: offset + limit })}
-                >
+                <Button variant="ghost" size="sm" disabled={loading || total == null || offset + limit >= total} onClick={() => load({ offset: offset + limit })}>
                   بعدی
-                </button>
+                </Button>
               </div>
-            </div>
+            </Card>
 
             {rows.map((r) => {
               const active = selected?.dlqId === r.dlqId;
@@ -288,28 +283,23 @@ export default function DlqPage() {
                   type="button"
                   key={r.dlqId}
                   onClick={() => setSelected(r)}
-                  className={active ? 'w-full rounded-2xl border border-neutral-900 bg-neutral-50 p-4 text-left' : 'w-full rounded-2xl border p-4 text-left hover:bg-neutral-50'}
+                  className={active ? 'w-full rounded-xl border border-brand-primary bg-bg-base p-4 text-right' : 'w-full rounded-xl border border-border-default p-4 text-right hover:bg-bg-base transition-colors'}
                 >
                   <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                     <div className="min-w-0">
-                      <div className="text-sm font-semibold">{r.topic}</div>
-                      <div className="mt-1 text-xs text-neutral-600">dlqId: {r.dlqId}</div>
-                      <div className="mt-1 text-xs text-neutral-600">status: {r.status} | retry: {r.retryCount}/{r.maxRetries}</div>
-                      <div className="mt-1 truncate text-xs text-neutral-600">error: {r.errorMessage}</div>
+                      <div className="text-sm font-semibold text-text-primary">{r.topic}</div>
+                      <div className="mt-1 text-xs text-text-muted">شناسه: {r.dlqId}</div>
+                      <div className="mt-1 flex items-center gap-2 text-xs text-text-muted">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${r.status === 'resolved' ? 'bg-feedback-success-subtle text-feedback-success' : r.status === 'failed' ? 'bg-feedback-error-subtle text-feedback-error' : 'bg-feedback-warning-subtle text-feedback-warning'}`}>{r.status}</span>
+                        <span>تلاش: {r.retryCount}/{r.maxRetries}</span>
+                      </div>
+                      <div className="mt-1 truncate text-xs text-text-muted">خطا: {r.errorMessage}</div>
                     </div>
                     {canResolve ? (
                       <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openResolve(r);
-                          }}
-                          className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
-                          disabled={loading || r.status === 'resolved'}
-                        >
-                          Resolve
-                        </button>
+                        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); openResolve(r); }} disabled={loading || r.status === 'resolved'}>
+                          حل
+                        </Button>
                       </div>
                     ) : null}
                   </div>
@@ -317,107 +307,103 @@ export default function DlqPage() {
               );
             })}
 
-            {!loading && rows.length === 0 ? <div className="text-sm text-neutral-600">موردی یافت نشد.</div> : null}
+            {!loading && rows.length === 0 ? (
+              <div className="text-center py-12">
+                <AlertCircle className="mx-auto h-12 w-12 text-text-muted opacity-50" />
+                <p className="mt-3 text-sm text-text-muted">موردی یافت نشد.</p>
+              </div>
+            ) : null}
           </div>
 
-          <div className="rounded-2xl border p-4">
+          <Card className="p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <div className="text-sm font-semibold">Details</div>
-                <div className="mt-1 text-xs text-neutral-600">Select an entry to view full payload</div>
+                <div className="text-sm font-semibold text-text-primary">جزئیات</div>
+                <div className="mt-1 text-xs text-text-muted">یک مورد را برای مشاهده payload کامل انتخاب کنید</div>
               </div>
               {selected ? (
-                <button type="button" onClick={() => setSelected(null)} className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50">
+                <Button variant="ghost" size="sm" onClick={() => setSelected(null)}>
                   بستن
-                </button>
+                </Button>
               ) : null}
             </div>
 
             {!selected ? (
-              <div className="mt-4 text-sm text-neutral-600">هیچ موردی انتخاب نشده است.</div>
+              <div className="mt-4 text-sm text-text-muted">هیچ موردی انتخاب نشده است.</div>
             ) : (
               <div className="mt-4 space-y-3">
-                <div className="rounded-xl border p-3">
-                  <div className="text-xs text-neutral-600">topic</div>
-                  <div className="mt-1 text-sm font-medium">{selected.topic}</div>
-                  <div className="mt-2 text-xs text-neutral-600">status</div>
-                  <div className="mt-1 text-sm font-medium">{selected.status}</div>
-                  <div className="mt-2 text-xs text-neutral-600">consumerGroup</div>
-                  <div className="mt-1 text-sm font-medium">{selected.consumerGroup}</div>
+                <div className="rounded-xl border border-border-default p-3">
+                  <div className="text-xs text-text-muted">topic</div>
+                  <div className="mt-1 text-sm font-medium text-text-primary">{selected.topic}</div>
+                  <div className="mt-2 text-xs text-text-muted">وضعیت</div>
+                  <div className="mt-1 text-sm font-medium text-text-primary">{selected.status}</div>
+                  <div className="mt-2 text-xs text-text-muted">consumerGroup</div>
+                  <div className="mt-1 text-sm font-medium text-text-primary">{selected.consumerGroup}</div>
                 </div>
 
                 <details open className="rounded-xl border p-3">
                   <summary className="cursor-pointer text-sm font-medium">Payload</summary>
-                  <pre className="mt-3 max-h-80 overflow-auto rounded-xl border bg-neutral-50 p-3 text-xs text-neutral-700">{JSON.stringify(selected.value, null, 2)}</pre>
+                  <pre className="mt-3 max-h-80 overflow-auto rounded-xl border bg-bg-base p-3 text-xs text-text-secondary">{JSON.stringify(selected.value, null, 2)}</pre>
                 </details>
 
                 <details className="rounded-xl border p-3">
                   <summary className="cursor-pointer text-sm font-medium">Headers</summary>
-                  <pre className="mt-3 max-h-56 overflow-auto rounded-xl border bg-neutral-50 p-3 text-xs text-neutral-700">{JSON.stringify(selected.headers, null, 2)}</pre>
+                  <pre className="mt-3 max-h-56 overflow-auto rounded-xl border bg-bg-base p-3 text-xs text-text-secondary">{JSON.stringify(selected.headers, null, 2)}</pre>
                 </details>
 
                 <details className="rounded-xl border p-3">
                   <summary className="cursor-pointer text-sm font-medium">Error</summary>
-                  <div className="mt-3 text-xs text-neutral-600">{selected.errorMessage}</div>
+                  <div className="mt-3 text-xs text-text-muted">{selected.errorMessage}</div>
                   {selected.errorStack ? (
-                    <pre className="mt-3 max-h-56 overflow-auto rounded-xl border bg-neutral-50 p-3 text-xs text-neutral-700">{selected.errorStack}</pre>
+                    <pre className="mt-3 max-h-56 overflow-auto rounded-xl border bg-bg-base p-3 text-xs text-text-secondary">{selected.errorStack}</pre>
                   ) : null}
                 </details>
               </div>
             )}
-          </div>
+          </Card>
         </div>
       ) : null}
 
       {resolveModalOpen && resolveTarget ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-xl rounded-2xl bg-white p-5 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay p-4">
+          <Card className="w-full max-w-xl p-5" elevation={3}>
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="text-sm font-semibold">Resolve DLQ entry</div>
-                <div className="mt-1 text-xs text-neutral-600">This will mark the entry as resolved. It does not replay the message.</div>
+                <div className="text-sm font-semibold text-text-primary">حل DLQ entry</div>
+                <div className="mt-1 text-xs text-text-muted">این عملیات entry را به‌عنوان حل‌شده علامت‌گذاری می‌کند. پیام را مجدداً ارسال نمی‌کند.</div>
               </div>
-              <button
-                type="button"
-                className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
-                onClick={() => {
-                  setResolveModalOpen(false);
-                  setResolveTarget(null);
-                  setResolveConfirmText('');
-                }}
-                disabled={loading}
-              >
+              <Button variant="ghost" size="sm" onClick={() => { setResolveModalOpen(false); setResolveTarget(null); setResolveConfirmText(''); }} disabled={loading}>
                 بستن
-              </button>
+              </Button>
             </div>
 
-            <div className="mt-4 rounded-xl border p-3">
-              <div className="text-xs text-neutral-600">dlqId</div>
-              <div className="mt-1 text-sm font-medium">{resolveTarget.dlqId}</div>
-              <div className="mt-2 text-xs text-neutral-600">topic</div>
-              <div className="mt-1 text-sm font-medium">{resolveTarget.topic}</div>
+            <div className="mt-4 rounded-xl border border-border-default p-3">
+              <div className="text-xs text-text-muted">شناسه</div>
+              <div className="mt-1 text-sm font-medium text-text-primary">{resolveTarget.dlqId}</div>
+              <div className="mt-2 text-xs text-text-muted">topic</div>
+              <div className="mt-1 text-sm font-medium text-text-primary">{resolveTarget.topic}</div>
             </div>
 
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               <div>
-                <div className="text-xs text-neutral-600">resolution</div>
+                <div className="text-xs text-text-muted">نوع حل</div>
                 <select
                   value={resolveResolution}
                   onChange={(e) => setResolveResolution((e.target.value as any) === 'auto' ? 'auto' : 'manual')}
-                  className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:ring-2 focus:ring-brand-primary focus:border-transparent"
                   disabled={loading}
                 >
-                  <option value="manual">manual</option>
-                  <option value="auto">auto</option>
+                  <option value="manual">دستی</option>
+                  <option value="auto">خودکار</option>
                 </select>
               </div>
 
               <div>
-                <div className="text-xs text-neutral-600">confirmation</div>
+                <div className="text-xs text-text-muted">تأیید</div>
                 <input
                   value={resolveConfirmText}
                   onChange={(e) => setResolveConfirmText(e.target.value)}
-                  className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:ring-2 focus:ring-brand-primary focus:border-transparent"
                   placeholder={`Type: RESOLVE ${resolveTarget.dlqId}`}
                   disabled={loading}
                 />
@@ -425,28 +411,14 @@ export default function DlqPage() {
             </div>
 
             <div className="mt-4 flex items-center justify-end gap-2">
-              <button
-                type="button"
-                className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
-                onClick={() => {
-                  setResolveModalOpen(false);
-                  setResolveTarget(null);
-                  setResolveConfirmText('');
-                }}
-                disabled={loading}
-              >
+              <Button variant="ghost" size="md" onClick={() => { setResolveModalOpen(false); setResolveTarget(null); setResolveConfirmText(''); }} disabled={loading}>
                 انصراف
-              </button>
-              <button
-                type="button"
-                className="rounded-xl bg-rose-600 px-3 py-2 text-sm font-medium text-white hover:bg-rose-700"
-                onClick={submitResolve}
-                disabled={loading}
-              >
-                تایید Resolve
-              </button>
+              </Button>
+              <Button variant="danger" size="md" onClick={submitResolve} disabled={loading}>
+                تأیید حل
+              </Button>
             </div>
-          </div>
+          </Card>
         </div>
       ) : null}
     </main>

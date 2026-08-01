@@ -25,7 +25,9 @@ param(
 $ErrorActionPreference = 'SilentlyContinue'
 
 # ── Project root ──────────────────────────────────────────────────────────────
-$ROOT = $PSScriptRoot
+# Normalize to canonical Windows path casing to prevent webpack module duplication
+# (D:\ vs d:\ causes React and React-DOM to load as separate instances)
+$ROOT = (Get-Item $PSScriptRoot).FullName
 $SERVICES = Join-Path $ROOT 'services'
 $NEXT_BIN = Join-Path $ROOT 'node_modules\next\dist\bin\next'
 
@@ -96,7 +98,7 @@ function Test-PortInUse($port) {
 # ── Helper: start a process in a new window ───────────────────────────────────
 function Start-ServiceWindow($title, $command, $workingDir, $envVars = @{}) {
   $script = "@echo off`ntitle $title`n"
-  foreach ($kv in $envVars) {
+  foreach ($kv in $envVars.GetEnumerator()) {
     $script += "set $($kv.Key)=$($kv.Value)`n"
   }
   $script += "cd /d `"$workingDir`"`n"

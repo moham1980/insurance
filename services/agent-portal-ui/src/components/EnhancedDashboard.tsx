@@ -3,7 +3,14 @@ import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Cart
 import { TrendingUp, DollarSign, Shield, FileText, Activity, Users } from 'lucide-react';
 import { agentPortalAPI } from '../lib/api';
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
+const COLORS = [
+  'var(--color-brand-primary)',
+  'var(--color-status-success)',
+  'var(--color-status-warning)',
+  'var(--color-status-danger)',
+  'var(--color-brand-secondary)',
+  'var(--color-brand-accent)',
+];
 
 interface DashboardStats {
   totalPolicies: number;
@@ -101,18 +108,18 @@ export default function EnhancedDashboard() {
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-900">داشبورد نماینده</h1>
+          <h1 className="text-2xl font-bold text-text-primary">داشبورد نماینده</h1>
           <div className="flex items-center space-x-2 space-x-reverse">
             <div className="animate-pulse flex space-x-4">
-              <div className="h-2 w-2 bg-gray-400 rounded-full"></div>
-              <div className="h-2 w-2 bg-gray-400 rounded-full"></div>
-              <div className="h-2 w-2 bg-gray-400 rounded-full"></div>
+              <div className="h-2 w-2 bg-text-muted rounded-full"></div>
+              <div className="h-2 w-2 bg-text-muted rounded-full"></div>
+              <div className="h-2 w-2 bg-text-muted rounded-full"></div>
             </div>
           </div>
         </div>
         <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-          <p className="mt-2 text-gray-600">در حال بارگذاری...</p>
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary"></div>
+          <p className="mt-2 text-text-muted">در حال بارگذاری...</p>
         </div>
       </div>
     );
@@ -122,15 +129,15 @@ export default function EnhancedDashboard() {
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-900">داشبورد نماینده</h1>
+          <h1 className="text-2xl font-bold text-text-primary">داشبورد نماینده</h1>
           <button
             onClick={loadDashboardData}
-            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
+            className="px-4 py-2 bg-brand-primary text-text-on-brand rounded-md hover:opacity-90 transition-colors"
           >
             تلاش مجدد
           </button>
         </div>
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+        <div className="bg-feedback-error-subtle border border-feedback-error/30 text-feedback-error px-4 py-3 rounded-lg">
           {error}
         </div>
       </div>
@@ -142,23 +149,23 @@ export default function EnhancedDashboard() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">داشبورد نماینده</h1>
+          <h1 className="text-2xl font-bold text-text-primary">داشبورد نماینده</h1>
           {lastUpdate && (
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-sm text-text-muted mt-1">
               آخرین بروزرسانی: {lastUpdate.toLocaleString('fa-IR')}
             </p>
           )}
         </div>
         <div className="flex items-center space-x-2 space-x-reverse">
           <div className={`flex items-center px-3 py-1 rounded-full text-sm ${
-            isOnline ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+            isOnline ? 'bg-feedback-success-subtle text-feedback-success' : 'bg-feedback-error-subtle text-feedback-error'
           }`}>
-            <div className={`h-2 w-2 rounded-full mr-2 ${isOnline ? 'bg-green-500' : 'bg-red-500'}`}></div>
+            <div className={`h-2 w-2 rounded-full mr-2 ${isOnline ? 'bg-feedback-success' : 'bg-feedback-error'}`}></div>
             {isOnline ? 'آنلاین' : 'آفلاین'}
           </div>
           <button
             onClick={loadDashboardData}
-            className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
+            className="p-2 text-text-muted hover:text-text-primary hover:bg-bg-base rounded-full transition-colors"
             aria-label="بروزرسانی"
           >
             <Activity className="h-5 w-5" />
@@ -201,8 +208,8 @@ export default function EnhancedDashboard() {
       {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Premium Trends Chart */}
-        <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">روند پریمیوم (۱۲ ماه گذشته)</h2>
+        <div className="bg-bg-raised shadow rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-text-primary mb-4">روند پریمیوم (۱۲ ماه گذشته)</h2>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={premiumTrends}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -210,15 +217,15 @@ export default function EnhancedDashboard() {
               <YAxis />
               <Tooltip />
               <Legend />
-              <Line type="monotone" dataKey="premium" stroke="#0088FE" name="پریمیوم (تومان)" />
-              <Line type="monotone" dataKey="policies" stroke="#00C49F" name="تعداد بیمه‌نامه" />
+              <Line type="monotone" dataKey="premium" stroke="var(--color-brand-primary)" name="پریمیوم (تومان)" />
+              <Line type="monotone" dataKey="policies" stroke="var(--color-status-success)" name="تعداد بیمه‌نامه" />
             </LineChart>
           </ResponsiveContainer>
         </div>
 
         {/* Commission History Chart */}
-        <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">تاریخچه کمیسیون (۱۲ ماه گذشته)</h2>
+        <div className="bg-bg-raised shadow rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-text-primary mb-4">تاریخچه کمیسیون (۱۲ ماه گذشته)</h2>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={commissionHistory}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -226,9 +233,9 @@ export default function EnhancedDashboard() {
               <YAxis />
               <Tooltip />
               <Legend />
-              <Bar dataKey="commission" fill="#0088FE" name="کل کمیسیون" />
-              <Bar dataKey="paid" fill="#00C49F" name="پرداخت شده" />
-              <Bar dataKey="pending" fill="#FFBB28" name="در انتظار" />
+              <Bar dataKey="commission" fill="var(--color-brand-primary)" name="کل کمیسیون" />
+              <Bar dataKey="paid" fill="var(--color-status-success)" name="پرداخت شده" />
+              <Bar dataKey="pending" fill="var(--color-status-warning)" name="در انتظار" />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -237,8 +244,8 @@ export default function EnhancedDashboard() {
       {/* Charts Row 2 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Policy Portfolio Pie Chart */}
-        <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">سبد بیمه‌نامه‌ها</h2>
+        <div className="bg-bg-raised shadow rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-text-primary mb-4">سبد بیمه‌نامه‌ها</h2>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
@@ -248,7 +255,7 @@ export default function EnhancedDashboard() {
                 labelLine={false}
                 label={({ product, percent }) => `${product} ${(percent * 100).toFixed(0)}%`}
                 outerRadius={80}
-                fill="#8884d8"
+                fill="var(--color-brand-secondary)"
                 dataKey="count"
               >
                 {policyPortfolio.map((entry, index) => (
@@ -261,8 +268,8 @@ export default function EnhancedDashboard() {
         </div>
 
         {/* Policy Portfolio Bar Chart */}
-        <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">پریمیوم به تفکیک محصول</h2>
+        <div className="bg-bg-raised shadow rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-text-primary mb-4">پریمیوم به تفکیک محصول</h2>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={policyPortfolio} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" />
@@ -270,16 +277,16 @@ export default function EnhancedDashboard() {
               <YAxis dataKey="product" type="category" width={100} />
               <Tooltip />
               <Legend />
-              <Bar dataKey="premium" fill="#0088FE" name="پریمیوم (تومان)" />
+              <Bar dataKey="premium" fill="var(--color-brand-primary)" name="پریمیوم (تومان)" />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
 
       {/* Quick Stats Grid */}
-      <div className="bg-white shadow rounded-lg p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">خلاصه وضعیت</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="bg-bg-raised shadow rounded-lg p-6">
+        <h2 className="text-lg font-semibold text-text-primary mb-4">خلاصه وضعیت</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           <QuickStat label="بیمه‌نامه‌های در انتظار" value={stats?.pendingPolicies?.toLocaleString('fa-IR') || '۰'} />
           <QuickStat label="خسارت‌های در انتظار" value={stats?.pendingClaims?.toLocaleString('fa-IR') || '۰'} />
           <QuickStat label="کمیسیون پرداخت شده" value={`${((stats?.totalCommission || 0) - (stats?.pendingCommission || 0)).toLocaleString('fa-IR')} تومان`} />
@@ -304,22 +311,22 @@ function StatCard({
   color: 'blue' | 'green' | 'yellow' | 'red';
 }) {
   const colorClasses = {
-    blue: 'bg-blue-500',
-    green: 'bg-green-500',
-    yellow: 'bg-yellow-500',
-    red: 'bg-red-500',
+    blue: 'bg-brand-primary',
+    green: 'bg-feedback-success',
+    yellow: 'bg-feedback-warning',
+    red: 'bg-feedback-error',
   };
 
   return (
-    <div className="bg-white shadow rounded-lg p-6 hover:shadow-lg transition-shadow">
+    <div className="bg-bg-raised shadow rounded-lg p-6 hover:shadow-lg transition-shadow">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-gray-600">{title}</p>
-          <p className="mt-2 text-2xl font-bold text-gray-900">{value}</p>
-          <p className="mt-1 text-sm text-gray-500">{change}</p>
+          <p className="text-sm font-medium text-text-muted">{title}</p>
+          <p className="mt-2 text-2xl font-bold text-text-primary">{value}</p>
+          <p className="mt-1 text-sm text-text-muted">{change}</p>
         </div>
         <div className={`p-3 rounded-full ${colorClasses[color]}`}>
-          <Icon className="h-6 w-6 text-white" />
+          <Icon className="h-6 w-6 text-text-on-brand" />
         </div>
       </div>
     </div>
@@ -328,9 +335,9 @@ function StatCard({
 
 function QuickStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-gray-50 rounded-lg p-4">
-      <p className="text-sm text-gray-600">{label}</p>
-      <p className="text-xl font-bold text-gray-900 mt-1">{value}</p>
+    <div className="bg-bg-base rounded-lg p-4">
+      <p className="text-sm text-text-muted">{label}</p>
+      <p className="text-xl font-bold text-text-primary mt-1">{value}</p>
     </div>
   );
 }

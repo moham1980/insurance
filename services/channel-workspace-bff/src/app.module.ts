@@ -12,7 +12,7 @@ import { RateLimitGuard } from './rate-limit.guard';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    HttpModule.register({ timeout: parseInt(process.env.DOWNSTREAM_TIMEOUT_MS || '10000', 10) }),
+    HttpModule.register({ timeout: parseInt(process.env.DOWNSTREAM_TIMEOUT_MS || '30000', 10) }),
   ],
   controllers: [ChannelController, BrokerController, HealthController],
   providers: [

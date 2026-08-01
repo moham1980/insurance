@@ -47,6 +47,10 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
   ],
   branch_manager: ['collections:plan_view', 'collections:plan_list', 'collections:installment_view', 'collections:installment_list'],
   auditor: ['collections:plan_view', 'collections:plan_list', 'collections:installment_view', 'collections:installment_list', 'collections:receivable_reconcile'],
+  broker_owner: ['collections:plan_view', 'collections:plan_list', 'collections:installment_view', 'collections:installment_list'],
+  broker_staff: ['collections:plan_view', 'collections:plan_list', 'collections:installment_view', 'collections:installment_list'],
+  agency_owner: ['collections:plan_view', 'collections:plan_list', 'collections:installment_view', 'collections:installment_list'],
+  agency_staff: ['collections:plan_view', 'collections:plan_list', 'collections:installment_view', 'collections:installment_list'],
 };
 
 export function permissionsForRoles(roles: string[] | undefined | null): PermissionKey[] {

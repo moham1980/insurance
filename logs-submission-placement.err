@@ -1,0 +1,82 @@
+{"level":"WARN","timestamp":"2026-08-01T21:48:41.831Z","logger":"kafkajs","message":"KafkaJS v2.0.0 switched default partitioner. To retain the same partitioning behavior as in previous versions, create the producer with the option \"createPartitioner: Partitioners.LegacyPartitioner\". See the migration guide at https://kafka.js.org/docs/migration-guide-v2.0.0#producer-new-default-partitioner for details. Silence this warning by setting the environment variable \"KAFKAJS_NO_PARTITIONER_WARNING=1\""}
+(node:23828) TimeoutNegativeWarning: -1785620922227 is a negative number.
+Timeout duration was set to 1.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[31m[Nest] 23828  - [39m08/02/2026, 1:21:53 AM [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31minvalid input syntax for type uuid: "test-submission-001"[39m
+QueryFailedError: invalid input syntax for type uuid: "test-submission-001"
+    at PostgresQueryRunner.query (D:\CascadeProjects\old\insurance\node_modules\typeorm\src\driver\postgres\PostgresQueryRunner.ts:325:19)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async SelectQueryBuilder.loadRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3868:25)
+    at async SelectQueryBuilder.executeEntitiesAndRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3614:26)
+    at async SelectQueryBuilder.getRawAndEntities (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1671:29)
+    at async SelectQueryBuilder.getOne (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1698:25)
+    at async SubmissionService.get (D:\CascadeProjects\old\insurance\services\submission-placement-service\src\submission.service.ts:153:24)
+    at async SubmissionController.get (D:\CascadeProjects\old\insurance\services\submission-placement-service\src\submission.controller.ts:48:18)
+[31m[Nest] 23828  - [39m08/02/2026, 1:21:53 AM [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31minvalid input syntax for type uuid: "test-submission-001"[39m
+QueryFailedError: invalid input syntax for type uuid: "test-submission-001"
+    at PostgresQueryRunner.query (D:\CascadeProjects\old\insurance\node_modules\typeorm\src\driver\postgres\PostgresQueryRunner.ts:325:19)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async SelectQueryBuilder.loadRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3868:25)
+    at async SelectQueryBuilder.executeEntitiesAndRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3614:26)
+    at async SelectQueryBuilder.getRawAndEntities (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1671:29)
+    at async SelectQueryBuilder.getMany (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1761:25)
+    at async RfqController.listRequests (D:\CascadeProjects\old\insurance\services\submission-placement-service\src\rfq.controller.ts:49:18)
+[31m[Nest] 23828  - [39m08/02/2026, 1:21:54 AM [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31minvalid input syntax for type uuid: "undefined"[39m
+QueryFailedError: invalid input syntax for type uuid: "undefined"
+    at PostgresQueryRunner.query (D:\CascadeProjects\old\insurance\node_modules\typeorm\src\driver\postgres\PostgresQueryRunner.ts:325:19)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async SelectQueryBuilder.loadRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3868:25)
+    at async SelectQueryBuilder.executeEntitiesAndRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3614:26)
+    at async SelectQueryBuilder.getRawAndEntities (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1671:29)
+    at async SelectQueryBuilder.getOne (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1698:25)
+    at async PlacementService.create (D:\CascadeProjects\old\insurance\services\submission-placement-service\src\placement\placement.service.ts:31:27)
+    at async PlacementController.createPlacement (D:\CascadeProjects\old\insurance\services\submission-placement-service\src\placement.controller.ts:47:18)
+[31m[Nest] 23828  - [39m08/02/2026, 1:21:54 AM [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31minvalid input syntax for type uuid: "test-placement-001"[39m
+QueryFailedError: invalid input syntax for type uuid: "test-placement-001"
+    at PostgresQueryRunner.query (D:\CascadeProjects\old\insurance\node_modules\typeorm\src\driver\postgres\PostgresQueryRunner.ts:325:19)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async SelectQueryBuilder.loadRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3868:25)
+    at async SelectQueryBuilder.executeEntitiesAndRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3614:26)
+    at async SelectQueryBuilder.getRawAndEntities (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1671:29)
+    at async SelectQueryBuilder.getOne (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1698:25)
+    at async PlacementService.get (D:\CascadeProjects\old\insurance\services\submission-placement-service\src\placement\placement.service.ts:67:23)
+    at async PlacementController.get (D:\CascadeProjects\old\insurance\services\submission-placement-service\src\placement.controller.ts:88:18)
+[31m[Nest] 23828  - [39m08/02/2026, 1:21:54 AM [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31minvalid input syntax for type uuid: "test-placement-001"[39m
+QueryFailedError: invalid input syntax for type uuid: "test-placement-001"
+    at PostgresQueryRunner.query (D:\CascadeProjects\old\insurance\node_modules\typeorm\src\driver\postgres\PostgresQueryRunner.ts:325:19)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async SelectQueryBuilder.loadRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3868:25)
+    at async SelectQueryBuilder.executeEntitiesAndRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3614:26)
+    at async SelectQueryBuilder.getRawAndEntities (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1671:29)
+    at async SelectQueryBuilder.getOne (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1698:25)
+    at async PlacementOrchestrator.bind (D:\CascadeProjects\old\insurance\services\submission-placement-service\src\placement\placement-orchestrator.ts:56:23)
+    at async PlacementController.bind (D:\CascadeProjects\old\insurance\services\submission-placement-service\src\placement.controller.ts:56:20)
+[31m[Nest] 23828  - [39m08/02/2026, 1:21:54 AM [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31minvalid input syntax for type uuid: "test-placement-001"[39m
+QueryFailedError: invalid input syntax for type uuid: "test-placement-001"
+    at PostgresQueryRunner.query (D:\CascadeProjects\old\insurance\node_modules\typeorm\src\driver\postgres\PostgresQueryRunner.ts:325:19)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async SelectQueryBuilder.loadRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3868:25)
+    at async SelectQueryBuilder.executeEntitiesAndRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3614:26)
+    at async SelectQueryBuilder.getRawAndEntities (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1671:29)
+    at async SelectQueryBuilder.getOne (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1698:25)
+    at async PlacementOrchestrator.retry (D:\CascadeProjects\old\insurance\services\submission-placement-service\src\placement\placement-orchestrator.ts:370:23)
+    at async PlacementController.retry (D:\CascadeProjects\old\insurance\services\submission-placement-service\src\placement.controller.ts:64:20)
+[31m[Nest] 23828  - [39m08/02/2026, 1:21:54 AM [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31minvalid input syntax for type uuid: "test-placement-001"[39m
+QueryFailedError: invalid input syntax for type uuid: "test-placement-001"
+    at PostgresQueryRunner.query (D:\CascadeProjects\old\insurance\node_modules\typeorm\src\driver\postgres\PostgresQueryRunner.ts:325:19)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async SelectQueryBuilder.loadRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3868:25)
+    at async SelectQueryBuilder.executeEntitiesAndRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3614:26)
+    at async SelectQueryBuilder.getRawAndEntities (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1671:29)
+    at async SelectQueryBuilder.getOne (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1698:25)
+    at async PlacementOrchestrator.cancel (D:\CascadeProjects\old\insurance\services\submission-placement-service\src\placement\placement-orchestrator.ts:382:23)
+    at async PlacementController.cancel (D:\CascadeProjects\old\insurance\services\submission-placement-service\src\placement.controller.ts:72:18)
+[31m[Nest] 23828  - [39m08/02/2026, 1:22:26 AM [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31minvalid input syntax for type uuid: "test-submission-001"[39m
+QueryFailedError: invalid input syntax for type uuid: "test-submission-001"
+    at PostgresQueryRunner.query (D:\CascadeProjects\old\insurance\node_modules\typeorm\src\driver\postgres\PostgresQueryRunner.ts:325:19)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async SelectQueryBuilder.loadRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3868:25)
+    at async SelectQueryBuilder.executeEntitiesAndRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3614:26)
+    at async SelectQueryBuilder.getRawAndEntities (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1671:29)
+    at async SelectQueryBuilder.getMany (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1761:25)
+    at async RfqController.listRequests (D:\CascadeProjects\old\insurance\services\submission-placement-service\src\rfq.controller.ts:49:18)

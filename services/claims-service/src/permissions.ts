@@ -41,8 +41,8 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
   call_center: ['claims:register', 'claims:advocacy:view'],
   agency_owner: ['claims:register', 'claims:advocacy:view'],
   agency_staff: ['claims:register', 'claims:advocacy:view'],
-  broker_owner: ['claims:register', 'claims:advocacy:manage', 'claims:adjuster:refer', 'claims:projection:view', 'claims:document:attach', 'claims:document:view', 'claims:document:download'],
-  broker_staff: ['claims:register', 'claims:advocacy:view'],
+  broker_owner: ['claims:register', 'claims:view', 'claims:list', 'claims:advocacy:manage', 'claims:advocacy:view', 'claims:adjuster:refer', 'claims:projection:view', 'claims:document:attach', 'claims:document:view', 'claims:document:download'],
+  broker_staff: ['claims:register', 'claims:view', 'claims:list', 'claims:advocacy:view'],
 };
 
 export function permissionsForRoles(roles: string[] | undefined | null): PermissionKey[] {

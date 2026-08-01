@@ -1,0 +1,24 @@
+[31m[Nest] 38776  - [39m08/02/2026, 1:22:26 AM [31m  ERROR[39m [38;5;3m[AllExceptionsFilter] [39m[31mUnhandled exception: Internal server error[39m
+AggregateError
+    at AxiosError.from (D:\CascadeProjects\old\insurance\node_modules\axios\lib\core\AxiosError.js:77:24)
+    at RedirectableRequest.handleRequestError (D:\CascadeProjects\old\insurance\node_modules\axios\lib\adapters\http.js:1161:27)
+    at RedirectableRequest.emit (node:events:520:35)
+    at RedirectableRequest.emit (node:domain:489:12)
+    at ClientRequest.eventHandlers.<computed> (D:\CascadeProjects\old\insurance\node_modules\follow-redirects\index.js:56:24)
+    at ClientRequest.emit (node:events:508:28)
+    at ClientRequest.emit (node:domain:489:12)
+    at emitErrorEvent (node:_http_client:108:11)
+    at Socket.socketErrorListener (node:_http_client:575:5)
+    at Socket.emit (node:events:520:35)
+[31m[Nest] 38776  - [39m08/02/2026, 1:22:27 AM [31m  ERROR[39m [38;5;3m[AllExceptionsFilter] [39m[31mUnhandled exception: Internal server error[39m
+AggregateError
+    at AxiosError.from (D:\CascadeProjects\old\insurance\node_modules\axios\lib\core\AxiosError.js:77:24)
+    at RedirectableRequest.handleRequestError (D:\CascadeProjects\old\insurance\node_modules\axios\lib\adapters\http.js:1161:27)
+    at RedirectableRequest.emit (node:events:520:35)
+    at RedirectableRequest.emit (node:domain:489:12)
+    at ClientRequest.eventHandlers.<computed> (D:\CascadeProjects\old\insurance\node_modules\follow-redirects\index.js:56:24)
+    at ClientRequest.emit (node:events:508:28)
+    at ClientRequest.emit (node:domain:489:12)
+    at emitErrorEvent (node:_http_client:108:11)
+    at Socket.socketErrorListener (node:_http_client:575:5)
+    at Socket.emit (node:events:520:35)

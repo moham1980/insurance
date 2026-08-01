@@ -38,7 +38,7 @@ export function AiToggle() {
       }}
       className={
         'inline-flex items-center rounded-xl border px-3 py-2 text-sm font-medium transition-colors ' +
-        (enabled ? 'bg-neutral-900 text-white' : 'bg-white text-neutral-800 hover:bg-neutral-50')
+        (enabled ? 'bg-brand-primary text-text-on-brand border-brand-primary' : 'bg-bg-raised text-text-primary border-border-default hover:bg-bg-base')
       }
       aria-pressed={enabled}
     >

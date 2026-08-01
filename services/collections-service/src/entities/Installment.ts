@@ -1,5 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
-import { InstallmentPlan } from './InstallmentPlan';
+import type { InstallmentPlan } from './InstallmentPlan';
 
 @Entity('installments')
 @Index(['planId', 'installmentNo'], { unique: true })
@@ -72,7 +72,7 @@ export class Installment {
   @Column({ name: 'receivable_id', type: 'uuid', nullable: true })
   receivableId!: string | null;
 
-  @ManyToOne(() => InstallmentPlan, (p) => p.installments)
+  @ManyToOne('InstallmentPlan', (p: InstallmentPlan) => p.installments)
   @JoinColumn({ name: 'plan_id' })
   plan!: InstallmentPlan;
 

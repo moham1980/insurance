@@ -551,4 +551,15 @@ export class BrokerController {
     const data = await this.bff.getUnderwritingSlaMetrics(extractToken(req), { from, to });
     return { success: true, data, correlationId: this.cid(headers) };
   }
+
+  // Copilot chat proxy
+  @Post('copilot/chat')
+  async copilotChat(@Body() body: any, @Req() req: any, @Headers() headers: Record<string, any>) {
+    const data = await this.bff.copilotChat(
+      extractToken(req),
+      body?.message,
+      body?.conversationHistory,
+    );
+    return { success: true, data: data?.data ?? data, correlationId: this.cid(headers) };
+  }
 }

@@ -2,13 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, FileText, ShieldAlert, CreditCard, User, Gavel, MessageSquare, FileSearch, RefreshCw } from 'lucide-react';
+import { Home, FileText, ShieldAlert, CreditCard, User, Gavel, MessageSquare, FileSearch, RefreshCw, ListChecks, Bot, Wallet, PenSquare, FilePlus, ShieldCheck, Headphones, Search } from 'lucide-react';
 import { cn } from '@insurance/ui-utils';
 import { ThemeToggle, SkipLink, BottomNav } from '@insurance/design-system';
 import { useBrandTheme } from '@/config/brand-provider';
 
 const navItems = [
-  { href: '/', label: 'خانه', icon: Home },
+  { href: '/dashboard', label: 'خانه', icon: Home },
   { href: '/policies', label: 'بیمه‌نامه‌ها', icon: FileText },
   { href: '/claims', label: 'خسارات', icon: ShieldAlert },
   { href: '/payments', label: 'پرداخت‌ها', icon: CreditCard },
@@ -16,10 +16,20 @@ const navItems = [
 ];
 
 const secondaryNavItems = [
+  { href: '/rfq', label: 'استعلام بیمه', icon: Search },
+  { href: '/chatbot', label: 'دستیار هوشمند', icon: Bot },
+  { href: '/support', label: 'پشتیبانی', icon: Headphones },
+  { href: '/fnol', label: 'ثبت خسارت', icon: FilePlus },
+  { href: '/endorsement', label: 'اصلاح بیمه‌نامه', icon: PenSquare },
+  { href: '/renewal', label: 'تمدید', icon: RefreshCw },
+  { href: '/renewal-comparison', label: 'مقایسه تمدید', icon: FileSearch },
+  { href: '/endorsement-tracking', label: 'پیگیری الحاقیه', icon: ListChecks },
+  { href: '/complaints', label: 'ثبت شکایت', icon: ShieldAlert },
+  { href: '/complaints/list', label: 'پیگیری شکایات', icon: ListChecks },
   { href: '/advocacy', label: 'وکالت', icon: Gavel },
   { href: '/adjuster-communication', label: 'ارتباط با کارشناس', icon: MessageSquare },
-  { href: '/endorsement-tracking', label: 'پیگیری الحاقیه', icon: FileSearch },
-  { href: '/renewal-comparison', label: 'مقایسه تمدید', icon: RefreshCw },
+  { href: '/portfolio', label: 'پرتفوی', icon: Wallet },
+  { href: '/consent', label: 'رضایت‌ها', icon: ShieldCheck },
 ];
 
 export function PortalShell({ children }: { children: React.ReactNode }) {
@@ -31,7 +41,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
     href: item.href,
     label: item.label,
     icon: item.icon,
-    active: item.href === '/' ? safePathname === '/' : safePathname.startsWith(item.href),
+    active: item.href === '/dashboard' ? safePathname === '/dashboard' || safePathname.startsWith('/dashboard') : safePathname.startsWith(item.href),
   }));
 
   return (

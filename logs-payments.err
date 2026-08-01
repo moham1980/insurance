@@ -1,0 +1,14 @@
+{"level":"WARN","timestamp":"2026-08-01T21:49:00.218Z","logger":"kafkajs","message":"KafkaJS v2.0.0 switched default partitioner. To retain the same partitioning behavior as in previous versions, create the producer with the option \"createPartitioner: Partitioners.LegacyPartitioner\". See the migration guide at https://kafka.js.org/docs/migration-guide-v2.0.0#producer-new-default-partitioner for details. Silence this warning by setting the environment variable \"KAFKAJS_NO_PARTITIONER_WARNING=1\""}
+(node:28800) TimeoutNegativeWarning: -1785620943491 is a negative number.
+Timeout duration was set to 1.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[31m[Nest] 28800  - [39m08/02/2026, 1:22:00 AM [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31minvalid input syntax for type uuid: "test-payment-001"[39m
+QueryFailedError: invalid input syntax for type uuid: "test-payment-001"
+    at PostgresQueryRunner.query (D:\CascadeProjects\old\insurance\node_modules\typeorm\src\driver\postgres\PostgresQueryRunner.ts:325:19)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async SelectQueryBuilder.loadRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3868:25)
+    at async SelectQueryBuilder.executeEntitiesAndRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3614:26)
+    at async SelectQueryBuilder.getRawAndEntities (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1671:29)
+    at async SelectQueryBuilder.getOne (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1698:25)
+    at async PaymentsService.getIntent (D:\CascadeProjects\old\insurance\services\payments-service\src\payments.service.ts:888:12)
+    at async PaymentsController.get (D:\CascadeProjects\old\insurance\services\payments-service\src\payments.controller.ts:369:20)

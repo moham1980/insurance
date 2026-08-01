@@ -56,9 +56,9 @@ export function OverviewCards() {
         <div key={x.name} className="rounded-2xl border p-4">
           <div className="flex items-center justify-between">
             <div className="text-sm font-semibold">{x.name}</div>
-            <div className={x.ok ? 'text-sm text-emerald-600' : 'text-sm text-rose-600'}>{x.ok ? 'OK' : 'DOWN'}</div>
+            <div className={x.ok ? 'text-sm text-feedback-success' : 'text-sm text-feedback-error'}>{x.ok ? 'OK' : 'DOWN'}</div>
           </div>
-          <div className="mt-2 text-xs text-neutral-600">{x.ms}ms</div>
+          <div className="mt-2 text-xs text-text-muted">{x.ms}ms</div>
         </div>
       ))}
     </div>

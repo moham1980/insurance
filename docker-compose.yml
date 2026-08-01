@@ -874,8 +874,8 @@ services:
       OUTBOX_POLL_INTERVAL_MS: 1000
       OUTBOX_BATCH_SIZE: 100
       OUTBOX_MAX_ATTEMPTS: 10
-      # Bank payment provider (Phase 2.1)
-      PSP_PROVIDER: ${PSP_PROVIDER:-iran-psp}
+      # Bank payment provider (Phase 2.1) — mock for demo
+      PSP_PROVIDER: ${PSP_PROVIDER:-mock}
       BANK_PAYMENT_SERVICE_URL: ${BANK_PAYMENT_SERVICE_URL}
       BANK_PAYMENT_API_KEY: ${BANK_PAYMENT_API_KEY}
       BANK_PAYMENT_TIMEOUT_MS: ${BANK_PAYMENT_TIMEOUT_MS:-30000}
@@ -1408,9 +1408,11 @@ services:
       NEXT_PUBLIC_TENANT_ID: ${NEXT_PUBLIC_TENANT_ID:-default}
       CUSTOMER_PORTAL_URL: http://customer-portal-service:18027
       NEXT_PUBLIC_CUSTOMER_360_URL: http://customer-360-service:18026
+      COPILOT_SERVICE_URL: http://copilot-service:18030
     depends_on:
       - customer-portal-service
       - customer-360-service
+      - copilot-service
     restart: unless-stopped
 
   agent-portal-service:
@@ -1493,6 +1495,7 @@ services:
       COLLECTIONS_SERVICE_URL: http://collections-service:18025
       UNDERWRITING_SERVICE_URL: http://underwriting-service:18020
       NOTIFICATION_SERVICE_URL: http://notification-service:18037
+      COPILOT_SERVICE_URL: http://copilot-service:18030
     depends_on:
       - auth-service
       - claims-service
@@ -1518,6 +1521,7 @@ services:
       SALES_NETWORK_SERVICE_URL: http://sales-network-service:18022/sales-network
       PRODUCT_SERVICE_URL: http://product-service:18018
       SUBMISSION_PLACEMENT_SERVICE_URL: http://submission-placement-service:18025
+      COPILOT_SERVICE_URL: http://copilot-service:18030
     depends_on:
       - auth-service
       - sales-network-service
@@ -1550,6 +1554,7 @@ services:
       NODE_ENV: production
       PORT: 3030
       NEXT_PUBLIC_BROKER_BFF_URL: http://broker-portal-bff:3030
+      NEXT_PUBLIC_API_URL: http://api-gateway:18000
     depends_on:
       - api-gateway
       - broker-portal-bff
@@ -1660,8 +1665,8 @@ services:
       DB_SCHEMA: billing
       DB_SYNC: "false"
       KAFKA_BROKERS: insurance-kafka:9092
-      # Ecosystem bank payment integration (Phase 2.3)
-      PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-ZARINPAL}
+      # Ecosystem bank payment integration (Phase 2.3) — mock for demo
+      PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-MOCK}
       INSURANCE_BANK_ACCOUNT: ${INSURANCE_BANK_ACCOUNT}
       INSURANCE_ESCROW_ACCOUNT: ${INSURANCE_ESCROW_ACCOUNT:-1000000003}
       AUTO_DEPOSIT_ENABLED: ${AUTO_DEPOSIT_ENABLED:-false}
@@ -1716,6 +1721,13 @@ services:
       ECOSYSTEM_AI_ENABLED: ${ECOSYSTEM_AI_ENABLED:-false}
       ECOSYSTEM_AI_GATEWAY_URL: ${ECOSYSTEM_AI_GATEWAY_URL:-http://localhost:8540}
       ECOSYSTEM_AI_TIMEOUT_MS: ${ECOSYSTEM_AI_TIMEOUT_MS:-60000}
+      # DeepSeek LLM provider (primary for demo)
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com/v1}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
+      DEEPSEEK_MAX_TOKENS: ${DEEPSEEK_MAX_TOKENS:-2000}
+      DEEPSEEK_TEMPERATURE: ${DEEPSEEK_TEMPERATURE:-0.7}
+      DEEPSEEK_TIMEOUT: ${DEEPSEEK_TIMEOUT:-30000}
     depends_on:
       - auth-service
     restart: unless-stopped

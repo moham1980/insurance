@@ -26,11 +26,6 @@ export class CollectionsController {
     return typeof x === 'string' && x.trim().length > 0;
   }
 
-  @Get('/health')
-  health() {
-    return { status: 'ok', service: 'collections-service' };
-  }
-
   @Post('/collections/plans')
   @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
   @RequirePermissions('collections:plan_create')

@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { BarChart3, RefreshCw, AlertCircle, TrendingUp, Clock, ShieldAlert, FileText, Plus, Save, Search, ChevronRight, ChevronLeft } from 'lucide-react';
 import { apiFetch, getAuthUser } from '@/lib/api';
 import { reportingPermissionsForRoles } from '@/lib/rbac';
+import { Button, Card, StatCard } from '@insurance/design-system';
 
 type ReadyKpis = {
   issuanceSpeed: { totalIssued: number; avgMinutesQuoteToIssue: number | null };
@@ -435,7 +437,7 @@ export default function ReportingPage() {
   }, [selectedPolicy]);
 
   function chip(text: string) {
-    return <span className="rounded-full border bg-white px-2 py-0.5 text-[11px] text-neutral-700">{text}</span>;
+    return <span className="rounded-full border bg-bg-raised px-2 py-0.5 text-[11px] text-text-secondary">{text}</span>;
   }
 
   useEffect(() => {
@@ -721,81 +723,82 @@ export default function ReportingPage() {
   }, [snapLimit, snapOffset]);
 
   return (
-    <main className="p-6">
+    <main className="p-6 max-w-7xl mx-auto" dir="rtl">
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold">گزارش‌ها / KPI</h1>
-          <p className="mt-1 text-sm text-neutral-600">
-            داشبورد enterprise KPI (Ready projections + Snapshot ingestion) با کنترل دسترسی نقش‌محور
-          </p>
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
+            <BarChart3 className="h-5 w-5" />
+          </div>
+          <div>
+            <h1 className="text-xl font-semibold">گزارش‌ها / KPI</h1>
+            <p className="mt-1 text-sm text-text-muted">
+              داشبورد enterprise KPI (Ready projections + Snapshot ingestion) با کنترل دسترسی نقش‌محور
+            </p>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50"
-            disabled={!canView || readyLoading}
-            onClick={loadReady}
-          >
+          <Button variant="ghost" size="sm" disabled={!canView || readyLoading} isLoading={readyLoading} onClick={loadReady}>
+            <RefreshCw className="h-4 w-4 ml-1" />
             بروزرسانی KPIهای Ready
-          </button>
-          <button
-            type="button"
-            className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50"
-            disabled={!canView || snapLoading}
-            onClick={() => loadSnapshots({ resetOffset: true })}
-          >
+          </Button>
+          <Button variant="ghost" size="sm" disabled={!canView || snapLoading} isLoading={snapLoading} onClick={() => loadSnapshots({ resetOffset: true })}>
+            <RefreshCw className="h-4 w-4 ml-1" />
             بروزرسانی Snapshotها
-          </button>
+          </Button>
         </div>
       </div>
 
       <div className="mt-10">
         <div className="flex items-center justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-semibold">اتکایی (Reinsurance Projections)</h2>
-            <p className="mt-1 text-sm text-neutral-600">Read-modelهای derived از رویدادهای `insurance.ri.*` (server-driven pagination + RBAC)</p>
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
+              <ShieldAlert className="h-4 w-4" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold">اتکایی (Reinsurance Projections)</h2>
+              <p className="mt-1 text-sm text-text-muted">Read-modelهای derived از رویدادهای `insurance.ri.*` (server-driven pagination + RBAC)</p>
+            </div>
           </div>
-          <button
-            type="button"
-            className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
-            disabled={riBusy}
-            onClick={loadRiAll}
-          >
+          <Button variant="ghost" size="sm" disabled={riBusy} isLoading={riBusy} onClick={loadRiAll}>
+            <RefreshCw className="h-4 w-4 ml-1" />
             {riBusy ? 'در حال بروزرسانی...' : 'بروزرسانی'}
-          </button>
+          </Button>
         </div>
 
         {riErr ? (
-          <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
-            <div>خطا: {riErr.message}</div>
-            {riErr.correlationId ? <div className="mt-1 text-xs">correlationId: {riErr.correlationId}</div> : null}
+          <div className="mt-4 rounded-xl border border-feedback-error/30 bg-feedback-error-subtle p-4 text-sm text-feedback-error flex items-start gap-2">
+            <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+            <div>
+              <div>خطا: {riErr.message}</div>
+              {riErr.correlationId ? <div className="mt-1 text-xs">correlationId: {riErr.correlationId}</div> : null}
+            </div>
           </div>
         ) : null}
 
         <div className="mt-6 grid gap-6">
-          <div className="rounded-2xl border p-4">
+          <Card className="p-4">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="text-sm font-semibold">Ceded Calculations</div>
-                <div className="mt-1 text-xs text-neutral-600">topic: insurance.ri.ceded_calculated</div>
+                <div className="mt-1 text-xs text-text-muted">topic: insurance.ri.ceded_calculated</div>
               </div>
-              <div className="text-xs text-neutral-600">total: {riCededTotal}</div>
+              <div className="text-xs text-text-muted">total: {riCededTotal}</div>
             </div>
 
             <div className="mt-4 grid gap-2 md:grid-cols-5">
-              <input className="rounded-xl border px-3 py-2 text-sm" placeholder="contractId" value={riCededContractId} onChange={(e) => setRiCededContractId(e.target.value)} />
-              <input className="rounded-xl border px-3 py-2 text-sm" placeholder="policyId" value={riCededPolicyId} onChange={(e) => setRiCededPolicyId(e.target.value)} />
-              <input className="rounded-xl border px-3 py-2 text-sm" placeholder="claimId" value={riCededClaimId} onChange={(e) => setRiCededClaimId(e.target.value)} />
-              <input className="rounded-xl border px-3 py-2 text-sm" placeholder="limit" value={String(riCededLimit)} onChange={(e) => setRiCededLimit(parseInt(e.target.value || '25', 10) || 25)} />
-              <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" onClick={() => { setRiCededOffset(0); loadRiAll(); }} disabled={riBusy}>
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-sm text-text-primary" placeholder="contractId" value={riCededContractId} onChange={(e) => setRiCededContractId(e.target.value)} />
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-sm text-text-primary" placeholder="policyId" value={riCededPolicyId} onChange={(e) => setRiCededPolicyId(e.target.value)} />
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-sm text-text-primary" placeholder="claimId" value={riCededClaimId} onChange={(e) => setRiCededClaimId(e.target.value)} />
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-sm text-text-primary" placeholder="limit" value={String(riCededLimit)} onChange={(e) => setRiCededLimit(parseInt(e.target.value || '25', 10) || 25)} />
+              <Button variant="secondary" size="sm" onClick={() => { setRiCededOffset(0); loadRiAll(); }} disabled={riBusy}>
                 اعمال
-              </button>
+              </Button>
             </div>
 
             <div className="mt-4 overflow-auto">
               <table className="w-full text-sm">
-                <thead className="text-xs text-neutral-600">
+                <thead className="text-xs text-text-muted">
                   <tr className="border-b">
                     <th className="py-2 text-left">riKey</th>
                     <th className="py-2 text-left">contractId</th>
@@ -820,7 +823,7 @@ export default function ReportingPage() {
                   ))}
                   {!riBusy && riCededRows.length === 0 ? (
                     <tr>
-                      <td className="py-3 text-neutral-600" colSpan={7}>
+                      <td className="py-3 text-text-muted" colSpan={7}>
                         موردی یافت نشد.
                       </td>
                     </tr>
@@ -828,29 +831,29 @@ export default function ReportingPage() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </Card>
 
-          <div className="rounded-2xl border p-4">
+          <Card className="p-4">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="text-sm font-semibold">Bordereaux</div>
-                <div className="mt-1 text-xs text-neutral-600">topic: insurance.ri.borderaux_generated</div>
+                <div className="mt-1 text-xs text-text-muted">topic: insurance.ri.borderaux_generated</div>
               </div>
-              <div className="text-xs text-neutral-600">total: {riBorderauxTotal}</div>
+              <div className="text-xs text-text-muted">total: {riBorderauxTotal}</div>
             </div>
 
             <div className="mt-4 grid gap-2 md:grid-cols-4">
-              <input className="rounded-xl border px-3 py-2 text-sm" placeholder="contractId" value={riBorderauxContractId} onChange={(e) => setRiBorderauxContractId(e.target.value)} />
-              <input className="rounded-xl border px-3 py-2 text-sm" placeholder="limit" value={String(riBorderauxLimit)} onChange={(e) => setRiBorderauxLimit(parseInt(e.target.value || '25', 10) || 25)} />
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-sm text-text-primary" placeholder="contractId" value={riBorderauxContractId} onChange={(e) => setRiBorderauxContractId(e.target.value)} />
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-sm text-text-primary" placeholder="limit" value={String(riBorderauxLimit)} onChange={(e) => setRiBorderauxLimit(parseInt(e.target.value || '25', 10) || 25)} />
               <div />
-              <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" onClick={() => { setRiBorderauxOffset(0); loadRiAll(); }} disabled={riBusy}>
+              <Button variant="secondary" size="sm" onClick={() => { setRiBorderauxOffset(0); loadRiAll(); }} disabled={riBusy}>
                 اعمال
-              </button>
+              </Button>
             </div>
 
             <div className="mt-4 overflow-auto">
               <table className="w-full text-sm">
-                <thead className="text-xs text-neutral-600">
+                <thead className="text-xs text-text-muted">
                   <tr className="border-b">
                     <th className="py-2 text-left">borderauxId</th>
                     <th className="py-2 text-left">contractId</th>
@@ -871,7 +874,7 @@ export default function ReportingPage() {
                   ))}
                   {!riBusy && riBorderauxRows.length === 0 ? (
                     <tr>
-                      <td className="py-3 text-neutral-600" colSpan={5}>
+                      <td className="py-3 text-text-muted" colSpan={5}>
                         موردی یافت نشد.
                       </td>
                     </tr>
@@ -879,30 +882,30 @@ export default function ReportingPage() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </Card>
 
-          <div className="rounded-2xl border p-4">
+          <Card className="p-4">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="text-sm font-semibold">Recoveries</div>
-                <div className="mt-1 text-xs text-neutral-600">topics: insurance.ri.recovery_identified / insurance.ri.recovery_received</div>
+                <div className="mt-1 text-xs text-text-muted">topics: insurance.ri.recovery_identified / insurance.ri.recovery_received</div>
               </div>
-              <div className="text-xs text-neutral-600">total: {riRecoveryTotal}</div>
+              <div className="text-xs text-text-muted">total: {riRecoveryTotal}</div>
             </div>
 
             <div className="mt-4 grid gap-2 md:grid-cols-5">
-              <input className="rounded-xl border px-3 py-2 text-sm" placeholder="contractId" value={riRecoveryContractId} onChange={(e) => setRiRecoveryContractId(e.target.value)} />
-              <input className="rounded-xl border px-3 py-2 text-sm" placeholder="claimId" value={riRecoveryClaimId} onChange={(e) => setRiRecoveryClaimId(e.target.value)} />
-              <input className="rounded-xl border px-3 py-2 text-sm" placeholder="limit" value={String(riRecoveryLimit)} onChange={(e) => setRiRecoveryLimit(parseInt(e.target.value || '25', 10) || 25)} />
-              <input className="rounded-xl border px-3 py-2 text-sm" placeholder="offset" value={String(riRecoveryOffset)} onChange={(e) => setRiRecoveryOffset(parseInt(e.target.value || '0', 10) || 0)} />
-              <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" onClick={() => { setRiRecoveryOffset(0); loadRiAll(); }} disabled={riBusy}>
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-sm text-text-primary" placeholder="contractId" value={riRecoveryContractId} onChange={(e) => setRiRecoveryContractId(e.target.value)} />
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-sm text-text-primary" placeholder="claimId" value={riRecoveryClaimId} onChange={(e) => setRiRecoveryClaimId(e.target.value)} />
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-sm text-text-primary" placeholder="limit" value={String(riRecoveryLimit)} onChange={(e) => setRiRecoveryLimit(parseInt(e.target.value || '25', 10) || 25)} />
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-sm text-text-primary" placeholder="offset" value={String(riRecoveryOffset)} onChange={(e) => setRiRecoveryOffset(parseInt(e.target.value || '0', 10) || 0)} />
+              <Button variant="secondary" size="sm" onClick={() => { setRiRecoveryOffset(0); loadRiAll(); }} disabled={riBusy}>
                 اعمال
-              </button>
+              </Button>
             </div>
 
             <div className="mt-4 overflow-auto">
               <table className="w-full text-sm">
-                <thead className="text-xs text-neutral-600">
+                <thead className="text-xs text-text-muted">
                   <tr className="border-b">
                     <th className="py-2 text-left">recoveryId</th>
                     <th className="py-2 text-left">claimId</th>
@@ -925,7 +928,7 @@ export default function ReportingPage() {
                   ))}
                   {!riBusy && riRecoveryRows.length === 0 ? (
                     <tr>
-                      <td className="py-3 text-neutral-600" colSpan={6}>
+                      <td className="py-3 text-text-muted" colSpan={6}>
                         موردی یافت نشد.
                       </td>
                     </tr>
@@ -933,38 +936,41 @@ export default function ReportingPage() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </Card>
 
-          <div className="rounded-2xl border p-4">
+          <Card className="p-4">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="text-sm font-semibold">Fraud Case Escalations</div>
-                <div className="mt-1 text-xs text-neutral-600">topic: insurance.fraud.case_escalated</div>
+                <div className="mt-1 text-xs text-text-muted">topic: insurance.fraud.case_escalated</div>
               </div>
-              <div className="text-xs text-neutral-600">total: {escTotal}</div>
+              <div className="text-xs text-text-muted">total: {escTotal}</div>
             </div>
 
             {escErr ? (
-              <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
-                <div>خطا: {escErr.message}</div>
-                {escErr.correlationId ? <div className="mt-1 text-xs">correlationId: {escErr.correlationId}</div> : null}
+              <div className="mt-4 rounded-xl border border-feedback-error/30 bg-feedback-error-subtle p-4 text-sm text-feedback-error flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <div>
+                  <div>خطا: {escErr.message}</div>
+                  {escErr.correlationId ? <div className="mt-1 text-xs">correlationId: {escErr.correlationId}</div> : null}
+                </div>
               </div>
             ) : null}
 
             <div className="mt-4 grid gap-2 md:grid-cols-6">
-              <input className="rounded-xl border px-3 py-2 text-sm" placeholder="claimId" value={escClaimId} onChange={(e) => setEscClaimId(e.target.value)} />
-              <input className="rounded-xl border px-3 py-2 text-sm" placeholder="fraudCaseId" value={escFraudCaseId} onChange={(e) => setEscFraudCaseId(e.target.value)} />
-              <input className="rounded-xl border px-3 py-2 text-sm" placeholder="toUnit (siu/legal)" value={escToUnit} onChange={(e) => setEscToUnit(e.target.value)} />
-              <input className="rounded-xl border px-3 py-2 text-sm" placeholder="limit" value={String(escLimit)} onChange={(e) => setEscLimit(parseInt(e.target.value || '25', 10) || 25)} />
-              <input className="rounded-xl border px-3 py-2 text-sm" placeholder="offset" value={String(escOffset)} onChange={(e) => setEscOffset(parseInt(e.target.value || '0', 10) || 0)} />
-              <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" onClick={() => { setEscOffset(0); loadFraudEscalations(); }} disabled={escBusy}>
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-sm text-text-primary" placeholder="claimId" value={escClaimId} onChange={(e) => setEscClaimId(e.target.value)} />
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-sm text-text-primary" placeholder="fraudCaseId" value={escFraudCaseId} onChange={(e) => setEscFraudCaseId(e.target.value)} />
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-sm text-text-primary" placeholder="toUnit (siu/legal)" value={escToUnit} onChange={(e) => setEscToUnit(e.target.value)} />
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-sm text-text-primary" placeholder="limit" value={String(escLimit)} onChange={(e) => setEscLimit(parseInt(e.target.value || '25', 10) || 25)} />
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-sm text-text-primary" placeholder="offset" value={String(escOffset)} onChange={(e) => setEscOffset(parseInt(e.target.value || '0', 10) || 0)} />
+              <Button variant="secondary" size="sm" onClick={() => { setEscOffset(0); loadFraudEscalations(); }} disabled={escBusy}>
                 اعمال
-              </button>
+              </Button>
             </div>
 
             <div className="mt-4 overflow-auto">
               <table className="w-full text-sm">
-                <thead className="text-xs text-neutral-600">
+                <thead className="text-xs text-text-muted">
                   <tr className="border-b">
                     <th className="py-2 text-left">occurredAt</th>
                     <th className="py-2 text-left">fraudCaseId</th>
@@ -987,7 +993,7 @@ export default function ReportingPage() {
                   ))}
                   {!escBusy && escRows.length === 0 ? (
                     <tr>
-                      <td className="py-3 text-neutral-600" colSpan={6}>
+                      <td className="py-3 text-text-muted" colSpan={6}>
                         موردی یافت نشد.
                       </td>
                     </tr>
@@ -995,39 +1001,42 @@ export default function ReportingPage() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </Card>
 
-          <div className="rounded-2xl border p-4">
+          <Card className="p-4">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="text-sm font-semibold">Complaint SLA Breaches</div>
-                <div className="mt-1 text-xs text-neutral-600">topic: insurance.complaint.sla_breached</div>
+                <div className="mt-1 text-xs text-text-muted">topic: insurance.complaint.sla_breached</div>
               </div>
-              <div className="text-xs text-neutral-600">total: {slaTotal}</div>
+              <div className="text-xs text-text-muted">total: {slaTotal}</div>
             </div>
 
             {slaErr ? (
-              <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
-                <div>خطا: {slaErr.message}</div>
-                {slaErr.correlationId ? <div className="mt-1 text-xs">correlationId: {slaErr.correlationId}</div> : null}
+              <div className="mt-4 rounded-xl border border-feedback-error/30 bg-feedback-error-subtle p-4 text-sm text-feedback-error flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <div>
+                  <div>خطا: {slaErr.message}</div>
+                  {slaErr.correlationId ? <div className="mt-1 text-xs">correlationId: {slaErr.correlationId}</div> : null}
+                </div>
               </div>
             ) : null}
 
             <div className="mt-4 grid gap-2 md:grid-cols-7">
-              <input className="rounded-xl border px-3 py-2 text-sm" placeholder="complaintId" value={slaComplaintId} onChange={(e) => setSlaComplaintId(e.target.value)} />
-              <input className="rounded-xl border px-3 py-2 text-sm" placeholder="claimId" value={slaClaimId} onChange={(e) => setSlaClaimId(e.target.value)} />
-              <input className="rounded-xl border px-3 py-2 text-sm" placeholder="policyId" value={slaPolicyId} onChange={(e) => setSlaPolicyId(e.target.value)} />
-              <input className="rounded-xl border px-3 py-2 text-sm" placeholder="status" value={slaStatus} onChange={(e) => setSlaStatus(e.target.value)} />
-              <input className="rounded-xl border px-3 py-2 text-sm" placeholder="assignedTo" value={slaAssignedTo} onChange={(e) => setSlaAssignedTo(e.target.value)} />
-              <input className="rounded-xl border px-3 py-2 text-sm" placeholder="limit" value={String(slaLimit)} onChange={(e) => setSlaLimit(parseInt(e.target.value || '25', 10) || 25)} />
-              <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" onClick={() => { setSlaOffset(0); loadSlaBreaches(); }} disabled={slaBusy}>
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-sm text-text-primary" placeholder="complaintId" value={slaComplaintId} onChange={(e) => setSlaComplaintId(e.target.value)} />
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-sm text-text-primary" placeholder="claimId" value={slaClaimId} onChange={(e) => setSlaClaimId(e.target.value)} />
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-sm text-text-primary" placeholder="policyId" value={slaPolicyId} onChange={(e) => setSlaPolicyId(e.target.value)} />
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-sm text-text-primary" placeholder="status" value={slaStatus} onChange={(e) => setSlaStatus(e.target.value)} />
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-sm text-text-primary" placeholder="assignedTo" value={slaAssignedTo} onChange={(e) => setSlaAssignedTo(e.target.value)} />
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-sm text-text-primary" placeholder="limit" value={String(slaLimit)} onChange={(e) => setSlaLimit(parseInt(e.target.value || '25', 10) || 25)} />
+              <Button variant="secondary" size="sm" onClick={() => { setSlaOffset(0); loadSlaBreaches(); }} disabled={slaBusy}>
                 اعمال
-              </button>
+              </Button>
             </div>
 
             <div className="mt-4 overflow-auto">
               <table className="w-full text-sm">
-                <thead className="text-xs text-neutral-600">
+                <thead className="text-xs text-text-muted">
                   <tr className="border-b">
                     <th className="py-2 text-left">occurredAt</th>
                     <th className="py-2 text-left">complaintId</th>
@@ -1050,7 +1059,7 @@ export default function ReportingPage() {
                   ))}
                   {!slaBusy && slaRows.length === 0 ? (
                     <tr>
-                      <td className="py-3 text-neutral-600" colSpan={6}>
+                      <td className="py-3 text-text-muted" colSpan={6}>
                         موردی یافت نشد.
                       </td>
                     </tr>
@@ -1058,80 +1067,67 @@ export default function ReportingPage() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </Card>
         </div>
       </div>
 
 
 
       {!canView ? (
-        <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+        <Card className="mt-6 p-4 border-feedback-warning/30 bg-feedback-warning-subtle text-sm text-feedback-warning text-center">
           شما مجوز مشاهده گزارشات (`reporting:view`) را ندارید.
-        </div>
+        </Card>
       ) : null}
 
       {readyErr ? (
-        <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-          {readyErr.code}: {readyErr.message}
-          {readyErr.correlationId ? <div className="mt-2 text-xs">Correlation: {readyErr.correlationId}</div> : null}
+        <div className="mt-4 rounded-xl border border-feedback-error/30 bg-feedback-error-subtle p-4 text-sm text-feedback-error flex items-start gap-2">
+          <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+          <div>
+            {readyErr.code}: {readyErr.message}
+            {readyErr.correlationId ? <div className="mt-2 text-xs">Correlation: {readyErr.correlationId}</div> : null}
+          </div>
         </div>
       ) : null}
 
       {canView ? (
         <div className="mt-6 grid gap-4 md:grid-cols-3">
-          <div className="rounded-2xl border p-4">
-            <div className="text-sm font-semibold">سرعت صدور</div>
-            <div className="mt-2 text-xs text-neutral-600">تعداد: {fmt(ready?.issuanceSpeed?.totalIssued)}</div>
-            <div className="mt-1 text-xs text-neutral-600">Avg دقیقه: {fmt(ready?.issuanceSpeed?.avgMinutesQuoteToIssue)}</div>
-          </div>
-          <div className="rounded-2xl border p-4">
-            <div className="text-sm font-semibold">زمان پرداخت خسارت</div>
-            <div className="mt-2 text-xs text-neutral-600">تعداد: {fmt(ready?.claimPayoutTime?.totalPaid)}</div>
-            <div className="mt-1 text-xs text-neutral-600">Avg دقیقه: {fmt(ready?.claimPayoutTime?.avgMinutesRegisterToPaid)}</div>
-          </div>
-          <div className="rounded-2xl border p-4">
-            <div className="text-sm font-semibold">نرخ تقلب‌های شناسایی‌شده</div>
-            <div className="mt-2 text-xs text-neutral-600">کل امتیازها: {fmt(ready?.fraudIdentifiedRate?.totalScores)}</div>
-            <div className="mt-1 text-xs text-neutral-600">Hold count: {fmt(ready?.fraudIdentifiedRate?.holdCount)}</div>
-          </div>
+          <StatCard title="سرعت صدور" value={fmt(ready?.issuanceSpeed?.totalIssued)} change={`Avg دقیقه: ${fmt(ready?.issuanceSpeed?.avgMinutesQuoteToIssue)}`} changeType="neutral" icon={TrendingUp} />
+          <StatCard title="زمان پرداخت خسارت" value={fmt(ready?.claimPayoutTime?.totalPaid)} change={`Avg دقیقه: ${fmt(ready?.claimPayoutTime?.avgMinutesRegisterToPaid)}`} changeType="neutral" icon={Clock} />
+          <StatCard title="نرخ تقلب‌های شناسایی‌شده" value={fmt(ready?.fraudIdentifiedRate?.totalScores)} change={`Hold count: ${fmt(ready?.fraudIdentifiedRate?.holdCount)}`} changeType="warning" icon={ShieldAlert} />
         </div>
       ) : null}
 
       {canView ? (
-        <div className="mt-6 rounded-2xl border p-4">
+        <Card className="mt-6 p-4">
           <div className="text-sm font-semibold">Snapshot KPIها</div>
 
           <div className="mt-3 grid gap-3 md:grid-cols-6">
             <label className="grid gap-1 text-sm md:col-span-2">
-              <span className="text-xs text-neutral-600">kpiKey</span>
-              <input className="rounded-xl border px-3 py-2" value={fKpiKey} onChange={(e) => setFKpiKey(e.target.value)} />
+              <span className="text-xs text-text-muted">kpiKey</span>
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={fKpiKey} onChange={(e) => setFKpiKey(e.target.value)} />
             </label>
 
             <label className="grid gap-1 text-sm md:col-span-2">
-              <span className="text-xs text-neutral-600">periodStart (ISO/date)</span>
-              <input className="rounded-xl border px-3 py-2" value={fPeriodStart} onChange={(e) => setFPeriodStart(e.target.value)} placeholder="2026-01-01" />
+              <span className="text-xs text-text-muted">periodStart (ISO/date)</span>
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={fPeriodStart} onChange={(e) => setFPeriodStart(e.target.value)} placeholder="2026-01-01" />
             </label>
 
             <label className="grid gap-1 text-sm md:col-span-2">
-              <span className="text-xs text-neutral-600">periodEnd (ISO/date)</span>
-              <input className="rounded-xl border px-3 py-2" value={fPeriodEnd} onChange={(e) => setFPeriodEnd(e.target.value)} placeholder="2026-02-01" />
+              <span className="text-xs text-text-muted">periodEnd (ISO/date)</span>
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={fPeriodEnd} onChange={(e) => setFPeriodEnd(e.target.value)} placeholder="2026-02-01" />
             </label>
 
             <div className="md:col-span-6 flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50"
-                  disabled={snapLoading}
-                  onClick={() => loadSnapshots({ resetOffset: true })}
-                >
+                <Button variant="secondary" size="sm" disabled={snapLoading} onClick={() => loadSnapshots({ resetOffset: true })}>
+                  <Search className="h-4 w-4 ml-1" />
                   اعمال فیلتر
-                </button>
+                </Button>
 
                 <label className="flex items-center gap-2 text-sm">
-                  <span className="text-xs text-neutral-600">limit</span>
+                  <span className="text-xs text-text-muted">limit</span>
                   <input
-                    className="w-24 rounded-xl border px-3 py-2"
+                    className="w-24 rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary"
                     value={String(snapLimit)}
                     onChange={(e) => {
                       const n = parseInt(e.target.value || '50', 10);
@@ -1141,88 +1137,75 @@ export default function ReportingPage() {
                 </label>
               </div>
 
-              <div className="text-xs text-neutral-600">
+              <div className="text-xs text-text-muted">
                 نمایش {snapRows.length ? snapOffset + 1 : 0} تا {Math.min(snapOffset + snapLimit, snapTotal)} از {snapTotal}
               </div>
             </div>
           </div>
 
           {snapErr ? (
-            <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-              {snapErr.code}: {snapErr.message}
-              {snapErr.correlationId ? <div className="mt-2 text-xs">Correlation: {snapErr.correlationId}</div> : null}
+            <div className="mt-4 rounded-xl border border-feedback-error/30 bg-feedback-error-subtle p-4 text-sm text-feedback-error flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <div>
+                {snapErr.code}: {snapErr.message}
+                {snapErr.correlationId ? <div className="mt-2 text-xs">Correlation: {snapErr.correlationId}</div> : null}
+              </div>
             </div>
           ) : null}
 
           <div className="mt-4 space-y-2">
             {snapRows.map((r) => (
-              <div key={r.snapshotId} className="rounded-xl border p-3">
+              <div key={r.snapshotId} className="rounded-xl border border-border-default bg-bg-base p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="text-sm font-semibold">{r.kpiKey}</div>
-                  <div className="text-xs text-neutral-600">{r.createdAt}</div>
+                  <div className="text-xs text-text-muted">{r.createdAt}</div>
                 </div>
-                <div className="mt-1 text-xs text-neutral-600">{r.periodStart} → {r.periodEnd}</div>
-                <div className="mt-1 text-xs text-neutral-600">
+                <div className="mt-1 text-xs text-text-muted">{r.periodStart} → {r.periodEnd}</div>
+                <div className="mt-1 text-xs text-text-muted">
                   مقدار: {String(r.value)} {r.unit || ''} | Source: {r.sourceSystem || '—'}
                 </div>
               </div>
             ))}
-            {snapRows.length === 0 && !snapErr ? <div className="text-sm text-neutral-600">داده‌ای وجود ندارد.</div> : null}
+            {snapRows.length === 0 && !snapErr ? <div className="text-sm text-text-muted text-center py-4">داده‌ای وجود ندارد.</div> : null}
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50"
-              disabled={snapLoading || snapOffset <= 0}
-              onClick={() => setSnapOffset(Math.max(0, snapOffset - snapLimit))}
-            >
+            <Button variant="ghost" size="sm" disabled={snapLoading || snapOffset <= 0} onClick={() => setSnapOffset(Math.max(0, snapOffset - snapLimit))}>
+              <ChevronRight className="h-4 w-4 ml-1" />
               قبلی
-            </button>
-            <button
-              type="button"
-              className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50"
-              disabled={snapLoading || snapOffset + snapLimit >= snapTotal}
-              onClick={() => setSnapOffset(snapOffset + snapLimit)}
-            >
+            </Button>
+            <Button variant="ghost" size="sm" disabled={snapLoading || snapOffset + snapLimit >= snapTotal} onClick={() => setSnapOffset(snapOffset + snapLimit)}>
               بعدی
-            </button>
+              <ChevronLeft className="h-4 w-4 ml-1" />
+            </Button>
           </div>
-        </div>
+        </Card>
       ) : null}
 
       {canView && canAdmin ? (
-        <div className="mt-6 rounded-2xl border p-4">
+        <Card className="mt-6 p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="text-sm font-semibold">Governance Admin (Enterprise)</div>
-              <p className="mt-1 text-xs text-neutral-600">
+              <p className="mt-1 text-xs text-text-muted">
                 مدیریت قوانین KPI governance (RBAC: <code className="px-1">reporting:projections:admin</code>)
               </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50"
-                disabled={govLoading}
-                onClick={loadGovernancePolicies}
-              >
+              <Button variant="ghost" size="sm" disabled={govLoading} isLoading={govLoading} onClick={loadGovernancePolicies}>
+                <RefreshCw className="h-4 w-4 ml-1" />
                 {govLoading ? 'در حال بروزرسانی…' : 'بروزرسانی لیست قوانین'}
-              </button>
-              <button
-                type="button"
-                className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50"
-                disabled={admBusy}
-                onClick={resetAdmForm}
-              >
+              </Button>
+              <Button variant="secondary" size="sm" disabled={admBusy} onClick={resetAdmForm}>
+                <Plus className="h-4 w-4 ml-1" />
                 قانون جدید
-              </button>
+              </Button>
             </div>
           </div>
 
           {admErr ? (
-            <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+            <div className="mt-3 rounded-xl border border-feedback-error/30 bg-feedback-error-subtle p-4 text-sm text-feedback-error">
               <div className="font-medium">
                 {admErr.code}: {admErr.message}
               </div>
@@ -1238,7 +1221,7 @@ export default function ReportingPage() {
           ) : null}
 
           {admOk ? (
-            <div className="mt-3 rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-900">
+            <div className="mt-3 rounded-xl border border-feedback-success/30 bg-feedback-success-subtle p-4 text-sm text-feedback-success">
               ذخیره شد.
               {admOk.correlationId ? <div className="mt-2 text-xs">Correlation: {admOk.correlationId}</div> : null}
             </div>
@@ -1246,8 +1229,8 @@ export default function ReportingPage() {
 
           <div className="mt-4 grid gap-3 md:grid-cols-6">
             <label className="grid gap-1 text-sm md:col-span-2">
-              <span className="text-xs text-neutral-600">انتخاب policy</span>
-              <select className="rounded-xl border px-3 py-2" value={admSelectedKey} onChange={(e) => setAdmSelectedKey(e.target.value)}>
+              <span className="text-xs text-text-muted">انتخاب policy</span>
+              <select className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={admSelectedKey} onChange={(e) => setAdmSelectedKey(e.target.value)}>
                 <option value="">—</option>
                 {govPolicies.map((p) => (
                   <option key={p.kpiKey} value={p.kpiKey}>
@@ -1255,118 +1238,105 @@ export default function ReportingPage() {
                   </option>
                 ))}
               </select>
-              <span className="text-[11px] text-neutral-500">انتخاب برای ویرایش؛ یا «قانون جدید» برای ساخت.</span>
+              <span className="text-[11px] text-text-muted">انتخاب برای ویرایش؛ یا «قانون جدید» برای ساخت.</span>
             </label>
 
             <label className="grid gap-1 text-sm md:col-span-2">
-              <span className="text-xs text-neutral-600">kpiKey</span>
-              <input className="rounded-xl border px-3 py-2" value={admKpiKey} onChange={(e) => setAdmKpiKey(e.target.value)} placeholder="customer_satisfaction_rate" />
+              <span className="text-xs text-text-muted">kpiKey</span>
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={admKpiKey} onChange={(e) => setAdmKpiKey(e.target.value)} placeholder="customer_satisfaction_rate" />
             </label>
 
             <label className="grid gap-1 text-sm md:col-span-2">
-              <span className="text-xs text-neutral-600">enforced</span>
-              <select className="rounded-xl border px-3 py-2" value={admEnforced ? 'true' : 'false'} onChange={(e) => setAdmEnforced(e.target.value === 'true')}>
+              <span className="text-xs text-text-muted">enforced</span>
+              <select className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={admEnforced ? 'true' : 'false'} onChange={(e) => setAdmEnforced(e.target.value === 'true')}>
                 <option value="true">true</option>
                 <option value="false">false</option>
               </select>
             </label>
 
             <label className="grid gap-1 text-sm md:col-span-3">
-              <span className="text-xs text-neutral-600">allowedPeriodGranularities (comma-separated)</span>
-              <input className="rounded-xl border px-3 py-2" value={admAllowedGranularities} onChange={(e) => setAdmAllowedGranularities(e.target.value)} placeholder="month, quarter, year" />
+              <span className="text-xs text-text-muted">allowedPeriodGranularities (comma-separated)</span>
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={admAllowedGranularities} onChange={(e) => setAdmAllowedGranularities(e.target.value)} placeholder="month, quarter, year" />
             </label>
 
             <label className="grid gap-1 text-sm md:col-span-3">
-              <span className="text-xs text-neutral-600">allowedSourceSystems (comma-separated)</span>
-              <input className="rounded-xl border px-3 py-2" value={admAllowedSources} onChange={(e) => setAdmAllowedSources(e.target.value)} placeholder="bi, regulatory, manual" />
+              <span className="text-xs text-text-muted">allowedSourceSystems (comma-separated)</span>
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={admAllowedSources} onChange={(e) => setAdmAllowedSources(e.target.value)} placeholder="bi, regulatory, manual" />
             </label>
 
             <label className="grid gap-1 text-sm md:col-span-2">
-              <span className="text-xs text-neutral-600">expectedUnit (optional)</span>
-              <input className="rounded-xl border px-3 py-2" value={admExpectedUnit} onChange={(e) => setAdmExpectedUnit(e.target.value)} placeholder="percent" />
+              <span className="text-xs text-text-muted">expectedUnit (optional)</span>
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={admExpectedUnit} onChange={(e) => setAdmExpectedUnit(e.target.value)} placeholder="percent" />
             </label>
 
             <label className="grid gap-1 text-sm md:col-span-2">
-              <span className="text-xs text-neutral-600">minValue (optional)</span>
-              <input className="rounded-xl border px-3 py-2" value={admMinValue} onChange={(e) => setAdmMinValue(e.target.value)} placeholder="0" />
+              <span className="text-xs text-text-muted">minValue (optional)</span>
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={admMinValue} onChange={(e) => setAdmMinValue(e.target.value)} placeholder="0" />
             </label>
 
             <label className="grid gap-1 text-sm md:col-span-2">
-              <span className="text-xs text-neutral-600">maxValue (optional)</span>
-              <input className="rounded-xl border px-3 py-2" value={admMaxValue} onChange={(e) => setAdmMaxValue(e.target.value)} placeholder="100" />
+              <span className="text-xs text-text-muted">maxValue (optional)</span>
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={admMaxValue} onChange={(e) => setAdmMaxValue(e.target.value)} placeholder="100" />
             </label>
           </div>
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-            <div className="text-xs text-neutral-600">
+            <div className="text-xs text-text-muted">
               ذخیره با متد <code className="px-1">PUT /reporting/kpis/governance/:kpiKey</code>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50"
-                disabled={admBusy}
-                onClick={resetAdmForm}
-              >
+              <Button variant="ghost" size="sm" disabled={admBusy} onClick={resetAdmForm}>
                 پاک‌کردن فرم
-              </button>
-              <button
-                type="button"
-                className="rounded-xl bg-black px-3 py-2 text-sm text-white hover:bg-neutral-800 disabled:opacity-50"
-                disabled={admBusy}
-                onClick={saveGovernancePolicy}
-              >
+              </Button>
+              <Button disabled={admBusy} isLoading={admBusy} onClick={saveGovernancePolicy}>
+                <Save className="h-4 w-4 ml-1" />
                 {admBusy ? 'در حال ذخیره…' : 'ذخیره policy'}
-              </button>
+              </Button>
             </div>
           </div>
-        </div>
+        </Card>
       ) : null}
 
       {canView && canIngest ? (
-        <div className="mt-6 rounded-2xl border p-4">
+        <Card className="mt-6 p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="text-sm font-semibold">Ingest Snapshot KPI (Enterprise)</div>
-              <p className="mt-1 text-xs text-neutral-600">
+              <p className="mt-1 text-xs text-text-muted">
                 این بخش فقط برای ذینفعان دارای مجوز <code className="px-1">reporting:ingest</code> فعال است.
               </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50"
-                disabled={govLoading}
-                onClick={loadGovernancePolicies}
-              >
+              <Button variant="ghost" size="sm" disabled={govLoading} isLoading={govLoading} onClick={loadGovernancePolicies}>
+                <RefreshCw className="h-4 w-4 ml-1" />
                 {govLoading ? 'در حال بروزرسانی قوانین…' : 'بروزرسانی قوانین Governance'}
-              </button>
+              </Button>
             </div>
           </div>
 
           {govErr ? (
-            <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            <div className="mt-3 rounded-xl border border-feedback-warning/30 bg-feedback-warning-subtle p-4 text-sm text-feedback-warning">
               خطا در دریافت قوانین: {govErr.code}: {govErr.message}
               {govErr.correlationId ? <div className="mt-2 text-xs">Correlation: {govErr.correlationId}</div> : null}
             </div>
           ) : null}
 
           {govLoading && !governanceSummary ? (
-            <div className="mt-3 rounded-2xl border bg-neutral-50 p-4 text-sm text-neutral-700">
+            <div className="mt-3 rounded-xl border border-border-default bg-bg-base p-4 text-sm text-text-secondary">
               در حال دریافت قوانین Governance…
             </div>
           ) : null}
 
           {String(ingKpiKey || '').trim() && governedGapKpis.has(String(ingKpiKey || '').trim()) && !selectedPolicy ? (
-            <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+            <div className="mt-3 rounded-xl border border-feedback-error/30 bg-feedback-error-subtle p-4 text-sm text-feedback-error">
               برای این KPI قانون Governance در سیستم تعریف نشده است و ingestion طبق سیاست enterprise مسدود خواهد شد.
-              <div className="mt-1 text-xs text-red-700">kpiKey: {String(ingKpiKey || '').trim()}</div>
+              <div className="mt-1 text-xs text-feedback-error">kpiKey: {String(ingKpiKey || '').trim()}</div>
             </div>
           ) : null}
 
           {ingErr ? (
-            <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+            <div className="mt-3 rounded-xl border border-feedback-error/30 bg-feedback-error-subtle p-4 text-sm text-feedback-error">
               <div className="font-medium">{ingErr.code}: {ingErr.message}</div>
 
               {Array.isArray((ingErr as any)?.details?.errors) && (ingErr as any).details.errors.length ? (
@@ -1382,21 +1352,21 @@ export default function ReportingPage() {
           ) : null}
 
           {ingOk ? (
-            <div className="mt-3 rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-900">
+            <div className="mt-3 rounded-xl border border-feedback-success/30 bg-feedback-success-subtle p-4 text-sm text-feedback-success">
               ثبت شد.
               {ingOk.correlationId ? <div className="mt-2 text-xs">Correlation: {ingOk.correlationId}</div> : null}
             </div>
           ) : null}
 
           {governanceSummary ? (
-            <div className="mt-3 rounded-2xl border bg-neutral-50 p-4">
+            <div className="mt-3 rounded-xl border border-border-default bg-bg-base p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="text-sm font-semibold">Governance Summary</div>
                 <div
                   className={
                     governanceSummary.enforced
-                      ? 'rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs text-emerald-900'
-                      : 'rounded-full border border-neutral-200 bg-white px-2 py-0.5 text-xs text-neutral-700'
+                      ? 'rounded-full border border-feedback-success/30 bg-feedback-success-subtle px-2 py-0.5 text-xs text-feedback-success'
+                      : 'rounded-full border border-border-default bg-bg-raised px-2 py-0.5 text-xs text-text-secondary'
                   }
                 >
                   {governanceSummary.enforced ? 'Enforced' : 'Not enforced'}
@@ -1404,50 +1374,50 @@ export default function ReportingPage() {
               </div>
 
               <div className="mt-2 grid gap-3 md:grid-cols-3">
-                <div className="rounded-xl border bg-white p-3">
-                  <div className="text-xs text-neutral-500">Unit</div>
+                <Card className="p-3">
+                  <div className="text-xs text-text-muted">Unit</div>
                   <div className="mt-1 text-sm font-medium">{governanceSummary.expectedUnit ?? '—'}</div>
-                </div>
+                </Card>
 
-                <div className="rounded-xl border bg-white p-3">
-                  <div className="text-xs text-neutral-500">Range</div>
+                <Card className="p-3">
+                  <div className="text-xs text-text-muted">Range</div>
                   <div className="mt-1 text-sm font-medium">{governanceSummary.rangeText ?? '—'}</div>
-                </div>
+                </Card>
 
-                <div className="rounded-xl border bg-white p-3">
-                  <div className="text-xs text-neutral-500">kpiKey</div>
+                <Card className="p-3">
+                  <div className="text-xs text-text-muted">kpiKey</div>
                   <div className="mt-1 text-sm font-medium">{String(ingKpiKey || '').trim() || '—'}</div>
-                </div>
+                </Card>
               </div>
 
               <div className="mt-3 grid gap-3 md:grid-cols-2">
-                <div className="rounded-xl border bg-white p-3">
-                  <div className="text-xs text-neutral-500">Allowed period granularities</div>
+                <Card className="p-3">
+                  <div className="text-xs text-text-muted">Allowed period granularities</div>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {governanceSummary.allowedGranularities.length ? governanceSummary.allowedGranularities.map((g) => chip(g)) : chip('—')}
                   </div>
-                </div>
+                </Card>
 
-                <div className="rounded-xl border bg-white p-3">
-                  <div className="text-xs text-neutral-500">Allowed source systems</div>
+                <Card className="p-3">
+                  <div className="text-xs text-text-muted">Allowed source systems</div>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {governanceSummary.allowedSourceSystems.length ? governanceSummary.allowedSourceSystems.map((s) => chip(s)) : chip('—')}
                   </div>
-                </div>
+                </Card>
               </div>
             </div>
           ) : null}
 
           <div className="mt-3 grid gap-3 md:grid-cols-6">
             <label className="grid gap-1 text-sm md:col-span-2">
-              <span className="text-xs text-neutral-600">Idempotency-Key</span>
-              <input className="rounded-xl border px-3 py-2" value={ingIdempotencyKey} onChange={(e) => setIngIdempotencyKey(e.target.value)} />
+              <span className="text-xs text-text-muted">Idempotency-Key</span>
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={ingIdempotencyKey} onChange={(e) => setIngIdempotencyKey(e.target.value)} />
             </label>
 
             <label className="grid gap-1 text-sm md:col-span-2">
-              <span className="text-xs text-neutral-600">kpiKey</span>
+              <span className="text-xs text-text-muted">kpiKey</span>
               <input
-                className="rounded-xl border px-3 py-2"
+                className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary"
                 value={ingKpiKey}
                 onChange={(e) => setIngKpiKey(e.target.value)}
                 list="kpiKeys"
@@ -1460,28 +1430,28 @@ export default function ReportingPage() {
             </label>
 
             <label className="grid gap-1 text-sm md:col-span-2">
-              <span className="text-xs text-neutral-600">value (number)</span>
-              <input className="rounded-xl border px-3 py-2" value={ingValue} onChange={(e) => setIngValue(e.target.value)} placeholder="12.34" />
+              <span className="text-xs text-text-muted">value (number)</span>
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={ingValue} onChange={(e) => setIngValue(e.target.value)} placeholder="12.34" />
             </label>
 
             <label className="grid gap-1 text-sm md:col-span-2">
-              <span className="text-xs text-neutral-600">unit</span>
+              <span className="text-xs text-text-muted">unit</span>
               {selectedPolicy?.expectedUnit ? (
-                <input className="rounded-xl border bg-neutral-50 px-3 py-2" value={selectedPolicy.expectedUnit} readOnly />
+                <input className="rounded-xl border border-border-default bg-bg-base px-3 py-2 text-text-primary" value={selectedPolicy.expectedUnit} readOnly />
               ) : (
-                <input className="rounded-xl border px-3 py-2" value={ingUnit} onChange={(e) => setIngUnit(e.target.value)} />
+                <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={ingUnit} onChange={(e) => setIngUnit(e.target.value)} />
               )}
               {selectedPolicy?.enforced && (selectedPolicy.minValue != null || selectedPolicy.maxValue != null) ? (
-                <span className="text-[11px] text-neutral-500">
+                <span className="text-[11px] text-text-muted">
                   بازه مجاز value: {selectedPolicy.minValue == null ? '—' : String(selectedPolicy.minValue)} تا {selectedPolicy.maxValue == null ? '—' : String(selectedPolicy.maxValue)}
                 </span>
               ) : null}
             </label>
 
             <label className="grid gap-1 text-sm md:col-span-2">
-              <span className="text-xs text-neutral-600">sourceSystem</span>
+              <span className="text-xs text-text-muted">sourceSystem</span>
               {selectedPolicy?.allowedSourceSystems?.length ? (
-                <select className="rounded-xl border px-3 py-2" value={ingSource} onChange={(e) => setIngSource(e.target.value)}>
+                <select className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={ingSource} onChange={(e) => setIngSource(e.target.value)}>
                   {selectedPolicy.allowedSourceSystems.map((s) => (
                     <option key={s} value={s}>
                       {s}
@@ -1489,14 +1459,14 @@ export default function ReportingPage() {
                   ))}
                 </select>
               ) : (
-                <input className="rounded-xl border px-3 py-2" value={ingSource} onChange={(e) => setIngSource(e.target.value)} />
+                <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={ingSource} onChange={(e) => setIngSource(e.target.value)} />
               )}
             </label>
 
             <label className="grid gap-1 text-sm md:col-span-2">
-              <span className="text-xs text-neutral-600">periodGranularity</span>
+              <span className="text-xs text-text-muted">periodGranularity</span>
               {selectedPolicy?.allowedPeriodGranularities?.length ? (
-                <select className="rounded-xl border px-3 py-2" value={ingPeriodGranularity} onChange={(e) => setIngPeriodGranularity(e.target.value)}>
+                <select className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={ingPeriodGranularity} onChange={(e) => setIngPeriodGranularity(e.target.value)}>
                   {selectedPolicy.allowedPeriodGranularities.map((g) => (
                     <option key={g} value={g}>
                       {g}
@@ -1504,7 +1474,7 @@ export default function ReportingPage() {
                   ))}
                 </select>
               ) : (
-                <select className="rounded-xl border px-3 py-2" value={ingPeriodGranularity} onChange={(e) => setIngPeriodGranularity(e.target.value)}>
+                <select className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={ingPeriodGranularity} onChange={(e) => setIngPeriodGranularity(e.target.value)}>
                   <option value="day">day</option>
                   <option value="week">week</option>
                   <option value="month">month</option>
@@ -1515,10 +1485,10 @@ export default function ReportingPage() {
             </label>
 
             <label className="grid gap-1 text-sm md:col-span-2">
-              <span className="text-xs text-neutral-600">officialSourceSystem</span>
+              <span className="text-xs text-text-muted">officialSourceSystem</span>
               {selectedPolicy?.allowedSourceSystems?.length ? (
                 <select
-                  className="rounded-xl border px-3 py-2"
+                  className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary"
                   value={ingOfficialSourceSystem}
                   onChange={(e) => setIngOfficialSourceSystem(e.target.value)}
                 >
@@ -1530,7 +1500,7 @@ export default function ReportingPage() {
                 </select>
               ) : (
                 <input
-                  className="rounded-xl border px-3 py-2"
+                  className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary"
                   value={ingOfficialSourceSystem}
                   onChange={(e) => setIngOfficialSourceSystem(e.target.value)}
                 />
@@ -1538,32 +1508,32 @@ export default function ReportingPage() {
             </label>
 
             <label className="grid gap-1 text-sm md:col-span-2">
-              <span className="text-xs text-neutral-600">periodStart</span>
-              <input className="rounded-xl border px-3 py-2" value={ingPeriodStart} onChange={(e) => setIngPeriodStart(e.target.value)} placeholder="2026-01-01" />
+              <span className="text-xs text-text-muted">periodStart</span>
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={ingPeriodStart} onChange={(e) => setIngPeriodStart(e.target.value)} placeholder="2026-01-01" />
             </label>
 
             <label className="grid gap-1 text-sm md:col-span-3">
-              <span className="text-xs text-neutral-600">periodEnd</span>
-              <input className="rounded-xl border px-3 py-2" value={ingPeriodEnd} onChange={(e) => setIngPeriodEnd(e.target.value)} placeholder="2026-02-01" />
+              <span className="text-xs text-text-muted">periodEnd</span>
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={ingPeriodEnd} onChange={(e) => setIngPeriodEnd(e.target.value)} placeholder="2026-02-01" />
             </label>
 
             <label className="grid gap-1 text-sm md:col-span-3">
-              <span className="text-xs text-neutral-600">metadata (JSON)</span>
-              <input className="rounded-xl border px-3 py-2" value={ingMetadataJson} onChange={(e) => setIngMetadataJson(e.target.value)} />
+              <span className="text-xs text-text-muted">metadata (JSON)</span>
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={ingMetadataJson} onChange={(e) => setIngMetadataJson(e.target.value)} />
             </label>
 
             <div className="md:col-span-6">
-              <button
-                type="button"
-                className="w-full rounded-xl bg-neutral-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+              <Button
+                fullWidth
                 disabled={ingBusy}
+                isLoading={ingBusy}
                 onClick={submitIngest}
               >
                 {ingBusy ? 'در حال ثبت…' : 'ثبت Snapshot KPI'}
-              </button>
+              </Button>
             </div>
           </div>
-        </div>
+        </Card>
       ) : null}
     </main>
   );

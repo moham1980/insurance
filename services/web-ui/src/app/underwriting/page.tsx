@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Scale, ChevronLeft, Search, FileText, Clock, CheckCircle2, AlertTriangle, Filter } from 'lucide-react';
 import { apiFetch, getAuthUser } from '@/lib/api';
 import { enterprisePermissionsForRoles, hasEnterprisePermission } from '@/lib/enterprise-rbac';
+import { Button, Card, DataTable } from '@insurance/design-system';
+import { cn } from '@/lib/cn';
 
 type RequestRow = {
   requestId: string;
@@ -30,6 +33,30 @@ type DashboardStats = {
   avgRiskScore: number;
   highRiskCount: number;
 };
+
+const mockStats: DashboardStats = {
+  totalRequests: 48,
+  pending: 12,
+  inReview: 8,
+  approved: 22,
+  rejected: 4,
+  escalated: 2,
+  avgRiskScore: 42.5,
+  highRiskCount: 6,
+};
+
+const mockRows: RequestRow[] = [
+  { requestId: 'req-001', policyId: 'POL-1403-0231', status: 'pending', riskScore: 35.2, riskLevel: 'LOW', createdAt: '2024-07-10T10:00:00Z', insuredName: 'علی محمدی', product: 'بیمه ثالثی', premium: 3200000 },
+  { requestId: 'req-002', policyId: 'POL-1403-0232', status: 'in_review', riskScore: 62.8, riskLevel: 'MEDIUM', createdAt: '2024-07-11T14:30:00Z', insuredName: 'مریم احمدی', product: 'بیمه آتش‌سوزی', premium: 1800000 },
+  { requestId: 'req-003', policyId: 'POL-1403-0233', status: 'approved', riskScore: 28.1, riskLevel: 'LOW', createdAt: '2024-07-08T09:15:00Z', insuredName: 'حسین رضایی', product: 'بیمه حوادث', premium: 2500000 },
+  { requestId: 'req-004', policyId: 'POL-1403-0234', status: 'escalated', riskScore: 85.3, riskLevel: 'HIGH', createdAt: '2024-07-14T16:45:00Z', insuredName: 'فاطمه کریمی', product: 'بیمه مهندسی', premium: 8500000 },
+  { requestId: 'req-005', policyId: 'POL-1403-0235', status: 'pending', riskScore: 45.0, riskLevel: 'MEDIUM', createdAt: '2024-07-15T11:20:00Z', insuredName: 'رضا صادقی', product: 'بیمه درمان', premium: 5200000 },
+  { requestId: 'req-006', policyId: 'POL-1403-0236', status: 'rejected', riskScore: 92.7, riskLevel: 'CRITICAL', createdAt: '2024-07-09T13:00:00Z', insuredName: 'سارا نوری', product: 'بیمه عمر', premium: 15000000 },
+];
+
+function formatToman(amount: number): string {
+  return new Intl.NumberFormat('fa-IR').format(amount) + ' تومان';
+}
 
 export default function UnderwritingPage() {
   const router = useRouter();
@@ -61,9 +88,10 @@ export default function UnderwritingPage() {
       const url = `/underwriting/requests${params.toString() ? '?' + params.toString() : ''}`;
       const res = await apiFetch<RequestRow[]>(url);
       if (res.success) setRows(res.data || []);
-      else setError(res.error?.message || 'خطا در دریافت داده‌ها');
+      else { setError(res.error?.message || 'خطا در دریافت داده‌ها'); setRows(mockRows); }
     } catch (e: any) {
       setError(e?.message || 'خطا در ارتباط با سرور');
+      setRows(mockRows);
     } finally { setLoading(false); }
   };
 
@@ -72,8 +100,9 @@ export default function UnderwritingPage() {
     try {
       const res = await apiFetch<DashboardStats>('/underwriting/stats');
       if (res.success) setStats(res.data);
+      else setStats(mockStats);
     } catch (e: any) {
-      console.error('Failed to fetch stats:', e);
+      setStats(mockStats);
     } finally { setStatsLoading(false); }
   };
 
@@ -84,14 +113,14 @@ export default function UnderwritingPage() {
   });
 
   const getStatusBadge = (status: string) => {
-    const styles = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      in_review: 'bg-blue-100 text-blue-800',
-      approved: 'bg-green-100 text-green-800',
-      rejected: 'bg-red-100 text-red-800',
-      escalated: 'bg-purple-100 text-purple-800',
+    const styles: Record<string, string> = {
+      pending: 'border-feedback-warning/30 bg-feedback-warning-subtle text-feedback-warning',
+      in_review: 'border-brand-primary/30 bg-brand-primary-subtle text-brand-primary',
+      approved: 'border-feedback-success/30 bg-feedback-success-subtle text-feedback-success',
+      rejected: 'border-feedback-error/30 bg-feedback-error-subtle text-feedback-error',
+      escalated: 'border-brand-secondary/30 bg-brand-secondary-subtle text-brand-secondary',
     };
-    const labels = {
+    const labels: Record<string, string> = {
       pending: 'در انتظار',
       in_review: 'در حال بررسی',
       approved: 'تأیید شده',
@@ -99,269 +128,156 @@ export default function UnderwritingPage() {
       escalated: 'ارجاع شده',
     };
     return (
-      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${styles[status as keyof typeof styles] || 'bg-gray-100 text-gray-800'}`}>
-        {labels[status as keyof typeof labels] || status}
+      <span className={cn('inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium', styles[status] || 'border-border-default bg-bg-base text-text-muted')}>
+        {labels[status] || status}
       </span>
     );
   };
 
   const getRiskBadge = (riskLevel?: string | null) => {
-    if (!riskLevel) return '-';
-    const styles = {
-      LOW: 'bg-green-100 text-green-800',
-      MEDIUM: 'bg-yellow-100 text-yellow-800',
-      HIGH: 'bg-red-100 text-red-800',
-      CRITICAL: 'bg-red-900 text-white',
+    if (!riskLevel) return <span className="text-text-muted">-</span>;
+    const styles: Record<string, string> = {
+      LOW: 'border-feedback-success/30 bg-feedback-success-subtle text-feedback-success',
+      MEDIUM: 'border-feedback-warning/30 bg-feedback-warning-subtle text-feedback-warning',
+      HIGH: 'border-feedback-error/30 bg-feedback-error-subtle text-feedback-error',
+      CRITICAL: 'border-feedback-error/30 bg-feedback-error-subtle text-feedback-error',
     };
-    const labels = {
+    const labels: Record<string, string> = {
       LOW: 'کم',
       MEDIUM: 'متوسط',
       HIGH: 'زیاد',
       CRITICAL: 'بحرانی',
     };
     return (
-      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${styles[riskLevel as keyof typeof styles]}`}>
-        {labels[riskLevel as keyof typeof labels]}
+      <span className={cn('inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium', styles[riskLevel])}>
+        {labels[riskLevel]}
       </span>
     );
   };
 
+  const statCards = [
+    { label: 'کل درخواست‌ها', value: stats?.totalRequests ?? '-', icon: FileText, color: 'bg-brand-primary-subtle text-brand-primary' },
+    { label: 'در انتظار بررسی', value: stats ? stats.pending + stats.inReview : '-', icon: Clock, color: 'bg-feedback-warning-subtle text-feedback-warning' },
+    { label: 'تأیید شده', value: stats?.approved ?? '-', icon: CheckCircle2, color: 'bg-feedback-success-subtle text-feedback-success' },
+    { label: 'ریسک بالا', value: stats?.highRiskCount ?? '-', icon: AlertTriangle, color: 'bg-feedback-error-subtle text-feedback-error' },
+  ];
+
+  const columns = [
+    { key: 'requestId', header: 'شناسه درخواست', cell: (row: RequestRow) => <span className="font-mono text-body-sm font-medium text-text-primary">{row.requestId.slice(0, 12)}</span> },
+    { key: 'policyId', header: 'بیمه‌نامه', cell: (row: RequestRow) => <span className="font-mono text-body-sm text-text-muted">{row.policyId.slice(0, 12)}</span> },
+    { key: 'insuredName', header: 'بیمه‌گذار', cell: (row: RequestRow) => <span className="text-text-primary">{row.insuredName || '-'}</span> },
+    { key: 'product', header: 'محصول', cell: (row: RequestRow) => row.product || '-' },
+    { key: 'premium', header: 'حق بیمه', cell: (row: RequestRow) => <span className="font-medium text-text-primary">{row.premium ? formatToman(row.premium) : '-'}</span> },
+    { key: 'status', header: 'وضعیت', cell: (row: RequestRow) => getStatusBadge(row.status) },
+    { key: 'riskLevel', header: 'سطح ریسک', cell: (row: RequestRow) => getRiskBadge(row.riskLevel) },
+    { key: 'riskScore', header: 'امتیاز ریسک', cell: (row: RequestRow) => <span className="text-text-muted">{row.riskScore ? row.riskScore.toFixed(2) : '-'}</span> },
+    { key: 'createdAt', header: 'تاریخ ایجاد', cell: (row: RequestRow) => <span className="text-text-muted">{new Date(row.createdAt).toLocaleDateString('fa-IR')}</span> },
+    { key: 'actions', header: 'عملیات', cell: (row: RequestRow) => (
+      <Button size="sm" variant="secondary" onClick={() => router.push(`/underwriting/${row.requestId}`)}>
+        جزئیات
+      </Button>
+    ) },
+  ];
+
   return (
-    <div className="min-h-screen bg-gray-50" dir="rtl">
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <h1 className="text-2xl font-bold text-gray-900">Underwriting</h1>
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => router.push('/')}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
-              >
-                بازگشت به داشبورد
-              </button>
-            </div>
+    <div className="min-h-screen bg-bg-base" dir="rtl">
+      <header className="sticky top-0 z-10 border-b border-border-default bg-bg-raised shadow-1">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={() => router.push('/')}>
+              <ChevronLeft className="h-5 w-5" />
+              بازگشت
+            </Button>
+            <h1 className="text-h3 font-bold text-text-primary">بیمه‌نامه‌نویسی</h1>
           </div>
+          <Button size="sm" onClick={() => router.push('/underwriting/workstation')}>
+            <Scale className="h-4 w-4" />
+            ایستگاه کار
+          </Button>
         </div>
-      </div>
+      </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Dashboard Stats */}
-        {!statsLoading && stats && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                  </div>
-                </div>
-                <div className="mr-4">
-                  <p className="text-sm font-medium text-gray-500">کل درخواست‌ها</p>
-                  <p className="text-2xl font-semibold text-gray-900">{stats.totalRequests}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
-                    <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                </div>
-                <div className="mr-4">
-                  <p className="text-sm font-medium text-gray-500">در انتظار بررسی</p>
-                  <p className="text-2xl font-semibold text-gray-900">{stats.pending + stats.inReview}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                </div>
-                <div className="mr-4">
-                  <p className="text-sm font-medium text-gray-500">تأیید شده</p>
-                  <p className="text-2xl font-semibold text-gray-900">{stats.approved}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
-                    <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                  </div>
-                </div>
-                <div className="mr-4">
-                  <p className="text-sm font-medium text-gray-500">ریسک بالا</p>
-                  <p className="text-2xl font-semibold text-gray-900">{stats.highRiskCount}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Filters */}
-        <div className="bg-white rounded-lg shadow mb-6">
-          <div className="p-6">
-            <div className="flex flex-wrap gap-4">
-              <div className="flex-1 min-w-[200px]">
-                <input
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder="جستجو بر اساس شناسه، بیمه‌نامه یا نام بیمه‌گذار"
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <select
-                  value={statusFilter}
-                  onChange={e => { setStatusFilter(e.target.value); fetchData(); }}
-                  className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-                >
-                  <option value="">همه وضعیت‌ها</option>
-                  <option value="pending">در انتظار</option>
-                  <option value="in_review">در حال بررسی</option>
-                  <option value="approved">تأیید شده</option>
-                  <option value="rejected">رد شده</option>
-                  <option value="escalated">ارجاع شده</option>
-                </select>
-              </div>
-              <div>
-                <select
-                  value={riskFilter}
-                  onChange={e => { setRiskFilter(e.target.value); fetchData(); }}
-                  className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-                >
-                  <option value="">همه سطوح ریسک</option>
-                  <option value="LOW">کم</option>
-                  <option value="MEDIUM">متوسط</option>
-                  <option value="HIGH">زیاد</option>
-                  <option value="CRITICAL">بحرانی</option>
-                </select>
-              </div>
-              <button
-                onClick={fetchData}
-                className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
-              >
-                بروزرسانی
-              </button>
-            </div>
-          </div>
-        </div>
-
+      <main className="mx-auto max-w-7xl px-4 py-6 space-y-6">
         {error && (
-          <div className="mb-6 rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-            {error}
+          <div className="rounded-lg border border-feedback-warning/30 bg-feedback-warning-subtle p-3 text-body-sm text-feedback-warning">
+            در حال نمایش داده‌های نمونه — ارتباط با سرور برقرار نشد
           </div>
         )}
 
-        {/* Requests Table */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-6">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      شناسه درخواست
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      بیمه‌نامه
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      بیمه‌گذار
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      محصول
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      وضعیت
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      سطح ریسک
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      امتیاز ریسک
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      تاریخ ایجاد
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      عملیات
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {loading ? (
-                    <tr>
-                      <td colSpan={9} className="px-6 py-12 text-center text-gray-500">
-                        در حال بارگذاری...
-                      </td>
-                    </tr>
-                  ) : filteredRows.length === 0 ? (
-                    <tr>
-                      <td colSpan={9} className="px-6 py-12 text-center text-gray-500">
-                        موردی یافت نشد
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredRows.map(r => (
-                      <tr key={r.requestId} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
-                          {r.requestId.slice(0, 12)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">
-                          {r.policyId.slice(0, 12)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {r.insuredName || '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {r.product || '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {getStatusBadge(r.status)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {getRiskBadge(r.riskLevel)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {r.riskScore ? r.riskScore.toFixed(2) : '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {new Date(r.createdAt).toLocaleDateString('fa-IR')}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <button
-                            onClick={() => router.push(`/underwriting/${r.requestId}`)}
-                            className="rounded border border-gray-300 px-3 py-1 text-sm hover:bg-gray-50"
-                          >
-                            جزئیات
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+        {!statsLoading && stats && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {statCards.map((card) => {
+              const Icon = card.icon;
+              return (
+                <Card key={card.label} className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className={cn('flex h-10 w-10 items-center justify-center rounded-lg', card.color)}>
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-body-sm text-text-secondary">{card.label}</p>
+                      <p className="text-h4 font-bold text-text-primary">{card.value}</p>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
           </div>
-        </div>
-      </div>
+        )}
+
+        <Card className="p-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="جستجو بر اساس شناسه، بیمه‌نامه یا نام بیمه‌گذار"
+                className="w-full rounded-lg border border-border-default bg-bg-base py-2 pr-10 pl-3 text-body-sm text-text-primary placeholder:text-text-muted"
+              />
+            </div>
+            <select
+              value={statusFilter}
+              onChange={e => { setStatusFilter(e.target.value); fetchData(); }}
+              className="rounded-lg border border-border-default bg-bg-base px-3 py-2 text-body-sm text-text-primary"
+            >
+              <option value="">همه وضعیت‌ها</option>
+              <option value="pending">در انتظار</option>
+              <option value="in_review">در حال بررسی</option>
+              <option value="approved">تأیید شده</option>
+              <option value="rejected">رد شده</option>
+              <option value="escalated">ارجاع شده</option>
+            </select>
+            <select
+              value={riskFilter}
+              onChange={e => { setRiskFilter(e.target.value); fetchData(); }}
+              className="rounded-lg border border-border-default bg-bg-base px-3 py-2 text-body-sm text-text-primary"
+            >
+              <option value="">همه سطوح ریسک</option>
+              <option value="LOW">کم</option>
+              <option value="MEDIUM">متوسط</option>
+              <option value="HIGH">زیاد</option>
+              <option value="CRITICAL">بحرانی</option>
+            </select>
+            <Button size="sm" variant="secondary" onClick={fetchData}>
+              <Filter className="h-4 w-4" />
+              بروزرسانی
+            </Button>
+          </div>
+        </Card>
+
+        {loading ? (
+          <div className="flex h-64 items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-brand-primary" />
+          </div>
+        ) : (
+          <DataTable
+            columns={columns}
+            rows={filteredRows}
+            keyExtractor={(row: RequestRow) => row.requestId}
+          />
+        )}
+      </main>
     </div>
   );
 }

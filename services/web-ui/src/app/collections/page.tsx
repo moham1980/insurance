@@ -6,6 +6,8 @@ import { Calendar, Coins, CreditCard, Plus, RefreshCcw, X } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { getAuthUser } from '@/lib/api';
 import { enterprisePermissionsForRoles, hasEnterprisePermission } from '@/lib/enterprise-rbac';
+import { Button, Card, StatCard } from '@insurance/design-system';
+import { MOCK_COLLECTIONS } from '@/lib/mock-data';
 
 type Plan = {
   planId: string;
@@ -77,15 +79,15 @@ export default function CollectionsPage() {
   }
 
   function planBadgeClass(status: Plan['status']) {
-    if (status === 'active') return 'border-emerald-200 bg-emerald-50 text-emerald-700';
-    if (status === 'completed') return 'border-sky-200 bg-sky-50 text-sky-700';
-    return 'border-neutral-200 bg-neutral-100 text-neutral-700';
+    if (status === 'active') return 'border-feedback-success/30 bg-feedback-success-subtle text-feedback-success';
+    if (status === 'completed') return 'border-brand-primary/30 bg-brand-primary-subtle text-brand-primary';
+    return 'border-border-default bg-bg-base text-text-secondary';
   }
 
   function installmentBadgeClass(status: Installment['status']) {
-    if (status === 'paid') return 'border-emerald-200 bg-emerald-50 text-emerald-700';
-    if (status === 'pending') return 'border-amber-200 bg-amber-50 text-amber-700';
-    return 'border-neutral-200 bg-neutral-100 text-neutral-700';
+    if (status === 'paid') return 'border-feedback-success/30 bg-feedback-success-subtle text-feedback-success';
+    if (status === 'pending') return 'border-feedback-warning/30 bg-feedback-warning-subtle text-feedback-warning';
+    return 'border-border-default bg-bg-base text-text-secondary';
   }
 
   async function loadPlans() {
@@ -94,10 +96,18 @@ export default function CollectionsPage() {
     const qs = new URLSearchParams();
     if (filterPolicyId) qs.set('policyId', filterPolicyId);
     if (filterStatus) qs.set('status', filterStatus);
-    const res = await apiFetch<Plan[]>(`/collections/plans${qs.toString() ? `?${qs.toString()}` : ''}`);
-    if (res.success) setPlans(res.data);
-    else setError({ message: res.error.message, correlationId: res.correlationId });
-    setLoading(false);
+    try {
+      const res = await apiFetch<Plan[]>(`/collections/plans${qs.toString() ? `?${qs.toString()}` : ''}`);
+      if (res.success) setPlans(res.data);
+      else {
+        setError({ message: res.error.message, correlationId: res.correlationId });
+        setPlans(MOCK_COLLECTIONS.map(c => ({ ...c, planId: c.planId, premiumAmount: c.totalAmount, currency: 'IRR', status: c.status === 'completed' ? 'completed' : c.status === 'in_progress' ? 'active' : 'active', idempotencyKey: '', meta: null, createdAt: c.createdAt, updatedAt: c.createdAt, installments: [] })) as Plan[]);
+      }
+    } catch {
+      setPlans(MOCK_COLLECTIONS.map(c => ({ ...c, planId: c.planId, premiumAmount: c.totalAmount, currency: 'IRR', status: c.status === 'completed' ? 'completed' : c.status === 'in_progress' ? 'active' : 'active', idempotencyKey: '', meta: null, createdAt: c.createdAt, updatedAt: c.createdAt, installments: [] })) as Plan[]);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -191,36 +201,24 @@ export default function CollectionsPage() {
     <main className="p-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div className="flex items-start gap-3">
-          <div className="mt-0.5 rounded-2xl border bg-neutral-50 p-2">
-            <Coins className="h-5 w-5 text-neutral-700" />
+          <div className="mt-0.5 rounded-2xl border bg-bg-base p-2">
+            <Coins className="h-5 w-5 text-text-secondary" />
           </div>
           <div>
             <h1 className="text-xl font-semibold">اقساط و وصول</h1>
-            <p className="mt-1 text-sm text-neutral-600">طرح‌های قسطی، وضعیت اقساط و ثبت وصول</p>
+            <p className="mt-1 text-sm text-text-muted">طرح‌های قسطی، وضعیت اقساط و ثبت وصول</p>
           </div>
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={loadPlans}
-            className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50"
-            disabled={loading}
-          >
-            <RefreshCcw className="h-4 w-4" />
-            بروزرسانی
-          </button>
+          <Button variant="ghost" size="sm" onClick={loadPlans} disabled={loading}>
+            <RefreshCcw className="h-4 w-4" /> بروزرسانی
+          </Button>
 
           {canCreatePlan ? (
-            <button
-              type="button"
-              onClick={() => setShowCreate(true)}
-              className="inline-flex items-center gap-2 rounded-xl bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
-              disabled={loading}
-            >
-              <Plus className="h-4 w-4" />
-              ایجاد طرح
-            </button>
+            <Button variant="primary" size="sm" onClick={() => setShowCreate(true)} disabled={loading}>
+              <Plus className="h-4 w-4" /> ایجاد طرح
+            </Button>
           ) : null}
         </div>
       </div>
@@ -229,18 +227,18 @@ export default function CollectionsPage() {
         <div
           className={
             showCreate
-              ? 'fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 md:items-center'
+              ? 'fixed inset-0 z-50 flex items-end justify-center bg-bg-overlay p-4 md:items-center'
               : 'mt-6'
           }
         >
-          <div className={showCreate ? 'w-full max-w-3xl rounded-2xl border bg-white p-4 shadow-xl' : 'rounded-2xl border p-4'}>
+          <div className={showCreate ? 'w-full max-w-3xl rounded-2xl border bg-bg-raised p-4 shadow-xl' : 'rounded-2xl border p-4'}>
             {showCreate ? (
               <div className="mb-3 flex items-center justify-between">
                 <div className="text-sm font-semibold">ایجاد طرح قسطی</div>
                 <button
                   type="button"
                   onClick={() => setShowCreate(false)}
-                  className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
+                  className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm hover:bg-bg-base"
                 >
                   <X className="h-4 w-4" />
                   بستن
@@ -275,19 +273,19 @@ export default function CollectionsPage() {
                   value={it.amount}
                   onChange={(e) => updateInstallmentRow(idx, 'amount', e.target.value)}
                 />
-                <button type="button" onClick={() => removeInstallmentRow(idx)} className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 hover:bg-rose-100">
+                <button type="button" onClick={() => removeInstallmentRow(idx)} className="rounded-xl border border-feedback-error/30 bg-feedback-error-subtle px-3 py-2 text-sm text-feedback-error hover:opacity-90">
                   حذف
                 </button>
               </div>
             ))}
-            <button type="button" onClick={addInstallmentRow} className="mt-2 rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50">
+            <button type="button" onClick={addInstallmentRow} className="mt-2 rounded-xl border px-3 py-2 text-sm hover:bg-bg-base">
               افزودن قسط
             </button>
           </div>
           <button
             type="button"
             onClick={createPlan}
-            className="mt-4 rounded-xl bg-neutral-900 px-3 py-2 text-sm font-medium text-white"
+            className="mt-4 rounded-xl bg-brand-primary px-3 py-2 text-sm font-medium text-text-on-brand"
             disabled={!canCreatePlan || busy === 'createPlan' || !planPolicyId || !planPremiumAmount || !planIdempotencyKey || planInstallments.some((it) => !it.dueDate || !it.amount)}
           >
             {busy === 'createPlan' ? 'در حال ثبت' : 'ایجاد طرح'}
@@ -296,21 +294,23 @@ export default function CollectionsPage() {
         </div>
       )}
 
-      <div className="mt-6 grid gap-3 md:grid-cols-3">
-        <input className="rounded-xl border px-3 py-2" placeholder="فیلتر Policy ID" value={filterPolicyId} onChange={(e) => setFilterPolicyId(e.target.value)} />
-        <select className="rounded-xl border px-3 py-2" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-          <option value="">همه وضعیت‌ها</option>
-          <option value="active">فعال</option>
-          <option value="completed">تکمیل شده</option>
-          <option value="cancelled">لغو شده</option>
-        </select>
-        <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" onClick={loadPlans} disabled={loading}>
-          اعمال فیلتر
-        </button>
-      </div>
+      <Card className="mt-6 p-4">
+        <div className="grid gap-3 md:grid-cols-3">
+          <input className="w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:ring-2 focus:ring-brand-primary focus:border-transparent" placeholder="فیلتر شناسه بیمه‌نامه" value={filterPolicyId} onChange={(e) => setFilterPolicyId(e.target.value)} />
+          <select className="w-full rounded-lg border border-border-default px-3 py-2 text-sm focus:ring-2 focus:ring-brand-primary focus:border-transparent" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+            <option value="">همه وضعیت‌ها</option>
+            <option value="active">فعال</option>
+            <option value="completed">تکمیل شده</option>
+            <option value="cancelled">لغو شده</option>
+          </select>
+          <Button variant="ghost" size="md" onClick={loadPlans} disabled={loading} fullWidth>
+            اعمال فیلتر
+          </Button>
+        </div>
+      </Card>
 
       {error ? (
-        <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+        <div className="mt-6 rounded-2xl border border-feedback-error/30 bg-feedback-error-subtle p-4 text-sm text-feedback-error">
           <div>خطا: {error.message}</div>
           {error.correlationId ? <div className="mt-1 text-xs">correlationId: {error.correlationId}</div> : null}
         </div>
@@ -318,27 +318,22 @@ export default function CollectionsPage() {
 
       <div className="mt-6 space-y-3">
         {plans.map((p) => (
-          <div key={p.planId} className="rounded-2xl border p-4">
+          <Card key={p.planId} className="p-4">
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div>
-                <div className="text-sm font-semibold">{p.planId}</div>
-                <div className="mt-1 text-xs text-neutral-600">Policy: {p.policyId}</div>
+                <div className="text-sm font-semibold text-text-primary">{p.planId}</div>
+                <div className="mt-1 text-xs text-text-muted">بیمه‌نامه: {p.policyId}</div>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs ${planBadgeClass(p.status)}`}>{p.status}</span>
-                  <span className="inline-flex items-center gap-1 rounded-full border bg-white px-2 py-0.5 text-xs text-neutral-700">
-                    <CreditCard className="h-3.5 w-3.5 text-neutral-600" />
+                  <span className="inline-flex items-center gap-1 rounded-full border bg-bg-raised px-2 py-0.5 text-xs text-text-secondary">
+                    <CreditCard className="h-3.5 w-3.5 text-text-muted" />
                     {formatMoney(p.premiumAmount, p.currency)}
                   </span>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => selectPlan(p)}
-                disabled={!canViewPlan}
-                className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50"
-              >
+              <Button variant="ghost" size="sm" onClick={() => selectPlan(p)} disabled={!canViewPlan}>
                 {selectedPlan?.planId === p.planId ? 'بسته' : 'مشاهده اقساط'}
-              </button>
+              </Button>
             </div>
             {selectedPlan?.planId === p.planId && (
               <div className="mt-4 space-y-2">
@@ -347,11 +342,11 @@ export default function CollectionsPage() {
                   <div key={inst.installmentId} className="rounded-xl border p-3">
                     <div className="flex items-center justify-between">
                       <div className="flex flex-col gap-1">
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-700">
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-text-secondary">
                           <span className="font-medium">قسط {inst.installmentNo}</span>
                           <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs ${installmentBadgeClass(inst.status)}`}>{inst.status}</span>
                         </div>
-                        <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-600">
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-text-muted">
                           <span className="inline-flex items-center gap-1">
                             <Calendar className="h-3.5 w-3.5" />
                             سررسید: {new Date(inst.dueDate).toLocaleDateString('fa-IR')}
@@ -364,24 +359,24 @@ export default function CollectionsPage() {
                         </div>
                       </div>
                       {inst.status === 'pending' && canPayInstallment && (
-                        <button
-                          type="button"
-                          onClick={() => payInstallment(inst.installmentId)}
-                          disabled={busy === inst.installmentId}
-                          className="rounded-xl border px-2 py-1 text-xs hover:bg-neutral-50 disabled:opacity-50"
-                        >
+                        <Button variant="primary" size="sm" onClick={() => payInstallment(inst.installmentId)} disabled={busy === inst.installmentId}>
                           {busy === inst.installmentId ? 'در حال ثبت' : 'ثبت وصول'}
-                        </button>
+                        </Button>
                       )}
                     </div>
                   </div>
                 ))}
-                {installments.length === 0 && <div className="text-xs text-neutral-600">موردی یافت نشد.</div>}
+                {installments.length === 0 && <div className="text-xs text-text-muted">موردی یافت نشد.</div>}
               </div>
             )}
-          </div>
+          </Card>
         ))}
-        {!loading && plans.length === 0 ? <div className="text-sm text-neutral-600">طرح قسطی یافت نشد.</div> : null}
+        {!loading && plans.length === 0 ? (
+          <div className="text-center py-12">
+            <Coins className="mx-auto h-12 w-12 text-text-muted opacity-50" />
+            <p className="mt-3 text-sm text-text-muted">طرح قسطی یافت نشد.</p>
+          </div>
+        ) : null}
       </div>
     </main>
   );

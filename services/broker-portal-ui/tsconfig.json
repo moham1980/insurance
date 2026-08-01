@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "es5",
+    "target": "es2017",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
@@ -14,7 +14,13 @@
     "jsx": "preserve",
     "incremental": true,
     "baseUrl": ".",
-    "paths": { "@/*": ["./src/*"] }
+    "paths": {
+      "@/*": ["./src/*"],
+      "@insurance/design-system": ["../../packages/design-system/src/index.ts"],
+      "@insurance/design-system/*": ["../../packages/design-system/src/*"],
+      "@insurance/ui-utils": ["../../packages/ui-utils/src/index.ts"],
+      "@insurance/ui-utils/*": ["../../packages/ui-utils/src/*"]
+    }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
   "exclude": ["node_modules"]

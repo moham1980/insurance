@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { DataSource } from 'typeorm';
-import { OutboxEvent } from '@insurance/shared';
+import { OutboxEvent, DeadLetterEvent, ConsumedEvent } from '@insurance/shared';
 import { UnderwritingRequest } from './entities/UnderwritingRequest';
 import { UnderwritingAppetite } from './entities/UnderwritingAppetite';
 
@@ -12,7 +12,7 @@ export const AppDataSource = new DataSource({
   password: process.env.DB_PASSWORD || 'postgres',
   database: process.env.DB_DATABASE || process.env.DB_NAME || 'postgres',
   schema: process.env.DB_SCHEMA || 'public',
-  entities: [UnderwritingRequest, UnderwritingAppetite, OutboxEvent],
+  entities: [UnderwritingRequest, UnderwritingAppetite, OutboxEvent, DeadLetterEvent, ConsumedEvent],
   migrations: [__dirname + '/migrations/*.{js,ts}'],
   synchronize: false,
 });

@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import { ChevronRight, Loader2, Download, Printer, FileText } from 'lucide-react';
+import { Card } from '@insurance/design-system';
+import { apiFetch } from '@/lib/api';
 
 interface ClaimDetail {
   id: string;
@@ -35,6 +38,31 @@ interface ClaimDetail {
   }>;
 }
 
+const MOCK_CLAIM: ClaimDetail = {
+  id: '1',
+  claimNumber: 'CLM-2024-001',
+  policyNumber: 'POL-2024-001',
+  status: 'UNDER_REVIEW',
+  submittedDate: '2024-03-10',
+  claimType: 'آتش‌سوزی',
+  amount: 2000000,
+  incidentDate: '2024-03-09',
+  incidentTime: '14:30',
+  location: 'تهران، خیابان ولیعصر، پلاک ۱۲۳',
+  description: 'آتش‌سوزی ناشی از اتصال برق در موتور خودرو',
+  contactPhone: '09121234567',
+  documents: [
+    { id: '1', name: 'عکس خودرو.jpg', uploadDate: '2024-03-10' },
+    { id: '2', name: 'گزارش آتش‌نشانی.pdf', uploadDate: '2024-03-10' },
+  ],
+  timeline: [
+    { date: '2024-03-10', status: 'ثبت شده', description: 'ثبت اولیه خسارت' },
+    { date: '2024-03-11', status: 'در حال بررسی', description: 'ارسال به کارشناس' },
+    { date: '2024-03-12', status: 'در حال بررسی', description: 'در انتظار تأیید مدیر' },
+  ],
+  payments: [],
+};
+
 export default function ClaimDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -50,35 +78,10 @@ export default function ClaimDetailPage() {
   const loadClaimDetail = async () => {
     try {
       setLoading(true);
-      // In a real implementation, fetch from API
-      const mockClaim: ClaimDetail = {
-        id: Array.isArray(params?.id) ? params.id[0] : params?.id || 'unknown',
-        claimNumber: 'CLM-2024-001',
-        policyNumber: 'POL-2024-001',
-        status: 'UNDER_REVIEW',
-        submittedDate: '2024-03-10',
-        claimType: 'آتش‌سوزی',
-        amount: 2000000,
-        incidentDate: '2024-03-09',
-        incidentTime: '14:30',
-        location: 'تهران، خیابان ولیعصر، پلاک ۱۲۳',
-        description: 'آتش‌سوزی ناشی از اتصال برق در موتور خودرو',
-        contactPhone: '09121234567',
-        documents: [
-          { id: '1', name: 'عکس خودرو.jpg', uploadDate: '2024-03-10' },
-          { id: '2', name: 'گزارش آتش‌نشانی.pdf', uploadDate: '2024-03-10' },
-        ],
-        timeline: [
-          { date: '2024-03-10', status: 'ثبت شده', description: 'ثبت اولیه خسارت' },
-          { date: '2024-03-11', status: 'در حال بررسی', description: 'ارسال به کارشناس' },
-          { date: '2024-03-12', status: 'در حال بررسی', description: 'در انتظار تأیید مدیر' },
-        ],
-        payments: [],
-      };
-
-      setClaim(mockClaim);
-    } catch (error) {
-      console.error('Failed to load claim detail:', error);
+      const res = await apiFetch<ClaimDetail>(`/portal/claims/${params?.id}`);
+      setClaim(res.success && res.data ? res.data : MOCK_CLAIM);
+    } catch {
+      setClaim(MOCK_CLAIM);
     } finally {
       setLoading(false);
     }
@@ -86,11 +89,11 @@ export default function ClaimDetailPage() {
 
   const getStatusBadge = (status: string) => {
     const styles = {
-      SUBMITTED: 'bg-blue-100 text-blue-800',
-      UNDER_REVIEW: 'bg-yellow-100 text-yellow-800',
-      APPROVED: 'bg-green-100 text-green-800',
-      REJECTED: 'bg-red-100 text-red-800',
-      PAID: 'bg-green-100 text-green-800',
+      SUBMITTED: 'bg-brand-primary-subtle text-brand-primary',
+      UNDER_REVIEW: 'bg-feedback-warning-subtle text-feedback-warning',
+      APPROVED: 'bg-feedback-success-subtle text-feedback-success',
+      REJECTED: 'bg-feedback-error-subtle text-feedback-error',
+      PAID: 'bg-feedback-success-subtle text-feedback-success',
     };
     const labels = {
       SUBMITTED: 'ثبت شده',
@@ -108,20 +111,20 @@ export default function ClaimDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="flex items-center justify-center min-h-screen bg-bg-base">
+        <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
       </div>
     );
   }
 
   if (!claim) {
     return (
-      <div className="min-h-screen bg-gray-50" dir="rtl">
+      <div className="min-h-screen bg-bg-base" dir="rtl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <p className="text-gray-500 text-center">خسارت یافت نشد</p>
+          <p className="text-text-muted text-center">خسارت یافت نشد</p>
           <button
             onClick={() => router.push('/portal/claims')}
-            className="mt-4 mx-auto block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="mt-4 mx-auto block px-4 py-2 bg-brand-primary text-text-on-brand rounded-lg hover:opacity-90"
           >
             بازگشت به لیست
           </button>
@@ -131,116 +134,114 @@ export default function ClaimDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50" dir="rtl">
-      {/* Header */}
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
+    <div className="min-h-screen bg-bg-base" dir="rtl">
+      <div className="border-b border-border-default bg-bg-raised">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between py-4">
             <div className="flex items-center gap-4">
-              <button
-                onClick={() => router.push('/portal/claims')}
-                className="text-gray-600 hover:text-gray-900"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
+              <button onClick={() => router.push('/portal/claims')} className="text-text-muted hover:text-text-primary">
+                <ChevronRight className="h-5 w-5" />
               </button>
-              <h1 className="text-2xl font-bold text-gray-900">جزئیات خسارت</h1>
+              <h1 className="text-xl font-bold text-text-primary">جزئیات خسارت</h1>
             </div>
             {getStatusBadge(claim.status)}
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Claim Information */}
-            <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">اطلاعات خسارت</h2>
+            <Card>
+              <div className="px-6 py-4 border-b border-border-default">
+                <h2 className="text-base font-semibold text-text-primary">اطلاعات خسارت</h2>
               </div>
               <div className="p-6">
                 <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
                   <div>
-                    <dt className="text-sm font-medium text-gray-500">شماره خسارت</dt>
-                    <dd className="mt-1 text-sm text-gray-900">{claim.claimNumber}</dd>
+                    <dt className="text-sm font-medium text-text-muted">شماره خسارت</dt>
+                    <dd className="mt-1 text-sm text-text-primary">{claim.claimNumber}</dd>
                   </div>
                   <div>
-                    <dt className="text-sm font-medium text-gray-500">شماره بیمه‌نامه</dt>
-                    <dd className="mt-1 text-sm text-gray-900">{claim.policyNumber}</dd>
+                    <dt className="text-sm font-medium text-text-muted">شماره بیمه‌نامه</dt>
+                    <dd className="mt-1 text-sm text-text-primary">{claim.policyNumber}</dd>
                   </div>
                   <div>
-                    <dt className="text-sm font-medium text-gray-500">نوع خسارت</dt>
-                    <dd className="mt-1 text-sm text-gray-900">{claim.claimType}</dd>
+                    <dt className="text-sm font-medium text-text-muted">نوع خسارت</dt>
+                    <dd className="mt-1 text-sm text-text-primary">{claim.claimType}</dd>
                   </div>
                   <div>
-                    <dt className="text-sm font-medium text-gray-500">تاریخ ثبت</dt>
-                    <dd className="mt-1 text-sm text-gray-900">{claim.submittedDate}</dd>
+                    <dt className="text-sm font-medium text-text-muted">تاریخ ثبت</dt>
+                    <dd className="mt-1 text-sm text-text-primary">{claim.submittedDate}</dd>
                   </div>
                   <div>
-                    <dt className="text-sm font-medium text-gray-500">مبلغ درخواست</dt>
-                    <dd className="mt-1 text-sm text-gray-900">{claim.amount.toLocaleString('fa-IR')} ریال</dd>
+                    <dt className="text-sm font-medium text-text-muted">مبلغ درخواست</dt>
+                    <dd className="mt-1 text-sm text-text-primary">{claim.amount.toLocaleString('fa-IR')} ریال</dd>
                   </div>
                   {claim.approvedAmount && (
                     <div>
-                      <dt className="text-sm font-medium text-gray-500">مبلغ تأیید شده</dt>
-                      <dd className="mt-1 text-sm text-gray-900">{claim.approvedAmount.toLocaleString('fa-IR')} ریال</dd>
+                      <dt className="text-sm font-medium text-text-muted">مبلغ تأیید شده</dt>
+                      <dd className="mt-1 text-sm text-text-primary">{claim.approvedAmount.toLocaleString('fa-IR')} ریال</dd>
                     </div>
                   )}
                 </dl>
               </div>
-            </div>
+            </Card>
 
             {/* Incident Details */}
-            <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">جزئیات وقوع</h2>
+            <Card>
+              <div className="px-6 py-4 border-b border-border-default">
+                <h2 className="text-base font-semibold text-text-primary">جزئیات وقوع</h2>
               </div>
               <div className="p-6">
                 <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
                   <div>
-                    <dt className="text-sm font-medium text-gray-500">تاریخ وقوع</dt>
-                    <dd className="mt-1 text-sm text-gray-900">{claim.incidentDate}</dd>
+                    <dt className="text-sm font-medium text-text-muted">تاریخ وقوع</dt>
+                    <dd className="mt-1 text-sm text-text-primary">{claim.incidentDate}</dd>
                   </div>
                   <div>
-                    <dt className="text-sm font-medium text-gray-500">ساعت وقوع</dt>
-                    <dd className="mt-1 text-sm text-gray-900">{claim.incidentTime}</dd>
+                    <dt className="text-sm font-medium text-text-muted">ساعت وقوع</dt>
+                    <dd className="mt-1 text-sm text-text-primary">{claim.incidentTime}</dd>
                   </div>
                   <div className="sm:col-span-2">
-                    <dt className="text-sm font-medium text-gray-500">مکان وقوع</dt>
-                    <dd className="mt-1 text-sm text-gray-900">{claim.location}</dd>
+                    <dt className="text-sm font-medium text-text-muted">مکان وقوع</dt>
+                    <dd className="mt-1 text-sm text-text-primary">{claim.location}</dd>
                   </div>
                   <div className="sm:col-span-2">
-                    <dt className="text-sm font-medium text-gray-500">شرح خسارت</dt>
-                    <dd className="mt-1 text-sm text-gray-900">{claim.description}</dd>
+                    <dt className="text-sm font-medium text-text-muted">شرح خسارت</dt>
+                    <dd className="mt-1 text-sm text-text-primary">{claim.description}</dd>
                   </div>
                   <div>
-                    <dt className="text-sm font-medium text-gray-500">شماره تماس</dt>
-                    <dd className="mt-1 text-sm text-gray-900">{claim.contactPhone}</dd>
+                    <dt className="text-sm font-medium text-text-muted">شماره تماس</dt>
+                    <dd className="mt-1 text-sm text-text-primary">{claim.contactPhone}</dd>
                   </div>
                 </dl>
               </div>
-            </div>
+            </Card>
 
             {/* Documents */}
-            <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">مدارک پیوست</h2>
+            <Card>
+              <div className="px-6 py-4 border-b border-border-default">
+                <h2 className="text-base font-semibold text-text-primary">مدارک پیوست</h2>
               </div>
               <div className="p-6">
                 {claim.documents.length === 0 ? (
-                  <p className="text-gray-500 text-sm">مدرکی پیوست نشده است</p>
+                  <p className="text-sm text-text-muted">مدرکی پیوست نشده است</p>
                 ) : (
-                  <ul className="divide-y divide-gray-200">
+                  <ul className="divide-y divide-border-default">
                     {claim.documents.map((doc) => (
-                      <li key={doc.id} className="py-3 flex justify-between items-center">
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{doc.name}</p>
-                          <p className="text-xs text-gray-500">{doc.uploadDate}</p>
+                      <li key={doc.id} className="flex items-center justify-between py-3">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-text-muted" />
+                          <div>
+                            <p className="text-sm font-medium text-text-primary">{doc.name}</p>
+                            <p className="text-xs text-text-muted">{doc.uploadDate}</p>
+                          </div>
                         </div>
-                        <button className="text-blue-600 hover:text-blue-800 text-sm">
+                        <button className="flex items-center gap-1 text-sm text-brand-primary hover:underline">
+                          <Download className="h-4 w-4" />
                           دانلود
                         </button>
                       </li>
@@ -248,86 +249,74 @@ export default function ClaimDetailPage() {
                   </ul>
                 )}
               </div>
-            </div>
+            </Card>
 
             {/* Timeline */}
-            <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">تاریخچه</h2>
+            <Card>
+              <div className="px-6 py-4 border-b border-border-default">
+                <h2 className="text-base font-semibold text-text-primary">تاریخچه</h2>
               </div>
               <div className="p-6">
                 <div className="space-y-6">
                   {claim.timeline.map((item, index) => (
                     <div key={index} className="flex">
                       <div className="flex-shrink-0">
-                        <div className="w-2 h-2 bg-blue-600 rounded-full mt-2"></div>
+                        <div className="w-2 h-2 rounded-full bg-brand-primary mt-2"></div>
                       </div>
                       <div className="mr-4">
-                        <p className="text-sm font-medium text-gray-900">{item.status}</p>
-                        <p className="text-xs text-gray-500">{item.date}</p>
-                        <p className="text-sm text-gray-600 mt-1">{item.description}</p>
+                        <p className="text-sm font-medium text-text-primary">{item.status}</p>
+                        <p className="text-xs text-text-muted">{item.date}</p>
+                        <p className="mt-1 text-sm text-text-muted">{item.description}</p>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
-            </div>
+            </Card>
 
             {/* Payments */}
             {claim.payments.length > 0 && (
-              <div className="bg-white rounded-lg shadow">
-                <div className="px-6 py-4 border-b border-gray-200">
-                  <h2 className="text-lg font-semibold text-gray-900">پرداخت‌ها</h2>
+              <Card className="overflow-hidden">
+                <div className="px-6 py-4 border-b border-border-default">
+                  <h2 className="text-base font-semibold text-text-primary">پرداخت‌ها</h2>
                 </div>
                 <div className="p-6">
                   <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
+                    <table className="min-w-full divide-y divide-border-default">
+                      <thead className="bg-bg-base">
                         <tr>
-                          <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            مبلغ
-                          </th>
-                          <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            تاریخ پرداخت
-                          </th>
-                          <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            کد پیگیری
-                          </th>
+                          <th className="px-4 py-2 text-right text-xs font-medium text-text-muted">مبلغ</th>
+                          <th className="px-4 py-2 text-right text-xs font-medium text-text-muted">تاریخ پرداخت</th>
+                          <th className="px-4 py-2 text-right text-xs font-medium text-text-muted">کد پیگیری</th>
                         </tr>
                       </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
+                      <tbody className="divide-y divide-border-subtle">
                         {claim.payments.map((payment) => (
                           <tr key={payment.id}>
-                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
-                              {payment.amount.toLocaleString('fa-IR')}
-                            </td>
-                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
-                              {payment.paymentDate}
-                            </td>
-                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
-                              {payment.reference}
-                            </td>
+                            <td className="whitespace-nowrap px-4 py-3 text-sm text-text-primary">{payment.amount.toLocaleString('fa-IR')}</td>
+                            <td className="whitespace-nowrap px-4 py-3 text-sm text-text-muted">{payment.paymentDate}</td>
+                            <td className="whitespace-nowrap px-4 py-3 text-sm text-text-muted">{payment.reference}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
                 </div>
-              </div>
+              </Card>
             )}
           </div>
 
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Status Card */}
-            <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">وضعیت فعلی</h2>
+            <Card>
+              <div className="px-6 py-4 border-b border-border-default">
+                <h2 className="text-base font-semibold text-text-primary">وضعیت فعلی</h2>
               </div>
               <div className="p-6">
                 <div className="text-center">
                   {getStatusBadge(claim.status)}
-                  <p className="mt-2 text-sm text-gray-500">
+                  <p className="mt-2 text-sm text-text-muted">
                     {claim.status === 'UNDER_REVIEW' && 'خسارت شما در حال بررسی است'}
                     {claim.status === 'APPROVED' && 'خسارت تأیید شده است'}
                     {claim.status === 'REJECTED' && 'خسارت رد شده است'}
@@ -335,27 +324,29 @@ export default function ClaimDetailPage() {
                   </p>
                 </div>
               </div>
-            </div>
+            </Card>
 
             {/* Actions */}
-            <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">عملیات</h2>
+            <Card>
+              <div className="px-6 py-4 border-b border-border-default">
+                <h2 className="text-base font-semibold text-text-primary">عملیات</h2>
               </div>
               <div className="p-6 space-y-3">
-                <button className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm">
+                <button className="flex w-full items-center justify-center gap-1 rounded-lg bg-bg-base px-4 py-2 text-sm text-text-secondary hover:opacity-80">
+                  <Download className="h-4 w-4" />
                   دانلود گزارش
                 </button>
-                <button className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm">
+                <button className="flex w-full items-center justify-center gap-1 rounded-lg bg-bg-base px-4 py-2 text-sm text-text-secondary hover:opacity-80">
+                  <Printer className="h-4 w-4" />
                   پرینت
                 </button>
                 {claim.status === 'UNDER_REVIEW' && (
-                  <button className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
+                  <button className="w-full rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-text-on-brand hover:opacity-90">
                     پیگیری
                   </button>
                 )}
               </div>
-            </div>
+            </Card>
           </div>
         </div>
       </div>

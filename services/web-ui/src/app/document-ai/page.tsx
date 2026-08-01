@@ -530,32 +530,32 @@ export default function DocumentAiPage() {
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">Document AI</h1>
-          <p className="mt-1 text-sm text-neutral-600">Jobs / Audit / Usage (enterprise ops)</p>
+          <p className="mt-1 text-sm text-text-muted">Jobs / Audit / Usage (enterprise ops)</p>
         </div>
-        <button type="button" onClick={() => load()} className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" disabled={loading}>
+        <button type="button" onClick={() => load()} className="rounded-xl border px-3 py-2 text-sm hover:bg-bg-base" disabled={loading}>
           بروزرسانی
         </button>
       </div>
 
       <div className="mt-6 flex flex-wrap gap-2">
-        <button type="button" onClick={() => setTab('jobs')} className={tab === 'jobs' ? 'rounded-xl bg-neutral-900 px-3 py-2 text-sm text-white' : 'rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50'}>
+        <button type="button" onClick={() => setTab('jobs')} className={tab === 'jobs' ? 'rounded-xl bg-brand-primary px-3 py-2 text-sm text-text-on-brand' : 'rounded-xl border px-3 py-2 text-sm hover:bg-bg-base'}>
           Jobs
         </button>
-        <button type="button" onClick={() => setTab('audit')} className={tab === 'audit' ? 'rounded-xl bg-neutral-900 px-3 py-2 text-sm text-white' : 'rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50'}>
+        <button type="button" onClick={() => setTab('audit')} className={tab === 'audit' ? 'rounded-xl bg-brand-primary px-3 py-2 text-sm text-text-on-brand' : 'rounded-xl border px-3 py-2 text-sm hover:bg-bg-base'}>
           Audit
         </button>
-        <button type="button" onClick={() => setTab('usage')} className={tab === 'usage' ? 'rounded-xl bg-neutral-900 px-3 py-2 text-sm text-white' : 'rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50'}>
+        <button type="button" onClick={() => setTab('usage')} className={tab === 'usage' ? 'rounded-xl bg-brand-primary px-3 py-2 text-sm text-text-on-brand' : 'rounded-xl border px-3 py-2 text-sm hover:bg-bg-base'}>
           Usage
         </button>
         {(canEvalCasesList || canEvalRunsList || canEvalRunsView) ? (
-          <button type="button" onClick={() => setTab('eval')} className={tab === 'eval' ? 'rounded-xl bg-neutral-900 px-3 py-2 text-sm text-white' : 'rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50'}>
+          <button type="button" onClick={() => setTab('eval')} className={tab === 'eval' ? 'rounded-xl bg-brand-primary px-3 py-2 text-sm text-text-on-brand' : 'rounded-xl border px-3 py-2 text-sm hover:bg-bg-base'}>
             Eval
           </button>
         ) : null}
       </div>
 
       {error ? (
-        <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+        <div className="mt-6 rounded-2xl border border-feedback-error/30 bg-feedback-error-subtle p-4 text-sm text-feedback-error">
           <div>خطا: {error.message}</div>
           {error.correlationId ? <div className="mt-1 text-xs">correlationId: {error.correlationId}</div> : null}
         </div>
@@ -563,7 +563,7 @@ export default function DocumentAiPage() {
 
       <div className="mt-6 rounded-2xl border p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="text-sm text-neutral-700">
+          <div className="text-sm text-text-secondary">
             {total != null ? (
               <span>
                 total: <span className="font-semibold">{total}</span>
@@ -576,19 +576,19 @@ export default function DocumentAiPage() {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
+              className="rounded-xl border px-3 py-2 text-sm hover:bg-bg-base"
               disabled={loading || offset <= 0}
               onClick={() => load({ offset: Math.max(0, offset - limit) })}
             >
               قبلی
             </button>
-            <div className="text-xs text-neutral-600">
+            <div className="text-xs text-text-muted">
               page {currentPage}
               {totalPages ? ` / ${totalPages}` : ''}
             </div>
             <button
               type="button"
-              className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
+              className="rounded-xl border px-3 py-2 text-sm hover:bg-bg-base"
               disabled={loading || total == null || offset + limit >= total}
               onClick={() => load({ offset: offset + limit })}
             >
@@ -597,7 +597,7 @@ export default function DocumentAiPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="text-xs text-neutral-600">page size</div>
+            <div className="text-xs text-text-muted">page size</div>
             <select
               value={String(limit)}
               onChange={(e) => {
@@ -623,41 +623,41 @@ export default function DocumentAiPage() {
           {tab === 'jobs' ? (
             <>
               <div>
-                <div className="text-xs text-neutral-600">status</div>
+                <div className="text-xs text-text-muted">status</div>
                 <input value={jobStatus} onChange={(e) => setJobStatus(e.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" placeholder="pending | processing | retry | completed | dead_letter" />
               </div>
               <div>
-                <div className="text-xs text-neutral-600">documentId</div>
+                <div className="text-xs text-text-muted">documentId</div>
                 <input value={jobDocumentId} onChange={(e) => setJobDocumentId(e.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" placeholder="UUID" />
               </div>
               <div>
-                <div className="text-xs text-neutral-600">tenantId</div>
+                <div className="text-xs text-text-muted">tenantId</div>
                 <input value={jobTenantId} onChange={(e) => setJobTenantId(e.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" placeholder="default" />
               </div>
             </>
           ) : tab === 'audit' ? (
             <>
               <div>
-                <div className="text-xs text-neutral-600">documentId</div>
+                <div className="text-xs text-text-muted">documentId</div>
                 <input value={auditDocumentId} onChange={(e) => setAuditDocumentId(e.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" placeholder="UUID" />
               </div>
               <div>
-                <div className="text-xs text-neutral-600">decision</div>
+                <div className="text-xs text-text-muted">decision</div>
                 <input value={auditDecision} onChange={(e) => setAuditDecision(e.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" placeholder="approved | rejected | needs_review" />
               </div>
               <div>
-                <div className="text-xs text-neutral-600">tenantId</div>
+                <div className="text-xs text-text-muted">tenantId</div>
                 <input value={auditTenantId} onChange={(e) => setAuditTenantId(e.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" placeholder="default" />
               </div>
             </>
           ) : (
             <>
               <div>
-                <div className="text-xs text-neutral-600">tenantId</div>
+                <div className="text-xs text-text-muted">tenantId</div>
                 <input value={usageTenantId} onChange={(e) => setUsageTenantId(e.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" placeholder="default" />
               </div>
               <div>
-                <div className="text-xs text-neutral-600">usageDate</div>
+                <div className="text-xs text-text-muted">usageDate</div>
                 <input value={usageDate} onChange={(e) => setUsageDate(e.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" placeholder="YYYY-MM-DD" />
               </div>
               <div />
@@ -666,10 +666,10 @@ export default function DocumentAiPage() {
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <button type="button" onClick={applyFilters} className="rounded-xl bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-800" disabled={loading}>
+          <button type="button" onClick={applyFilters} className="rounded-xl bg-brand-primary px-3 py-2 text-sm font-medium text-text-on-brand hover:opacity-90" disabled={loading}>
             اعمال فیلتر
           </button>
-          <button type="button" onClick={resetFilters} className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" disabled={loading}>
+          <button type="button" onClick={resetFilters} className="rounded-xl border px-3 py-2 text-sm hover:bg-bg-base" disabled={loading}>
             پاک کردن
           </button>
         </div>
@@ -689,14 +689,14 @@ export default function DocumentAiPage() {
                     setSelectedJobId(id);
                     void loadJob(id);
                   }}
-                  className={active ? 'w-full rounded-2xl border border-neutral-900 bg-neutral-50 p-4 text-left' : 'w-full rounded-2xl border p-4 text-left hover:bg-neutral-50'}
+                  className={active ? 'w-full rounded-2xl border border-brand-primary bg-bg-base p-4 text-left' : 'w-full rounded-2xl border p-4 text-left hover:bg-bg-base'}
                 >
                   <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                     <div className="min-w-0">
                       <div className="text-sm font-semibold">jobId: {id}</div>
-                      <div className="mt-1 text-xs text-neutral-600">status: {String(j?.status)} | attempt: {String(j?.attempt)}/{String(j?.maxAttempts)}</div>
-                      <div className="mt-1 text-xs text-neutral-600">documentId: {String(j?.documentId)} | tenantId: {String(j?.tenantId ?? '—')}</div>
-                      {j?.lastErrorMessage ? <div className="mt-1 truncate text-xs text-rose-700">error: {String(j.lastErrorMessage)}</div> : null}
+                      <div className="mt-1 text-xs text-text-muted">status: {String(j?.status)} | attempt: {String(j?.attempt)}/{String(j?.maxAttempts)}</div>
+                      <div className="mt-1 text-xs text-text-muted">documentId: {String(j?.documentId)} | tenantId: {String(j?.tenantId ?? '—')}</div>
+                      {j?.lastErrorMessage ? <div className="mt-1 truncate text-xs text-feedback-error">error: {String(j.lastErrorMessage)}</div> : null}
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -707,7 +707,7 @@ export default function DocumentAiPage() {
                             e.stopPropagation();
                             openRetry(j);
                           }}
-                          className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
+                          className="rounded-xl border px-3 py-2 text-sm hover:bg-bg-base"
                           disabled={loading}
                         >
                           Retry
@@ -719,14 +719,14 @@ export default function DocumentAiPage() {
               );
             })}
 
-            {!loading && jobs.length === 0 ? <div className="text-sm text-neutral-600">Job ای یافت نشد.</div> : null}
+            {!loading && jobs.length === 0 ? <div className="text-sm text-text-muted">Job ای یافت نشد.</div> : null}
           </div>
 
           <div className="rounded-2xl border p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <div className="text-sm font-semibold">Job details</div>
-                <div className="mt-1 text-xs text-neutral-600">GET /document-ai/jobs/:jobId</div>
+                <div className="mt-1 text-xs text-text-muted">GET /document-ai/jobs/:jobId</div>
               </div>
               {selectedJobId ? (
                 <button
@@ -735,7 +735,7 @@ export default function DocumentAiPage() {
                     setSelectedJobId(null);
                     setSelectedJob(null);
                   }}
-                  className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
+                  className="rounded-xl border px-3 py-2 text-sm hover:bg-bg-base"
                 >
                   بستن
                 </button>
@@ -743,31 +743,31 @@ export default function DocumentAiPage() {
             </div>
 
             {!selectedJob ? (
-              <div className="mt-4 text-sm text-neutral-600">هیچ job ای انتخاب نشده است.</div>
+              <div className="mt-4 text-sm text-text-muted">هیچ job ای انتخاب نشده است.</div>
             ) : (
               <div className="mt-4 space-y-3">
                 <div className="rounded-xl border p-3">
-                  <div className="text-xs text-neutral-600">status</div>
+                  <div className="text-xs text-text-muted">status</div>
                   <div className="mt-1 text-sm font-medium">{String(selectedJob?.status)}</div>
-                  <div className="mt-2 text-xs text-neutral-600">attempt</div>
+                  <div className="mt-2 text-xs text-text-muted">attempt</div>
                   <div className="mt-1 text-sm font-medium">{String(selectedJob?.attempt)}/{String(selectedJob?.maxAttempts)}</div>
                 </div>
 
                 <details open className="rounded-xl border p-3">
                   <summary className="cursor-pointer text-sm font-medium">Input</summary>
-                  <pre className="mt-3 max-h-64 overflow-auto rounded-xl border bg-neutral-50 p-3 text-xs text-neutral-700">{JSON.stringify(selectedJob?.input ?? {}, null, 2)}</pre>
+                  <pre className="mt-3 max-h-64 overflow-auto rounded-xl border bg-bg-base p-3 text-xs text-text-secondary">{JSON.stringify(selectedJob?.input ?? {}, null, 2)}</pre>
                 </details>
 
                 <details className="rounded-xl border p-3">
                   <summary className="cursor-pointer text-sm font-medium">Result</summary>
-                  <pre className="mt-3 max-h-64 overflow-auto rounded-xl border bg-neutral-50 p-3 text-xs text-neutral-700">{JSON.stringify(selectedJob?.result ?? {}, null, 2)}</pre>
+                  <pre className="mt-3 max-h-64 overflow-auto rounded-xl border bg-bg-base p-3 text-xs text-text-secondary">{JSON.stringify(selectedJob?.result ?? {}, null, 2)}</pre>
                 </details>
 
                 <details className="rounded-xl border p-3">
                   <summary className="cursor-pointer text-sm font-medium">Error</summary>
-                  <div className="mt-3 text-xs text-neutral-600">{String(selectedJob?.lastErrorMessage ?? '—')}</div>
+                  <div className="mt-3 text-xs text-text-muted">{String(selectedJob?.lastErrorMessage ?? '—')}</div>
                   {selectedJob?.lastErrorStack ? (
-                    <pre className="mt-3 max-h-56 overflow-auto rounded-xl border bg-neutral-50 p-3 text-xs text-neutral-700">{String(selectedJob.lastErrorStack)}</pre>
+                    <pre className="mt-3 max-h-56 overflow-auto rounded-xl border bg-bg-base p-3 text-xs text-text-secondary">{String(selectedJob.lastErrorStack)}</pre>
                   ) : null}
                 </details>
               </div>
@@ -779,25 +779,25 @@ export default function DocumentAiPage() {
           {audit.map((a: any) => (
             <div key={String(a?.auditId)} className="rounded-2xl border p-4">
               <div className="text-sm font-semibold">decision: {String(a?.decision)} | doc: {String(a?.documentId)}</div>
-              <div className="mt-1 text-xs text-neutral-600">tenant: {String(a?.tenantId ?? '—')} | correlationId: {String(a?.correlationId ?? '—')}</div>
+              <div className="mt-1 text-xs text-text-muted">tenant: {String(a?.tenantId ?? '—')} | correlationId: {String(a?.correlationId ?? '—')}</div>
               <details className="mt-3">
-                <summary className="cursor-pointer text-xs text-neutral-700">output</summary>
-                <pre className="mt-2 max-h-64 overflow-auto rounded-xl border bg-neutral-50 p-3 text-xs text-neutral-700">{JSON.stringify(a?.output ?? {}, null, 2)}</pre>
+                <summary className="cursor-pointer text-xs text-text-secondary">output</summary>
+                <pre className="mt-2 max-h-64 overflow-auto rounded-xl border bg-bg-base p-3 text-xs text-text-secondary">{JSON.stringify(a?.output ?? {}, null, 2)}</pre>
               </details>
             </div>
           ))}
-          {!loading && audit.length === 0 ? <div className="text-sm text-neutral-600">Audit ای یافت نشد.</div> : null}
+          {!loading && audit.length === 0 ? <div className="text-sm text-text-muted">Audit ای یافت نشد.</div> : null}
         </div>
       ) : tab === 'usage' ? (
         <div className="mt-6 space-y-3">
           {usage.map((u: any) => (
             <div key={String(u?.usageId)} className="rounded-2xl border p-4">
               <div className="text-sm font-semibold">{String(u?.tenantId)} / {String(u?.usageDate)}</div>
-              <div className="mt-1 text-xs text-neutral-600">jobsStarted: {String(u?.jobsStarted)} | jobsCompleted: {String(u?.jobsCompleted)} | jobsFailed: {String(u?.jobsFailed)}</div>
-              <div className="mt-1 text-xs text-neutral-600">aiRequests: {String(u?.aiRequests)}</div>
+              <div className="mt-1 text-xs text-text-muted">jobsStarted: {String(u?.jobsStarted)} | jobsCompleted: {String(u?.jobsCompleted)} | jobsFailed: {String(u?.jobsFailed)}</div>
+              <div className="mt-1 text-xs text-text-muted">aiRequests: {String(u?.aiRequests)}</div>
             </div>
           ))}
-          {!loading && usage.length === 0 ? <div className="text-sm text-neutral-600">Usage ای یافت نشد.</div> : null}
+          {!loading && usage.length === 0 ? <div className="text-sm text-text-muted">Usage ای یافت نشد.</div> : null}
         </div>
       ) : (
         <div className="mt-6">
@@ -815,7 +815,7 @@ export default function DocumentAiPage() {
                   setResultsTotal(null);
                   void load({ offset: 0 });
                 }}
-                className={evalMode === 'cases' ? 'rounded-xl bg-neutral-900 px-3 py-2 text-sm text-white' : 'rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50'}
+                className={evalMode === 'cases' ? 'rounded-xl bg-brand-primary px-3 py-2 text-sm text-text-on-brand' : 'rounded-xl border px-3 py-2 text-sm hover:bg-bg-base'}
                 disabled={!canEvalCasesList}
               >
                 Cases
@@ -832,7 +832,7 @@ export default function DocumentAiPage() {
                   setResultsTotal(null);
                   void load({ offset: 0 });
                 }}
-                className={evalMode === 'runs' ? 'rounded-xl bg-neutral-900 px-3 py-2 text-sm text-white' : 'rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50'}
+                className={evalMode === 'runs' ? 'rounded-xl bg-brand-primary px-3 py-2 text-sm text-text-on-brand' : 'rounded-xl border px-3 py-2 text-sm hover:bg-bg-base'}
                 disabled={!canEvalRunsList}
               >
                 Runs
@@ -841,12 +841,12 @@ export default function DocumentAiPage() {
 
             <div className="flex flex-wrap items-center gap-2">
               {evalMode === 'cases' && canEvalCasesManage ? (
-                <button type="button" onClick={openCreateCase} className="rounded-xl bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-800" disabled={loading}>
+                <button type="button" onClick={openCreateCase} className="rounded-xl bg-brand-primary px-3 py-2 text-sm font-medium text-text-on-brand hover:opacity-90" disabled={loading}>
                   New Case
                 </button>
               ) : null}
               {evalMode === 'runs' && canEvalRunsStart ? (
-                <button type="button" onClick={openStartRun} className="rounded-xl bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-800" disabled={loading}>
+                <button type="button" onClick={openStartRun} className="rounded-xl bg-brand-primary px-3 py-2 text-sm font-medium text-text-on-brand hover:opacity-90" disabled={loading}>
                   Start Run
                 </button>
               ) : null}
@@ -859,7 +859,7 @@ export default function DocumentAiPage() {
                 <div className="rounded-2xl border p-4">
                   <div className="grid gap-3 md:grid-cols-3">
                     <div>
-                      <div className="text-xs text-neutral-600">enabled</div>
+                      <div className="text-xs text-text-muted">enabled</div>
                       <select value={evalCasesEnabled} onChange={(e) => setEvalCasesEnabled(e.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" disabled={loading}>
                         <option value="">(any)</option>
                         <option value="true">true</option>
@@ -867,12 +867,12 @@ export default function DocumentAiPage() {
                       </select>
                     </div>
                     <div className="md:col-span-2">
-                      <div className="text-xs text-neutral-600">tag</div>
+                      <div className="text-xs text-text-muted">tag</div>
                       <input value={evalCasesTag} onChange={(e) => setEvalCasesTag(e.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" placeholder="invoice, claim, ..." disabled={loading} />
                     </div>
                   </div>
                   <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <button type="button" onClick={() => load({ offset: 0 })} className="rounded-xl bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-800" disabled={loading}>
+                    <button type="button" onClick={() => load({ offset: 0 })} className="rounded-xl bg-brand-primary px-3 py-2 text-sm font-medium text-text-on-brand hover:opacity-90" disabled={loading}>
                       Apply
                     </button>
                     <button
@@ -884,7 +884,7 @@ export default function DocumentAiPage() {
                         setSelectedEvalCase(null);
                         void load({ offset: 0 });
                       }}
-                      className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
+                      className="rounded-xl border px-3 py-2 text-sm hover:bg-bg-base"
                       disabled={loading}
                     >
                       Reset
@@ -899,14 +899,14 @@ export default function DocumentAiPage() {
                       type="button"
                       key={String(c?.caseId)}
                       onClick={() => setSelectedEvalCase(c)}
-                      className={active ? 'w-full rounded-2xl border border-neutral-900 bg-neutral-50 p-4 text-left' : 'w-full rounded-2xl border p-4 text-left hover:bg-neutral-50'}
+                      className={active ? 'w-full rounded-2xl border border-brand-primary bg-bg-base p-4 text-left' : 'w-full rounded-2xl border p-4 text-left hover:bg-bg-base'}
                     >
                       <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                         <div className="min-w-0">
                           <div className="text-sm font-semibold">{String(c?.name)}</div>
-                          <div className="mt-1 text-xs text-neutral-600">caseId: {String(c?.caseId)}</div>
-                          <div className="mt-1 text-xs text-neutral-600">documentId: {String(c?.documentId)}</div>
-                          <div className="mt-1 text-xs text-neutral-600">enabled: {String(Boolean(c?.enabled))}</div>
+                          <div className="mt-1 text-xs text-text-muted">caseId: {String(c?.caseId)}</div>
+                          <div className="mt-1 text-xs text-text-muted">documentId: {String(c?.documentId)}</div>
+                          <div className="mt-1 text-xs text-text-muted">enabled: {String(Boolean(c?.enabled))}</div>
                         </div>
                         {canEvalCasesManage ? (
                           <button
@@ -915,7 +915,7 @@ export default function DocumentAiPage() {
                               e.stopPropagation();
                               openEditCase(c);
                             }}
-                            className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
+                            className="rounded-xl border px-3 py-2 text-sm hover:bg-bg-base"
                             disabled={loading}
                           >
                             Edit
@@ -925,36 +925,36 @@ export default function DocumentAiPage() {
                     </button>
                   );
                 })}
-                {!loading && evalCases.length === 0 ? <div className="text-sm text-neutral-600">Case ای یافت نشد.</div> : null}
+                {!loading && evalCases.length === 0 ? <div className="text-sm text-text-muted">Case ای یافت نشد.</div> : null}
               </div>
 
               <div className="rounded-2xl border p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <div className="text-sm font-semibold">Case details</div>
-                    <div className="mt-1 text-xs text-neutral-600">Expected / tags / enabled</div>
+                    <div className="mt-1 text-xs text-text-muted">Expected / tags / enabled</div>
                   </div>
                   {selectedEvalCase ? (
-                    <button type="button" onClick={() => setSelectedEvalCase(null)} className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50">
+                    <button type="button" onClick={() => setSelectedEvalCase(null)} className="rounded-xl border px-3 py-2 text-sm hover:bg-bg-base">
                       بستن
                     </button>
                   ) : null}
                 </div>
 
                 {!selectedEvalCase ? (
-                  <div className="mt-4 text-sm text-neutral-600">هیچ case ای انتخاب نشده است.</div>
+                  <div className="mt-4 text-sm text-text-muted">هیچ case ای انتخاب نشده است.</div>
                 ) : (
                   <div className="mt-4 space-y-3">
                     <div className="rounded-xl border p-3">
-                      <div className="text-xs text-neutral-600">name</div>
+                      <div className="text-xs text-text-muted">name</div>
                       <div className="mt-1 text-sm font-medium">{String(selectedEvalCase?.name)}</div>
-                      <div className="mt-2 text-xs text-neutral-600">tags</div>
+                      <div className="mt-2 text-xs text-text-muted">tags</div>
                       <div className="mt-1 text-sm font-medium">{Array.isArray(selectedEvalCase?.tags) ? selectedEvalCase.tags.join(', ') : '—'}</div>
                     </div>
 
                     <details open className="rounded-xl border p-3">
                       <summary className="cursor-pointer text-sm font-medium">Expected JSON</summary>
-                      <pre className="mt-3 max-h-80 overflow-auto rounded-xl border bg-neutral-50 p-3 text-xs text-neutral-700">{JSON.stringify(selectedEvalCase?.expected ?? {}, null, 2)}</pre>
+                      <pre className="mt-3 max-h-80 overflow-auto rounded-xl border bg-bg-base p-3 text-xs text-text-secondary">{JSON.stringify(selectedEvalCase?.expected ?? {}, null, 2)}</pre>
                     </details>
                   </div>
                 )}
@@ -966,11 +966,11 @@ export default function DocumentAiPage() {
                 <div className="rounded-2xl border p-4">
                   <div className="grid gap-3 md:grid-cols-3">
                     <div className="md:col-span-2">
-                      <div className="text-xs text-neutral-600">status</div>
+                      <div className="text-xs text-text-muted">status</div>
                       <input value={evalRunsStatus} onChange={(e) => setEvalRunsStatus(e.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" placeholder="queued | running | completed | failed" disabled={loading} />
                     </div>
                     <div className="flex items-end">
-                      <button type="button" onClick={() => load({ offset: 0 })} className="w-full rounded-xl bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-800" disabled={loading}>
+                      <button type="button" onClick={() => load({ offset: 0 })} className="w-full rounded-xl bg-brand-primary px-3 py-2 text-sm font-medium text-text-on-brand hover:opacity-90" disabled={loading}>
                         Apply
                       </button>
                     </div>
@@ -990,21 +990,21 @@ export default function DocumentAiPage() {
                         setResultsTotal(null);
                         void loadRunResults(String(r.runId), { offset: 0 });
                       }}
-                      className={active ? 'w-full rounded-2xl border border-neutral-900 bg-neutral-50 p-4 text-left' : 'w-full rounded-2xl border p-4 text-left hover:bg-neutral-50'}
+                      className={active ? 'w-full rounded-2xl border border-brand-primary bg-bg-base p-4 text-left' : 'w-full rounded-2xl border p-4 text-left hover:bg-bg-base'}
                     >
                       <div className="text-sm font-semibold">runId: {String(r?.runId)}</div>
-                      <div className="mt-1 text-xs text-neutral-600">status: {String(r?.status)} | createdAt: {String(r?.createdAt)}</div>
+                      <div className="mt-1 text-xs text-text-muted">status: {String(r?.status)} | createdAt: {String(r?.createdAt)}</div>
                     </button>
                   );
                 })}
-                {!loading && evalRuns.length === 0 ? <div className="text-sm text-neutral-600">Run ای یافت نشد.</div> : null}
+                {!loading && evalRuns.length === 0 ? <div className="text-sm text-text-muted">Run ای یافت نشد.</div> : null}
               </div>
 
               <div className="rounded-2xl border p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <div className="text-sm font-semibold">Run results</div>
-                    <div className="mt-1 text-xs text-neutral-600">Select a run to view scored results</div>
+                    <div className="mt-1 text-xs text-text-muted">Select a run to view scored results</div>
                   </div>
                   {selectedRun ? (
                     <button
@@ -1015,7 +1015,7 @@ export default function DocumentAiPage() {
                         setResultsOffset(0);
                         setResultsTotal(null);
                       }}
-                      className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
+                      className="rounded-xl border px-3 py-2 text-sm hover:bg-bg-base"
                     >
                       بستن
                     </button>
@@ -1023,23 +1023,23 @@ export default function DocumentAiPage() {
                 </div>
 
                 {!selectedRun ? (
-                  <div className="mt-4 text-sm text-neutral-600">هیچ run ای انتخاب نشده است.</div>
+                  <div className="mt-4 text-sm text-text-muted">هیچ run ای انتخاب نشده است.</div>
                 ) : (
                   <div className="mt-4 space-y-3">
                     <div className="rounded-xl border p-3">
-                      <div className="text-xs text-neutral-600">status</div>
+                      <div className="text-xs text-text-muted">status</div>
                       <div className="mt-1 text-sm font-medium">{String(selectedRun?.status)}</div>
-                      <div className="mt-2 text-xs text-neutral-600">params</div>
-                      <pre className="mt-2 max-h-32 overflow-auto rounded-xl border bg-neutral-50 p-3 text-xs text-neutral-700">{JSON.stringify(selectedRun?.params ?? {}, null, 2)}</pre>
+                      <div className="mt-2 text-xs text-text-muted">params</div>
+                      <pre className="mt-2 max-h-32 overflow-auto rounded-xl border bg-bg-base p-3 text-xs text-text-secondary">{JSON.stringify(selectedRun?.params ?? {}, null, 2)}</pre>
                     </div>
 
                     <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3">
-                      <div className="text-xs text-neutral-600">total results: {resultsTotal != null ? String(resultsTotal) : '—'}</div>
+                      <div className="text-xs text-text-muted">total results: {resultsTotal != null ? String(resultsTotal) : '—'}</div>
                       <div className="flex items-center gap-2">
-                        <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" disabled={loading || resultsOffset <= 0} onClick={() => loadRunResults(String(selectedRun.runId), { offset: Math.max(0, resultsOffset - resultsLimit) })}>
+                        <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-bg-base" disabled={loading || resultsOffset <= 0} onClick={() => loadRunResults(String(selectedRun.runId), { offset: Math.max(0, resultsOffset - resultsLimit) })}>
                           قبلی
                         </button>
-                        <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" disabled={loading || resultsTotal == null || resultsOffset + resultsLimit >= resultsTotal} onClick={() => loadRunResults(String(selectedRun.runId), { offset: resultsOffset + resultsLimit })}>
+                        <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-bg-base" disabled={loading || resultsTotal == null || resultsOffset + resultsLimit >= resultsTotal} onClick={() => loadRunResults(String(selectedRun.runId), { offset: resultsOffset + resultsLimit })}>
                           بعدی
                         </button>
                       </div>
@@ -1050,25 +1050,25 @@ export default function DocumentAiPage() {
                         <summary className="cursor-pointer text-sm font-medium">
                           score: {String(x?.score ?? '—')} | doc: {String(x?.documentId)}
                         </summary>
-                        {x?.errorMessage ? <div className="mt-2 text-xs text-rose-700">error: {String(x.errorMessage)}</div> : null}
+                        {x?.errorMessage ? <div className="mt-2 text-xs text-feedback-error">error: {String(x.errorMessage)}</div> : null}
                         <div className="mt-3 grid gap-3 md:grid-cols-2">
                           <div>
-                            <div className="text-xs text-neutral-600">expected</div>
-                            <pre className="mt-2 max-h-64 overflow-auto rounded-xl border bg-neutral-50 p-3 text-xs text-neutral-700">{JSON.stringify(x?.expected ?? {}, null, 2)}</pre>
+                            <div className="text-xs text-text-muted">expected</div>
+                            <pre className="mt-2 max-h-64 overflow-auto rounded-xl border bg-bg-base p-3 text-xs text-text-secondary">{JSON.stringify(x?.expected ?? {}, null, 2)}</pre>
                           </div>
                           <div>
-                            <div className="text-xs text-neutral-600">actual</div>
-                            <pre className="mt-2 max-h-64 overflow-auto rounded-xl border bg-neutral-50 p-3 text-xs text-neutral-700">{JSON.stringify(x?.actual ?? {}, null, 2)}</pre>
+                            <div className="text-xs text-text-muted">actual</div>
+                            <pre className="mt-2 max-h-64 overflow-auto rounded-xl border bg-bg-base p-3 text-xs text-text-secondary">{JSON.stringify(x?.actual ?? {}, null, 2)}</pre>
                           </div>
                         </div>
                         <div className="mt-3">
-                          <div className="text-xs text-neutral-600">diff</div>
-                          <pre className="mt-2 max-h-56 overflow-auto rounded-xl border bg-neutral-50 p-3 text-xs text-neutral-700">{JSON.stringify(x?.diff ?? {}, null, 2)}</pre>
+                          <div className="text-xs text-text-muted">diff</div>
+                          <pre className="mt-2 max-h-56 overflow-auto rounded-xl border bg-bg-base p-3 text-xs text-text-secondary">{JSON.stringify(x?.diff ?? {}, null, 2)}</pre>
                         </div>
                       </details>
                     ))}
 
-                    {!loading && evalResults.length === 0 ? <div className="text-sm text-neutral-600">Result ای یافت نشد.</div> : null}
+                    {!loading && evalResults.length === 0 ? <div className="text-sm text-text-muted">Result ای یافت نشد.</div> : null}
                   </div>
                 )}
               </div>
@@ -1078,16 +1078,16 @@ export default function DocumentAiPage() {
       )}
 
       {retryModalOpen && retryTarget ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-xl rounded-2xl bg-white p-5 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay p-4">
+          <div className="w-full max-w-xl rounded-2xl bg-bg-raised p-5 shadow-xl">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-sm font-semibold">Retry job</div>
-                <div className="mt-1 text-xs text-neutral-600">This will re-queue the job according to backend policy.</div>
+                <div className="mt-1 text-xs text-text-muted">This will re-queue the job according to backend policy.</div>
               </div>
               <button
                 type="button"
-                className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
+                className="rounded-xl border px-3 py-2 text-sm hover:bg-bg-base"
                 onClick={() => {
                   setRetryModalOpen(false);
                   setRetryTarget(null);
@@ -1100,14 +1100,14 @@ export default function DocumentAiPage() {
             </div>
 
             <div className="mt-4 rounded-xl border p-3">
-              <div className="text-xs text-neutral-600">jobId</div>
+              <div className="text-xs text-text-muted">jobId</div>
               <div className="mt-1 text-sm font-medium">{String(retryTarget?.jobId)}</div>
-              <div className="mt-2 text-xs text-neutral-600">status</div>
+              <div className="mt-2 text-xs text-text-muted">status</div>
               <div className="mt-1 text-sm font-medium">{String(retryTarget?.status)}</div>
             </div>
 
             <div className="mt-4">
-              <div className="text-xs text-neutral-600">confirmation</div>
+              <div className="text-xs text-text-muted">confirmation</div>
               <input
                 value={retryConfirmText}
                 onChange={(e) => setRetryConfirmText(e.target.value)}
@@ -1120,7 +1120,7 @@ export default function DocumentAiPage() {
             <div className="mt-4 flex items-center justify-end gap-2">
               <button
                 type="button"
-                className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
+                className="rounded-xl border px-3 py-2 text-sm hover:bg-bg-base"
                 onClick={() => {
                   setRetryModalOpen(false);
                   setRetryTarget(null);
@@ -1132,7 +1132,7 @@ export default function DocumentAiPage() {
               </button>
               <button
                 type="button"
-                className="rounded-xl bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+                className="rounded-xl bg-brand-primary px-3 py-2 text-sm font-medium text-text-on-brand hover:opacity-90"
                 onClick={submitRetry}
                 disabled={loading}
               >
@@ -1144,29 +1144,29 @@ export default function DocumentAiPage() {
       ) : null}
 
       {createCaseOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-white p-5 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay p-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-bg-raised p-5 shadow-xl">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-sm font-semibold">Create eval case</div>
-                <div className="mt-1 text-xs text-neutral-600">Golden case stored in DB. Requires manage permission.</div>
+                <div className="mt-1 text-xs text-text-muted">Golden case stored in DB. Requires manage permission.</div>
               </div>
-              <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" onClick={() => setCreateCaseOpen(false)} disabled={loading}>
+              <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-bg-base" onClick={() => setCreateCaseOpen(false)} disabled={loading}>
                 بستن
               </button>
             </div>
 
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               <div>
-                <div className="text-xs text-neutral-600">name</div>
+                <div className="text-xs text-text-muted">name</div>
                 <input value={createCaseName} onChange={(e) => setCreateCaseName(e.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" placeholder="Invoice #1" disabled={loading} />
               </div>
               <div>
-                <div className="text-xs text-neutral-600">documentId</div>
+                <div className="text-xs text-text-muted">documentId</div>
                 <input value={createCaseDocumentId} onChange={(e) => setCreateCaseDocumentId(e.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" placeholder="UUID" disabled={loading} />
               </div>
               <div>
-                <div className="text-xs text-neutral-600">tags (comma-separated)</div>
+                <div className="text-xs text-text-muted">tags (comma-separated)</div>
                 <input value={createCaseTags} onChange={(e) => setCreateCaseTags(e.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" placeholder="invoice, ir" disabled={loading} />
               </div>
               <div className="flex items-end gap-2">
@@ -1178,20 +1178,20 @@ export default function DocumentAiPage() {
             </div>
 
             <div className="mt-4">
-              <div className="text-xs text-neutral-600">expected (JSON)</div>
+              <div className="text-xs text-text-muted">expected (JSON)</div>
               <textarea value={createCaseExpectedJson} onChange={(e) => setCreateCaseExpectedJson(e.target.value)} className="mt-1 h-56 w-full rounded-xl border px-3 py-2 font-mono text-xs" disabled={loading} />
             </div>
 
             <div className="mt-4">
-              <div className="text-xs text-neutral-600">confirmation</div>
+              <div className="text-xs text-text-muted">confirmation</div>
               <input value={createCaseConfirmText} onChange={(e) => setCreateCaseConfirmText(e.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" placeholder="Type: CREATE CASE" disabled={loading} />
             </div>
 
             <div className="mt-4 flex items-center justify-end gap-2">
-              <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" onClick={() => setCreateCaseOpen(false)} disabled={loading}>
+              <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-bg-base" onClick={() => setCreateCaseOpen(false)} disabled={loading}>
                 انصراف
               </button>
-              <button type="button" className="rounded-xl bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-800" onClick={submitCreateCase} disabled={loading}>
+              <button type="button" className="rounded-xl bg-brand-primary px-3 py-2 text-sm font-medium text-text-on-brand hover:opacity-90" onClick={submitCreateCase} disabled={loading}>
                 Create
               </button>
             </div>
@@ -1200,21 +1200,21 @@ export default function DocumentAiPage() {
       ) : null}
 
       {editCaseOpen && selectedEvalCase ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-white p-5 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay p-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-bg-raised p-5 shadow-xl">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-sm font-semibold">Edit eval case</div>
-                <div className="mt-1 text-xs text-neutral-600">caseId: {String(selectedEvalCase.caseId)}</div>
+                <div className="mt-1 text-xs text-text-muted">caseId: {String(selectedEvalCase.caseId)}</div>
               </div>
-              <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" onClick={() => setEditCaseOpen(false)} disabled={loading}>
+              <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-bg-base" onClick={() => setEditCaseOpen(false)} disabled={loading}>
                 بستن
               </button>
             </div>
 
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               <div>
-                <div className="text-xs text-neutral-600">tags (comma-separated)</div>
+                <div className="text-xs text-text-muted">tags (comma-separated)</div>
                 <input value={editCaseTags} onChange={(e) => setEditCaseTags(e.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" disabled={loading} />
               </div>
               <div className="flex items-end gap-2">
@@ -1226,20 +1226,20 @@ export default function DocumentAiPage() {
             </div>
 
             <div className="mt-4">
-              <div className="text-xs text-neutral-600">expected (JSON)</div>
+              <div className="text-xs text-text-muted">expected (JSON)</div>
               <textarea value={editCaseExpectedJson} onChange={(e) => setEditCaseExpectedJson(e.target.value)} className="mt-1 h-56 w-full rounded-xl border px-3 py-2 font-mono text-xs" disabled={loading} />
             </div>
 
             <div className="mt-4">
-              <div className="text-xs text-neutral-600">confirmation</div>
+              <div className="text-xs text-text-muted">confirmation</div>
               <input value={editCaseConfirmText} onChange={(e) => setEditCaseConfirmText(e.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" placeholder={`Type: UPDATE ${String(selectedEvalCase.caseId)}`} disabled={loading} />
             </div>
 
             <div className="mt-4 flex items-center justify-end gap-2">
-              <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" onClick={() => setEditCaseOpen(false)} disabled={loading}>
+              <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-bg-base" onClick={() => setEditCaseOpen(false)} disabled={loading}>
                 انصراف
               </button>
-              <button type="button" className="rounded-xl bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-800" onClick={submitEditCase} disabled={loading}>
+              <button type="button" className="rounded-xl bg-brand-primary px-3 py-2 text-sm font-medium text-text-on-brand hover:opacity-90" onClick={submitEditCase} disabled={loading}>
                 Save
               </button>
             </div>
@@ -1248,14 +1248,14 @@ export default function DocumentAiPage() {
       ) : null}
 
       {startRunOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-xl rounded-2xl bg-white p-5 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay p-4">
+          <div className="w-full max-w-xl rounded-2xl bg-bg-raised p-5 shadow-xl">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-sm font-semibold">Start eval run</div>
-                <div className="mt-1 text-xs text-neutral-600">Will enqueue a run; worker will execute it asynchronously.</div>
+                <div className="mt-1 text-xs text-text-muted">Will enqueue a run; worker will execute it asynchronously.</div>
               </div>
-              <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" onClick={() => setStartRunOpen(false)} disabled={loading}>
+              <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-bg-base" onClick={() => setStartRunOpen(false)} disabled={loading}>
                 بستن
               </button>
             </div>
@@ -1268,21 +1268,21 @@ export default function DocumentAiPage() {
                 </label>
               </div>
               <div>
-                <div className="text-xs text-neutral-600">maxCases</div>
+                <div className="text-xs text-text-muted">maxCases</div>
                 <input value={startRunMaxCases} onChange={(e) => setStartRunMaxCases(e.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" disabled={loading} />
               </div>
             </div>
 
             <div className="mt-4">
-              <div className="text-xs text-neutral-600">confirmation</div>
+              <div className="text-xs text-text-muted">confirmation</div>
               <input value={startRunConfirmText} onChange={(e) => setStartRunConfirmText(e.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" placeholder="Type: START RUN" disabled={loading} />
             </div>
 
             <div className="mt-4 flex items-center justify-end gap-2">
-              <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" onClick={() => setStartRunOpen(false)} disabled={loading}>
+              <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-bg-base" onClick={() => setStartRunOpen(false)} disabled={loading}>
                 انصراف
               </button>
-              <button type="button" className="rounded-xl bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-800" onClick={submitStartRun} disabled={loading}>
+              <button type="button" className="rounded-xl bg-brand-primary px-3 py-2 text-sm font-medium text-text-on-brand hover:opacity-90" onClick={submitStartRun} disabled={loading}>
                 Start
               </button>
             </div>

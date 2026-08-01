@@ -35,20 +35,20 @@ export function RealtimeStatus() {
   const statusConfig = {
     connected: {
       icon: Wifi,
-      color: 'text-emerald-600',
-      bgColor: 'bg-emerald-100',
+      color: 'text-feedback-success',
+      bgColor: 'bg-feedback-success-subtle',
       text: 'اتصال زنده فعال',
     },
     disconnected: {
       icon: WifiOff,
-      color: 'text-neutral-600',
-      bgColor: 'bg-neutral-100',
+      color: 'text-text-secondary',
+      bgColor: 'bg-bg-base',
       text: 'اتصال زنده قطع',
     },
     error: {
       icon: AlertCircle,
-      color: 'text-rose-600',
-      bgColor: 'bg-rose-100',
+      color: 'text-feedback-error',
+      bgColor: 'bg-feedback-error-subtle',
       text: 'خطا در اتصال زنده',
     },
   };
@@ -61,7 +61,7 @@ export function RealtimeStatus() {
       <Icon className={`h-4 w-4 ${config.color}`} />
       <span className={`text-xs font-medium ${config.color}`}>{config.text}</span>
       {lastEvent && (
-        <span className="text-xs text-neutral-600 ml-2">
+        <span className="text-xs text-text-muted ml-2">
           آخرین رویداد: {new Date(lastEvent).toLocaleTimeString('fa-IR')}
         </span>
       )}

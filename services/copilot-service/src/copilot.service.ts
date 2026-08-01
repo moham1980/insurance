@@ -1889,4 +1889,216 @@ export class CopilotService {
   }) {
     return this.nbaEngine.listActions(params);
   }
+
+  /**
+   * General customer chat — supports free-form conversation with RAG + LLM.
+   * Maintains conversation history for multi-turn dialogue.
+   */
+  async chat(params: {
+    message: string;
+    conversationHistory?: { role: 'user' | 'assistant'; content: string }[];
+    headers: Record<string, any>;
+    correlationId: string;
+    tenantId?: string;
+    actorUserId?: string;
+    provider?: LLMProvider;
+  }) {
+    const policy = await this.evaluatePolicy({ headers: params.headers });
+    if (!policy.allowed) {
+      await this.auditRepo.save(
+        this.auditRepo.create({
+          resourceType: 'chat',
+          resourceId: 'general',
+          correlationId: params.correlationId,
+          tenantId: params.tenantId || null,
+          actorUserId: params.actorUserId || null,
+          aiEnabledHeader: policy.aiEnabledHeader,
+          policyAllowed: policy.policyAllowed,
+          decision: 'blocked',
+          blockedReason: policy.blockedReason,
+          outputPreview: null,
+          outputRedacted: false,
+        })
+      );
+
+      return {
+        ok: false as const,
+        status: 403,
+        body: {
+          success: false,
+          error: { code: 'AI_DISABLED', message: 'Copilot is disabled by policy' },
+          correlationId: params.correlationId,
+        },
+      };
+    }
+
+    try {
+      // Build conversation context from history
+      const historyContext = (params.conversationHistory || [])
+        .map(m => `${m.role === 'user' ? 'مشتری' : 'دستیار'}: ${m.content}`)
+        .join('\n');
+
+      // Use RAG service for retrieval-augmented generation
+      const ragResult = await this.ragServiceRetrieveAndGenerate({
+        query: params.message,
+        context: historyContext || undefined,
+        contextType: 'claim' as any,
+        tenantId: params.tenantId,
+        actorUserId: params.actorUserId,
+        correlationId: params.correlationId,
+        headers: params.headers,
+      });
+
+      const redacted = this.redactSensitive(ragResult.answer);
+      const preview = redacted.text.length > 500 ? `${redacted.text.slice(0, 500)}...` : redacted.text;
+
+      await this.auditRepo.save(
+        this.auditRepo.create({
+          resourceType: 'chat',
+          resourceId: 'general',
+          correlationId: params.correlationId,
+          tenantId: params.tenantId || null,
+          actorUserId: params.actorUserId || null,
+          aiEnabledHeader: policy.aiEnabledHeader,
+          policyAllowed: policy.policyAllowed,
+          decision: 'allowed',
+          blockedReason: null,
+          outputPreview: preview,
+          outputRedacted: redacted.redacted,
+        })
+      );
+
+      return {
+        ok: true as const,
+        status: 200,
+        body: {
+          success: true,
+          data: {
+            answer: redacted.text,
+            confidence: ragResult.confidence,
+            sources: ragResult.sources,
+            model: ragResult.model,
+            provider: ragResult.provider,
+            redacted: redacted.redacted,
+          },
+          correlationId: params.correlationId,
+        },
+      };
+    } catch (e: any) {
+      await this.auditRepo.save(
+        this.auditRepo.create({
+          resourceType: 'chat',
+          resourceId: 'general',
+          correlationId: params.correlationId,
+          tenantId: params.tenantId || null,
+          actorUserId: params.actorUserId || null,
+          aiEnabledHeader: policy.aiEnabledHeader,
+          policyAllowed: policy.policyAllowed,
+          decision: 'blocked',
+          blockedReason: 'INTERNAL_ERROR',
+          outputPreview: null,
+          outputRedacted: false,
+        })
+      );
+
+      this.logger.error('copilot.chat.failed', e, { correlationId: params.correlationId });
+      return {
+        ok: false as const,
+        status: 500,
+        body: {
+          success: false,
+          error: { code: 'INTERNAL_ERROR', message: 'Failed to process chat message' },
+          correlationId: params.correlationId,
+        },
+      };
+    }
+  }
+
+  private async ragServiceRetrieveAndGenerate(params: {
+    query: string;
+    context?: string;
+    contextType?: 'claim' | 'document' | 'policy' | 'complaint';
+    tenantId?: string;
+    actorUserId?: string;
+    correlationId?: string;
+    headers?: Record<string, any>;
+  }) {
+    const systemPrompt = `You are a helpful insurance assistant for a brokerage platform ("بیمه پلاس"). Your role is to help brokers and channel partners with:
+- Managing insurance policies (بیمه‌نامه) and submissions
+- Tracking and managing claims (خسارت)
+- Commission and settlement inquiries (پورسانت)
+- Regulatory compliance questions (سنهاب، پروانه)
+- Payment and collection queries (پرداخت)
+- Sub-agent and partner management
+- Dashboard analytics and performance metrics
+- General insurance and brokerage questions
+
+Rules:
+1. Always respond in Persian (Farsi)
+2. Be professional, concise, and actionable
+3. If you don't know something specific, provide general guidance and suggest checking with the relevant department
+4. Never share sensitive personal information (national ID, card numbers, IBAN)
+5. Provide specific, actionable recommendations
+6. Use proper insurance terminology in Persian`;
+
+    try {
+      // Try ecosystem AI first
+      if (this.ecosystemAi.isEnabled()) {
+        const ecoResponse = await this.ecosystemAi.consult({
+          query: params.query,
+          context: params.context,
+          contextType: params.contextType as any,
+          systemPrompt,
+          maxTokens: 1500,
+          temperature: 0.4,
+          correlationId: params.correlationId,
+        });
+        return {
+          answer: ecoResponse.text,
+          sources: (ecoResponse.citations || []).map((c, i) => ({
+            source: c.source,
+            snippet: c.snippet,
+            relevance: 1 - i * 0.1,
+          })),
+          confidence: 0.85,
+          model: ecoResponse.model,
+          provider: ecoResponse.provider,
+        };
+      }
+    } catch (e: any) {
+      this.logger.warn(`Ecosystem AI chat failed, falling back to local LLM: ${e.message}`);
+    }
+
+    // Fallback to local LLM — try all available providers, DeepSeek first
+    let providers = this.llmService.getAvailableProviders();
+    // Reorder to prefer deepseek, then openai, then gemini, then ollama
+    const preferredOrder: LLMProvider[] = ['deepseek', 'openai', 'gemini', 'ollama'];
+    providers = preferredOrder.filter(p => providers.includes(p));
+    if (providers.length === 0) {
+      return {
+        answer: 'سرویس هوش مصنوعی در حال حاضر پیکربندی نشده است. لطفاً با مدیر سیستم تماس بگیرید.',
+        sources: [],
+        confidence: 0,
+        model: 'none',
+        provider: 'none',
+      };
+    }
+    const llmResponse = await this.llmService.generateWithFallback(
+      providers,
+      params.context ? `Previous conversation:\n${params.context}\n\nCustomer question: ${params.query}` : params.query,
+      {
+        systemPrompt,
+        maxTokens: 1500,
+        temperature: 0.4,
+      }
+    );
+
+    return {
+      answer: llmResponse.text,
+      sources: [],
+      confidence: 0.7,
+      model: llmResponse.model,
+      provider: llmResponse.provider,
+    };
+  }
 }

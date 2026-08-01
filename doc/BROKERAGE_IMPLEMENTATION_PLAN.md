@@ -1029,3 +1029,94 @@ ConsentRevoked.v1
 - `services/web-ui/src/app/sales-network/page.tsx`
 - `D:\CascadeProjects\ecosystem\contracts\openapi\insurance-service\openapi.yaml`
 - `D:\CascadeProjects\ecosystem\contracts\asyncapi\insurance-service\asyncapi.yaml`
+
+## ۱۹. گزارش پیشرفت تست‌های E2E (Brokerage Frontend Apps)
+
+### تاریخ: ۱۴۰۵/۰۵/۱۱ (Aug 1, 2026) — به‌روزرسانی ۱۹:۱۵
+
+#### نتیجه نهایی: **همه تست‌ها با موفقیت عبور کردند**
+
+| Test Suite | Tests | Status |
+|------------|-------|--------|
+| `broker-portal-bff.test.ts` | 74/74 | ✅ PASS |
+| `channel-workspace-bff.test.ts` | 53/53 | ✅ PASS |
+| **مجموع** | **127/127** | **✅ ALL PASS** |
+
+#### اسکریپت راه‌اندازی سرویس‌ها:
+- فایل: `start-brokerage-e2e.ps1` در ریشه پروژه
+- کاربرد: `powershell -ExecutionPolicy Bypass -File start-brokerage-e2e.ps1`
+- عملکرد: Docker containers را بررسی و استارت می‌کند، تابع `set_current_tenant` را در همه schemaها تایید می‌کند، سرویس‌های محلی (۸ سرویس backend + ۲ BFF) را استارت می‌کند، پورت‌ها را تایید می‌کند، و API health check انجام می‌دهد.
+
+#### پوشش کامل اندپوینت‌ها:
+- **broker-portal-bff**: ۶۷ اندپوینت → ۷۴ تست (شامل تست‌های فیلتر اضافی)
+- **channel-workspace-bff**: ۵۴ اندپوینت → ۵۳ تست (۳ تست جدید اضافه شد برای `GET /broker/carrier-agreements`، `GET /broker/sales-network/contracts/:contractId`، `POST /broker/sales-network/contracts/:contractId/terminate`)
+
+#### ریشه‌ها و راه‌حل‌های اصلاح‌شده:
+
+1. **`DOWNSTREAM_ERROR` برای commissions (billing-service)**
+   - علت: نبود GET route در `BrokerageController` برای لیست commission splits
+   - راه‌حل: افزودن `GET /brokerage/commissions` به `billing-service/src/brokerage.controller.ts` با permission `billing:view_entry`
+
+2. **`INTERNAL_ERROR` برای collections**
+   - علت: نبود ستون‌های `late_fee_rate_per_day`, `late_fee_max_days`, `late_fee_max_amount` در `collections.installment_plans` و ستون‌های `overdue_notified_at`, `grace_period_end`, `late_fee_days`, `total_amount`, `paid_amount` در `collections.installments`
+   - راه‌حل: `ALTER TABLE` برای افزودن ستون‌های مفقود شده بر اساس entity definitions
+
+3. **`INTERNAL_ERROR` برای underwriting**
+   - علت: استفاده از tenantId و organizationId غیر UUID در JWT factory
+   - راه‌حل: اصلاح `tests/helpers/jwt-factory.ts` برای استفاده از UUID‌های معتبر
+
+4. **`FORBIDDEN` برای offerings (product-service)**
+   - علت: نبود نقش‌های `broker_owner`, `broker_staff` در `product-service/src/permissions.ts`
+   - راه‌حل: افزودن نقش‌ها با permission‌های `product:offerings:view`, `product:products:view`, `product:products:list`
+
+5. **`FORBIDDEN` برای claims (claims-service)**
+   - علت: نبود permission‌های `claims:view` و `claims:list` برای نقش‌های broker
+   - راه‌حل: افزودن permission‌ها به `claims-service/src/permissions.ts`
+
+6. **`DOWNSTREAM_ERROR` برای sub-agents (sales-network-service)**
+   - علت: نبود ستون‌های `organization_id` و `parent_partner_id` در `sales_network.sales_partners`
+   - راه‌حل: `ALTER TABLE` برای افزودن ستون‌های مفقود شده
+
+7. **`INTERNAL_ERROR` برای submissions و placements (submission-placement-service)**
+   - علت: نبود تابع `set_current_tenant` در schemaهای PostgreSQL (submission, product, sales_network, billing, collections, underwriting, claims, payments)
+   - راه‌حل: ایجاد تابع `set_current_tenant(UUID)` در تمام schemaهای مربوطه
+
+8. **`INTERNAL_ERROR` برای payments (payments-service)**
+   - علت: نبود ستون‌های `tenant_id`, `policy_id`, `broker_organization_id`, `payment_type`, `gateway_payment_id`, `prepared_by_user_id` در `payments.payment_intents` + تنظیم نبودن `IAM_ISSUER` به `http://localhost:18001`
+   - راه‌حل: `ALTER TABLE` برای افزودن ستون‌ها + تنظیم `IAM_ISSUER=http://localhost:18001` هنگام اجرای سرویس
+
+9. **نبود جداول در submission schema**
+   - علت: اجرا نشدن migration‌های `submission-placement-service`
+   - راه‌حل: ایجاد دستی جداول `submissions`, `coverage_requests`, `document_refs`, `quote_requests`, `quote_responses`, `quote_errors`, `placements`, `subjectivities`, `quote_documents`, `connector_configs`
+
+10. **نبود جدول `product.broker_product_offerings`**
+    - علت: اجرا نشدن migration مربوطه
+    - راه‌حل: ایجاد دستی جدول و ایندکس‌ها بر اساس `BrokerProductOffering` entity
+
+11. **نبود ستون‌های `distribution_agreements`**
+    - علت: entity دارای ستون‌هایی که در migration اولیه نبودند
+    - راه‌حل: `ALTER TABLE` برای افزودن ستون‌های `binding_authority_profile_id`, `version_chain_id`, `previous_agreement_id` و سایر ستون‌ها
+
+#### سرویس‌های اجرا شده به صورت محلی (Local):
+
+| Service | Port |
+|---------|------|
+| broker-portal-bff | 3030 |
+| channel-workspace-bff | 3020 |
+| billing-service | 18039 |
+| underwriting-service | 18020 |
+| collections-service | 18025 |
+| sales-network-service | 18022 |
+| product-service | 18018 |
+| submission-placement-service | 18005 |
+| claims-service | 18002 |
+| payments-service | 18004 |
+
+#### فایل‌های اصلاح‌شده:
+
+- `services/billing-service/src/brokerage.controller.ts` — افزودن GET /brokerage/commissions
+- `services/product-service/src/permissions.ts` — افزودن نقش‌های broker
+- `services/claims-service/src/permissions.ts` — افزودن permission‌های claims برای broker
+- `services/payments-service/src/permissions.ts` — افزودن نقش‌های broker
+- `tests/e2e/broker-portal-bff.test.ts` — اصلاح UUID‌های tenantId و organizationId
+- `tests/e2e/channel-workspace-bff.test.ts` — اصلاح UUID‌های tenantId و organizationId + افزودن ۳ تست جدید برای پوشش کامل اندپوینت‌ها

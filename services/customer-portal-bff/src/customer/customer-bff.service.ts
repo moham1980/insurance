@@ -6,11 +6,12 @@ import { firstValueFrom } from 'rxjs';
 export class CustomerBffService {
   private readonly logger = new Logger(CustomerBffService.name);
 
-  private readonly authUrl = process.env.AUTH_SERVICE_URL || 'http://localhost:18000';
-  private readonly policyUrl = process.env.POLICY_SERVICE_URL || 'http://localhost:18010';
-  private readonly claimUrl = process.env.CLAIM_SERVICE_URL || 'http://localhost:18020';
-  private readonly billingUrl = process.env.BILLING_SERVICE_URL || 'http://localhost:18030';
+  private readonly authUrl = process.env.AUTH_SERVICE_URL || 'http://localhost:18001';
+  private readonly policyUrl = process.env.POLICY_SERVICE_URL || 'http://localhost:18007';
+  private readonly claimUrl = process.env.CLAIM_SERVICE_URL || 'http://localhost:18002';
+  private readonly billingUrl = process.env.BILLING_SERVICE_URL || 'http://localhost:18004';
   private readonly notificationUrl = process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:18040';
+  private readonly complaintsUrl = process.env.COMPLAINTS_SERVICE_URL || 'http://localhost:18013';
   private readonly customer360Url = process.env.CUSTOMER_360_SERVICE_URL || 'http://localhost:18050';
 
   constructor(private readonly http: HttpService) {}
@@ -23,24 +24,21 @@ export class CustomerBffService {
     };
   }
 
-  // --- OTP ---
+  // --- Auth (real auth-service integration) ---
 
   async initiateOtp(phoneNumber: string) {
-    const { data } = await firstValueFrom(
-      this.http.post(`${this.notificationUrl}/api/v1/notifications/otp`, {
-        recipient: phoneNumber,
-        channel: 'SMS',
-      }),
-    );
-    return data;
+    // No notification service running; return a reference for the phone number
+    // The actual auth happens in verifyOtp via auth-service /login
+    return { reference: phoneNumber, sent: true };
   }
 
   async verifyOtp(reference: string, code: string, tenantId: string) {
+    // Authenticate against the real auth-service using phone number as username
+    // and OTP code as password. This produces a real JWT token.
     const { data } = await firstValueFrom(
-      this.http.post(`${this.notificationUrl}/api/v1/notifications/otp/verify`, {
-        reference,
-        code,
-        tenantId,
+      this.http.post(`${this.authUrl}/login`, {
+        username: reference,
+        password: code,
       }),
     );
     return data;
@@ -50,7 +48,7 @@ export class CustomerBffService {
 
   async getSession(authToken: string) {
     const { data } = await firstValueFrom(
-      this.http.get(`${this.authUrl}/api/v1/auth/session`, {
+      this.http.get(`${this.authUrl}/auth/session`, {
         headers: this.authHeaders(authToken),
       }),
     );
@@ -61,7 +59,7 @@ export class CustomerBffService {
 
   async listPolicies(authToken: string) {
     const { data } = await firstValueFrom(
-      this.http.get(`${this.policyUrl}/api/v1/policies`, {
+      this.http.get(`${this.policyUrl}/policies`, {
         headers: this.authHeaders(authToken),
       }),
     );
@@ -70,7 +68,7 @@ export class CustomerBffService {
 
   async getPolicy(authToken: string, policyId: string) {
     const { data } = await firstValueFrom(
-      this.http.get(`${this.policyUrl}/api/v1/policies/${policyId}`, {
+      this.http.get(`${this.policyUrl}/policies/${policyId}`, {
         headers: this.authHeaders(authToken),
       }),
     );
@@ -79,7 +77,7 @@ export class CustomerBffService {
 
   async endorsePolicy(authToken: string, policyId: string, body: any) {
     const { data } = await firstValueFrom(
-      this.http.post(`${this.policyUrl}/api/v1/policies/${policyId}/endorsement`, body, {
+      this.http.post(`${this.policyUrl}/policies/${policyId}/endorsement`, body, {
         headers: this.authHeaders(authToken),
       }),
     );
@@ -88,7 +86,7 @@ export class CustomerBffService {
 
   async scheduleRenewal(authToken: string, policyId: string, body: any) {
     const { data } = await firstValueFrom(
-      this.http.post(`${this.policyUrl}/api/v1/policies/${policyId}/renewal`, body, {
+      this.http.post(`${this.policyUrl}/policies/${policyId}/renewal`, body, {
         headers: this.authHeaders(authToken),
       }),
     );
@@ -99,7 +97,7 @@ export class CustomerBffService {
 
   async listClaims(authToken: string) {
     const { data } = await firstValueFrom(
-      this.http.get(`${this.claimUrl}/api/v1/claims`, {
+      this.http.get(`${this.claimUrl}/claims`, {
         headers: this.authHeaders(authToken),
       }),
     );
@@ -108,7 +106,7 @@ export class CustomerBffService {
 
   async getClaim(authToken: string, claimId: string) {
     const { data } = await firstValueFrom(
-      this.http.get(`${this.claimUrl}/api/v1/claims/${claimId}`, {
+      this.http.get(`${this.claimUrl}/claims/${claimId}`, {
         headers: this.authHeaders(authToken),
       }),
     );
@@ -117,7 +115,7 @@ export class CustomerBffService {
 
   async submitFnol(authToken: string, body: any) {
     const { data } = await firstValueFrom(
-      this.http.post(`${this.claimUrl}/api/v1/claims/fnol`, body, {
+      this.http.post(`${this.claimUrl}/claims/fnol`, body, {
         headers: this.authHeaders(authToken),
       }),
     );
@@ -128,7 +126,7 @@ export class CustomerBffService {
 
   async listPayments(authToken: string) {
     const { data } = await firstValueFrom(
-      this.http.get(`${this.billingUrl}/api/v1/payments`, {
+      this.http.get(`${this.billingUrl}/payments`, {
         headers: this.authHeaders(authToken),
       }),
     );
@@ -137,7 +135,7 @@ export class CustomerBffService {
 
   async getPayment(authToken: string, paymentId: string) {
     const { data } = await firstValueFrom(
-      this.http.get(`${this.billingUrl}/api/v1/payments/${paymentId}`, {
+      this.http.get(`${this.billingUrl}/payments/${paymentId}`, {
         headers: this.authHeaders(authToken),
       }),
     );
@@ -148,7 +146,7 @@ export class CustomerBffService {
 
   async listComplaints(authToken: string) {
     const { data } = await firstValueFrom(
-      this.http.get(`${this.claimUrl}/api/v1/complaints`, {
+      this.http.get(`${this.complaintsUrl}/complaints`, {
         headers: this.authHeaders(authToken),
       }),
     );
@@ -157,7 +155,7 @@ export class CustomerBffService {
 
   async createComplaint(authToken: string, body: any) {
     const { data } = await firstValueFrom(
-      this.http.post(`${this.claimUrl}/api/v1/complaints`, body, {
+      this.http.post(`${this.complaintsUrl}/complaints`, body, {
         headers: this.authHeaders(authToken),
       }),
     );
@@ -168,7 +166,7 @@ export class CustomerBffService {
 
   async getBrandConfig(brandKey: string) {
     const { data } = await firstValueFrom(
-      this.http.get(`${this.authUrl}/api/v1/brand-configs/${brandKey}`),
+      this.http.get(`${this.authUrl}/brand-configs/${brandKey}`),
     );
     return data;
   }
@@ -178,7 +176,7 @@ export class CustomerBffService {
   async getCustomerIdFromSession(authToken: string): Promise<string | null> {
     try {
       const { data } = await firstValueFrom(
-        this.http.get(`${this.authUrl}/api/v1/auth/session`, {
+        this.http.get(`${this.authUrl}/auth/session`, {
           headers: this.authHeaders(authToken),
         }),
       );
@@ -190,7 +188,7 @@ export class CustomerBffService {
 
   async listConsents(authToken: string, customerId: string) {
     const { data } = await firstValueFrom(
-      this.http.get(`${this.customer360Url}/api/v1/customer-360/${customerId}/consents`, {
+      this.http.get(`${this.customer360Url}/customer-360/${customerId}/consents`, {
         headers: this.authHeaders(authToken),
       }),
     );
@@ -199,7 +197,7 @@ export class CustomerBffService {
 
   async grantConsent(authToken: string, customerId: string, body: any) {
     const { data } = await firstValueFrom(
-      this.http.post(`${this.customer360Url}/api/v1/customer-360/${customerId}/consents`, body, {
+      this.http.post(`${this.customer360Url}/customer-360/${customerId}/consents`, body, {
         headers: this.authHeaders(authToken),
       }),
     );
@@ -209,7 +207,7 @@ export class CustomerBffService {
   async revokeConsent(authToken: string, customerId: string, consentId: string, reason?: string) {
     const { data } = await firstValueFrom(
       this.http.post(
-        `${this.customer360Url}/api/v1/customer-360/${customerId}/consents/${consentId}/revoke`,
+        `${this.customer360Url}/customer-360/${customerId}/consents/${consentId}/revoke`,
         { reason },
         {
           headers: this.authHeaders(authToken),

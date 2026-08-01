@@ -1,7 +1,20 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
-export type SalesPartnerKind = 'agency' | 'brokerage' | 'broker' | 'agent' | 'branch';
-export type SalesPartnerStatus = 'pending' | 'verified' | 'active' | 'suspended' | 'terminated';
+export enum SalesPartnerKind {
+  AGENCY = 'agency',
+  BROKERAGE = 'brokerage',
+  BROKER = 'broker',
+  AGENT = 'agent',
+  BRANCH = 'branch',
+}
+
+export enum SalesPartnerStatus {
+  PENDING = 'pending',
+  VERIFIED = 'verified',
+  ACTIVE = 'active',
+  SUSPENDED = 'suspended',
+  TERMINATED = 'terminated',
+}
 
 @Entity('sales_partners')
 @Index(['orgUnitId'], { unique: true })

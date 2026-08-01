@@ -14,7 +14,7 @@ import { IdempotencyService } from './idempotency.service';
 import { IdempotencyInterceptor } from './idempotency.interceptor';
 import { PiiRedactionInterceptor } from './pii-redaction.interceptor';
 import { RiskScoringService } from './risk-scoring/risk-scoring.service';
-import { OutboxEvent } from '@insurance/shared';
+import { OutboxEvent, DeadLetterEvent, ConsumedEvent } from '@insurance/shared';
 
 @Module({
   imports: [
@@ -26,10 +26,10 @@ import { OutboxEvent } from '@insurance/shared';
       password: process.env.DB_PASSWORD || 'postgres',
       database: process.env.DB_DATABASE || process.env.DB_NAME || 'postgres',
       schema: process.env.DB_SCHEMA || 'public',
-      entities: [UnderwritingRequest, UnderwritingAppetite, OutboxEvent],
+      entities: [UnderwritingRequest, UnderwritingAppetite, OutboxEvent, DeadLetterEvent, ConsumedEvent],
       synchronize: false,
     }),
-    TypeOrmModule.forFeature([UnderwritingRequest, UnderwritingAppetite, OutboxEvent]),
+    TypeOrmModule.forFeature([UnderwritingRequest, UnderwritingAppetite, OutboxEvent, DeadLetterEvent, ConsumedEvent]),
   ],
   controllers: [UnderwritingController, HealthController],
   providers: [

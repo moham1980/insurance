@@ -11,6 +11,7 @@ export type PermissionKey =
   | 'sales_network:ingest'
   | 'broker:agreements:manage'
   | 'broker:agreements:view'
+  | 'sales_network:agreements:view'
   | 'insurer:agreements:approve'
   | 'sales_network:broker:sub_agents:view'
   | 'sales_network:broker:sub_agents:manage'
@@ -30,6 +31,7 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     'sales_network:ingest',
     'broker:agreements:manage',
     'broker:agreements:view',
+    'sales_network:agreements:view',
     'insurer:agreements:approve',
     'sales_network:broker:sub_agents:view',
     'sales_network:broker:sub_agents:manage',
@@ -47,13 +49,14 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     'sales_network:agents:view',
     'broker:agreements:manage',
     'broker:agreements:view',
+    'sales_network:agreements:view',
     'insurer:agreements:approve',
     'sales_network:broker:sub_agents:view',
     'sales_network:broker:sub_agents:manage',
     'sales_network:broker:dashboard:view',
   ],
-  agency_owner: ['sales_network:partners:view', 'sales_network:contracts:view', 'sales_network:ledger:view', 'sales_network:kpi:view', 'sales_network:agent:view', 'sales_network:agents:view', 'broker:agreements:view'],
-  agency_staff: ['sales_network:partners:view', 'sales_network:contracts:view', 'sales_network:ledger:view', 'sales_network:kpi:view', 'sales_network:agent:view', 'sales_network:agents:view', 'broker:agreements:view'],
+  agency_owner: ['sales_network:partners:view', 'sales_network:contracts:view', 'sales_network:ledger:view', 'sales_network:kpi:view', 'sales_network:agent:view', 'sales_network:agents:view', 'broker:agreements:view', 'sales_network:agreements:view'],
+  agency_staff: ['sales_network:partners:view', 'sales_network:contracts:view', 'sales_network:ledger:view', 'sales_network:kpi:view', 'sales_network:agent:view', 'sales_network:agents:view', 'broker:agreements:view', 'sales_network:agreements:view'],
   broker_owner: [
     'sales_network:partners:view',
     'sales_network:contracts:view',
@@ -63,6 +66,7 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     'sales_network:agents:view',
     'broker:agreements:manage',
     'broker:agreements:view',
+    'sales_network:agreements:view',
     'sales_network:broker:sub_agents:view',
     'sales_network:broker:sub_agents:manage',
     'sales_network:broker:dashboard:view',
@@ -75,6 +79,7 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     'sales_network:agent:view',
     'sales_network:agents:view',
     'broker:agreements:view',
+    'sales_network:agreements:view',
     'sales_network:broker:sub_agents:view',
     'sales_network:broker:dashboard:view',
   ],
@@ -83,7 +88,7 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     'sales_network:ledger:view',
     'sales_network:kpi:view',
   ],
-  auditor: ['sales_network:partners:view', 'sales_network:contracts:view', 'sales_network:ledger:view', 'sales_network:kpi:view', 'sales_network:agent:view', 'sales_network:agents:view', 'broker:agreements:view', 'sales_network:broker:sub_agents:view', 'sales_network:broker:dashboard:view'],
+  auditor: ['sales_network:partners:view', 'sales_network:contracts:view', 'sales_network:ledger:view', 'sales_network:kpi:view', 'sales_network:agent:view', 'sales_network:agents:view', 'broker:agreements:view', 'sales_network:agreements:view', 'sales_network:broker:sub_agents:view', 'sales_network:broker:dashboard:view'],
 };
 
 export function permissionsForRoles(roles: string[] | undefined | null): PermissionKey[] {

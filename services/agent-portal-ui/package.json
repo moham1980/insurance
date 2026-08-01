@@ -15,11 +15,9 @@
     "@insurance/design-system": "workspace:*",
     "@insurance/ui-utils": "workspace:*",
     "@insurance/api-client": "workspace:*",
-    "axios": "^1.6.0",
     "lucide-react": "^0.294.0",
     "recharts": "^2.10.0",
-    "date-fns": "^3.0.0",
-    "swr": "^2.2.0"
+    "date-fns": "^3.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

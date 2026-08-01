@@ -38,6 +38,19 @@ const preset: Config = {
         'warning': 'var(--color-status-warning)',
         'danger': 'var(--color-status-danger)',
         'info': 'var(--color-status-info)',
+        // Feedback aliases (semantic)
+        'feedback-success': 'var(--color-status-success)',
+        'feedback-warning': 'var(--color-status-warning)',
+        'feedback-error': 'var(--color-status-danger)',
+        'feedback-info': 'var(--color-status-info)',
+        // Subtle background tints
+        'brand-primary-subtle': 'var(--color-brand-primary-subtle)',
+        'brand-secondary-subtle': 'var(--color-brand-secondary-subtle)',
+        'brand-accent-subtle': 'var(--color-brand-accent-subtle)',
+        'feedback-success-subtle': 'var(--color-feedback-success-subtle)',
+        'feedback-warning-subtle': 'var(--color-feedback-warning-subtle)',
+        'feedback-error-subtle': 'var(--color-feedback-error-subtle)',
+        'feedback-info-subtle': 'var(--color-feedback-info-subtle)',
         // Border
         'border': 'var(--color-border-default)',
         'border-default': 'var(--color-border-default)',

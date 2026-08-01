@@ -1,3 +1,4 @@
+'use client';
 import * as React from 'react';
 import { cn } from '@insurance/ui-utils';
 import { Button } from './Button';
@@ -92,7 +93,7 @@ export function SubmissionWizard({ steps, onComplete, onCancel, loading, classNa
         </Button>
         <div className="flex items-center gap-2">
           {current > 0 && (
-            <Button variant="outline" onClick={prev} disabled={loading}>
+            <Button variant="secondary" onClick={prev} disabled={loading}>
               <ChevronRight className="ml-1 h-4 w-4" />
               قبلی
             </Button>

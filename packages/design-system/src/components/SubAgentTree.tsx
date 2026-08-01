@@ -1,3 +1,4 @@
+'use client';
 import * as React from 'react';
 import { cn } from '@insurance/ui-utils';
 import { ChevronDown, ChevronLeft, Users, Briefcase } from 'lucide-react';

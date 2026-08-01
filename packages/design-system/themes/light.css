@@ -33,6 +33,15 @@
   --color-border-subtle: #F1F5F9;
   --color-border-focus: #1E5BFF;
 
+  /* Subtle backgrounds (low-opacity tints) */
+  --color-brand-primary-subtle: rgba(30, 91, 255, 0.08);
+  --color-brand-secondary-subtle: rgba(14, 165, 164, 0.08);
+  --color-brand-accent-subtle: rgba(245, 158, 11, 0.08);
+  --color-feedback-success-subtle: rgba(14, 159, 110, 0.08);
+  --color-feedback-warning-subtle: rgba(217, 119, 6, 0.08);
+  --color-feedback-error-subtle: rgba(220, 38, 38, 0.08);
+  --color-feedback-info-subtle: rgba(2, 132, 199, 0.08);
+
   /* Surface */
   --color-surface-1: #F8FAFC;
   --color-surface-2: #F1F5F9;

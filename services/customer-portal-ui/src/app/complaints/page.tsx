@@ -1,8 +1,9 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowRight, FileText, AlertCircle, CheckCircle, Upload, X } from 'lucide-react'
+import { FileText, AlertCircle, CheckCircle, Upload, X } from 'lucide-react'
+import { Card } from '@insurance/design-system'
 import { complaintsApi } from '@/lib/api'
 
 export default function ComplaintFiling() {
@@ -77,45 +78,28 @@ export default function ComplaintFiling() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
-            <CheckCircle className="w-8 h-8 text-green-600" />
+      <div className="py-20 flex items-center justify-center">
+        <Card className="shadow-3 p-8 text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-feedback-success-subtle rounded-full mb-4">
+            <CheckCircle className="w-8 h-8 text-feedback-success" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">شکایت ثبت شد</h2>
-          <p className="text-gray-600 mb-6">شکایت شما با موفقیت ثبت شد. کد پیگیری به زودی ارسال خواهد شد.</p>
+          <h2 className="text-2xl font-bold text-text-primary mb-2">شکایت ثبت شد</h2>
+          <p className="text-text-secondary mb-6">شکایت شما با موفقیت ثبت شد. کد پیگیری به زودی ارسال خواهد شد.</p>
           <button
             onClick={() => router.push('/dashboard')}
-            className="w-full bg-primary-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-primary-700 transition-colors"
+            className="w-full bg-brand-primary text-text-on-brand py-3 px-4 rounded-lg font-medium hover:opacity-90 transition-colors"
           >
             بازگشت به داشبورد
           </button>
-        </div>
+        </Card>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="container-mobile">
-          <div className="flex items-center justify-between h-16">
-            <button
-              onClick={() => router.back()}
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
-            >
-              <ArrowRight className="w-5 h-5" />
-              <span>بازگشت</span>
-            </button>
-            <h1 className="text-xl font-bold text-gray-900">ثبت شکایت</h1>
-            <div className="w-20"></div>
-          </div>
-        </div>
-      </header>
-
-      <div className="container-mobile py-6">
-        <div className="bg-white rounded-xl shadow-sm p-6">
+    <div className="space-y-4 animate-fade-in">
+      <h1 className="text-lg font-bold text-text-primary">ثبت شکایت</h1>
+      <Card className="shadow-1 p-4">
           {/* Progress Steps */}
           <div className="flex items-center justify-between mb-8">
             {[1, 2, 3].map((s) => (
@@ -123,8 +107,8 @@ export default function ComplaintFiling() {
                 <div
                   className={`w-10 h-10 rounded-full flex items-center justify-center font-medium ${
                     step >= s
-                      ? 'bg-primary-600 text-white'
-                      : 'bg-gray-200 text-gray-600'
+                      ? 'bg-brand-primary text-text-on-brand'
+                      : 'bg-border-default text-text-secondary'
                   }`}
                 >
                   {s}
@@ -132,7 +116,7 @@ export default function ComplaintFiling() {
                 {s < 3 && (
                   <div
                     className={`w-full h-1 mx-2 ${
-                      step > s ? 'bg-primary-600' : 'bg-gray-200'
+                      step > s ? 'bg-brand-primary' : 'bg-border-default'
                     }`}
                   />
                 )}
@@ -141,7 +125,7 @@ export default function ComplaintFiling() {
           </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            <div className="mb-4 p-3 bg-feedback-error-subtle border border-feedback-error/30 rounded-lg text-feedback-error text-sm">
               {error}
             </div>
           )}
@@ -150,13 +134,13 @@ export default function ComplaintFiling() {
             {step === 1 && (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    دسته‌بندی شکایت <span className="text-red-500">*</span>
+                  <label className="block text-sm font-medium text-text-secondary mb-2">
+                    دسته‌بندی شکایت <span className="text-feedback-error">*</span>
                   </label>
                   <select
                     value={formData.category}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-border-default rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent"
                     required
                   >
                     <option value="">انتخاب کنید</option>
@@ -169,15 +153,15 @@ export default function ComplaintFiling() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    موضوع شکایت <span className="text-red-500">*</span>
+                  <label className="block text-sm font-medium text-text-secondary mb-2">
+                    موضوع شکایت <span className="text-feedback-error">*</span>
                   </label>
                   <input
                     type="text"
                     value={formData.subject}
                     onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
                     placeholder="موضوع شکایت را وارد کنید"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-border-default rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent"
                     required
                   />
                 </div>
@@ -186,7 +170,7 @@ export default function ComplaintFiling() {
                   type="button"
                   onClick={() => setStep(2)}
                   disabled={!formData.category || !formData.subject}
-                  className="w-full bg-primary-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="w-full bg-brand-primary text-text-on-brand py-3 px-4 rounded-lg font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   ادامه
                 </button>
@@ -196,7 +180,7 @@ export default function ComplaintFiling() {
             {step === 2 && (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-text-secondary mb-2">
                     شماره بیمه‌نامه (اختیاری)
                   </label>
                   <input
@@ -204,12 +188,12 @@ export default function ComplaintFiling() {
                     value={formData.policyId}
                     onChange={(e) => setFormData({ ...formData, policyId: e.target.value })}
                     placeholder="شماره بیمه‌نامه مرتبط"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-border-default rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-text-secondary mb-2">
                     شماره خسارت (اختیاری)
                   </label>
                   <input
@@ -217,20 +201,20 @@ export default function ComplaintFiling() {
                     value={formData.claimId}
                     onChange={(e) => setFormData({ ...formData, claimId: e.target.value })}
                     placeholder="شماره خسارت مرتبط"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-border-default rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    شرح شکایت <span className="text-red-500">*</span>
+                  <label className="block text-sm font-medium text-text-secondary mb-2">
+                    شرح شکایت <span className="text-feedback-error">*</span>
                   </label>
                   <textarea
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     placeholder="شرح کامل شکایت خود را بنویسید"
                     rows={5}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
+                    className="w-full px-4 py-3 border border-border-default rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent resize-none"
                     required
                   />
                 </div>
@@ -239,7 +223,7 @@ export default function ComplaintFiling() {
                   <button
                     type="button"
                     onClick={() => setStep(1)}
-                    className="flex-1 bg-gray-200 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-300 transition-colors"
+                    className="flex-1 bg-border-default text-text-secondary py-3 px-4 rounded-lg font-medium hover:bg-border-default transition-colors"
                   >
                     بازگشت
                   </button>
@@ -247,7 +231,7 @@ export default function ComplaintFiling() {
                     type="button"
                     onClick={() => setStep(3)}
                     disabled={!formData.description}
-                    className="flex-1 bg-primary-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="flex-1 bg-brand-primary text-text-on-brand py-3 px-4 rounded-lg font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     ادامه
                   </button>
@@ -258,10 +242,10 @@ export default function ComplaintFiling() {
             {step === 3 && (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-text-secondary mb-2">
                     پیوست‌ها (اختیاری)
                   </label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                  <div className="border-2 border-dashed border-border-default rounded-lg p-6 text-center">
                     <input
                       type="file"
                       id="file-upload"
@@ -274,11 +258,11 @@ export default function ComplaintFiling() {
                       htmlFor="file-upload"
                       className="cursor-pointer flex flex-col items-center"
                     >
-                      <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                      <span className="text-sm text-gray-600">
+                      <Upload className="w-8 h-8 text-text-muted mb-2" />
+                      <span className="text-sm text-text-secondary">
                         کلیک کنید یا فایل را اینجا بکشید
                       </span>
-                      <span className="text-xs text-gray-500 mt-1">
+                      <span className="text-xs text-text-muted mt-1">
                         PDF, JPG, PNG (حداکثر ۵MB)
                       </span>
                     </label>
@@ -287,23 +271,23 @@ export default function ComplaintFiling() {
 
                 {formData.attachments.length > 0 && (
                   <div className="space-y-2">
-                    <h4 className="text-sm font-medium text-gray-700">فایل‌های انتخاب شده:</h4>
+                    <h4 className="text-sm font-medium text-text-secondary">فایل‌های انتخاب شده:</h4>
                     {formData.attachments.map((file, index) => (
                       <div
                         key={index}
-                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                        className="flex items-center justify-between p-3 bg-bg-subtle rounded-lg"
                       >
                         <div className="flex items-center gap-3">
-                          <FileText className="w-5 h-5 text-gray-400" />
-                          <span className="text-sm text-gray-700">{file.name}</span>
-                          <span className="text-xs text-gray-500">
+                          <FileText className="w-5 h-5 text-text-muted" />
+                          <span className="text-sm text-text-secondary">{file.name}</span>
+                          <span className="text-xs text-text-muted">
                             ({(file.size / 1024).toFixed(1)} KB)
                           </span>
                         </div>
                         <button
                           type="button"
                           onClick={() => removeAttachment(index)}
-                          className="text-red-500 hover:text-red-700"
+                          className="text-feedback-error hover:text-feedback-error"
                         >
                           <X className="w-4 h-4" />
                         </button>
@@ -312,10 +296,10 @@ export default function ComplaintFiling() {
                   </div>
                 )}
 
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="bg-feedback-warning-subtle border border-feedback-warning/30 rounded-lg p-4">
                   <div className="flex gap-3">
-                    <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                    <div className="text-sm text-yellow-800">
+                    <AlertCircle className="w-5 h-5 text-feedback-warning flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-feedback-warning">
                       <p className="font-medium mb-1">توجه:</p>
                       <ul className="list-disc list-inside space-y-1">
                         <li>شکایت شما حداکثر تا ۵ روز کاری بررسی خواهد شد</li>
@@ -330,14 +314,14 @@ export default function ComplaintFiling() {
                   <button
                     type="button"
                     onClick={() => setStep(2)}
-                    className="flex-1 bg-gray-200 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-300 transition-colors"
+                    className="flex-1 bg-border-default text-text-secondary py-3 px-4 rounded-lg font-medium hover:bg-border-default transition-colors"
                   >
                     بازگشت
                   </button>
                   <button
                     type="submit"
                     disabled={loading}
-                    className="flex-1 bg-primary-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="flex-1 bg-brand-primary text-text-on-brand py-3 px-4 rounded-lg font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     {loading ? 'در حال ثبت...' : 'ثبت شکایت'}
                   </button>
@@ -345,8 +329,7 @@ export default function ComplaintFiling() {
               </>
             )}
           </form>
-        </div>
-      </div>
+      </Card>
     </div>
   )
 }

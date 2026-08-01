@@ -1,0 +1,37 @@
+[32m[Nest] 30276  - [39m08/02/2026, 1:18:48 AM [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[32m[Nest] 30276  - [39m08/02/2026, 1:18:48 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +405ms[39m
+[32m[Nest] 30276  - [39m08/02/2026, 1:18:48 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmCoreModule dependencies initialized[39m[38;5;3m +196ms[39m
+[32m[Nest] 30276  - [39m08/02/2026, 1:18:48 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +21ms[39m
+[32m[Nest] 30276  - [39m08/02/2026, 1:18:48 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +28ms[39m
+{"level":30,"time":1785620929148,"service":"collections-service","component":"KafkaProducer","msg":"Kafka producer connected"}
+[32m[Nest] 30276  - [39m08/02/2026, 1:18:49 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mCollectionsController {/}:[39m[38;5;3m +496ms[39m
+[32m[Nest] 30276  - [39m08/02/2026, 1:18:49 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/collections/plans, POST} route[39m[38;5;3m +29ms[39m
+[32m[Nest] 30276  - [39m08/02/2026, 1:18:49 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/collections/plans/:planId, GET} route[39m[38;5;3m +23ms[39m
+[32m[Nest] 30276  - [39m08/02/2026, 1:18:49 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/collections/plans, GET} route[39m[38;5;3m +15ms[39m
+[32m[Nest] 30276  - [39m08/02/2026, 1:18:49 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/collections/installments/:installmentId, GET} route[39m[38;5;3m +32ms[39m
+[32m[Nest] 30276  - [39m08/02/2026, 1:18:49 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/collections/installments, GET} route[39m[38;5;3m +22ms[39m
+[32m[Nest] 30276  - [39m08/02/2026, 1:18:49 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/collections/installments/:installmentId/pay, POST} route[39m[38;5;3m +37ms[39m
+[32m[Nest] 30276  - [39m08/02/2026, 1:18:49 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/collections/installments/reminder/due, GET} route[39m[38;5;3m +3ms[39m
+[32m[Nest] 30276  - [39m08/02/2026, 1:18:49 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/collections/installments/:installmentId/reminder, POST} route[39m[38;5;3m +24ms[39m
+[32m[Nest] 30276  - [39m08/02/2026, 1:18:49 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/collections/installments/overdue, GET} route[39m[38;5;3m +30ms[39m
+[32m[Nest] 30276  - [39m08/02/2026, 1:18:49 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/collections/installments/:installmentId/overdue, POST} route[39m[38;5;3m +11ms[39m
+[32m[Nest] 30276  - [39m08/02/2026, 1:18:49 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/collections/installments/:installmentId/late-fee, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 30276  - [39m08/02/2026, 1:18:49 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/collections/installments/:installmentId/late-fee/apply, POST} route[39m[38;5;3m +14ms[39m
+[32m[Nest] 30276  - [39m08/02/2026, 1:18:49 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/collections/installments/:installmentId/gateway/initiate, POST} route[39m[38;5;3m +10ms[39m
+[32m[Nest] 30276  - [39m08/02/2026, 1:18:49 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/collections/installments/:installmentId/gateway/verify, POST} route[39m[38;5;3m +27ms[39m
+[32m[Nest] 30276  - [39m08/02/2026, 1:18:49 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/collections/gateway/callback, POST} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 30276  - [39m08/02/2026, 1:18:49 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/collections/installments/:installmentId/link-receivable, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 30276  - [39m08/02/2026, 1:18:49 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/collections/installments/:installmentId/sync-receivable, POST} route[39m[38;5;3m +16ms[39m
+[32m[Nest] 30276  - [39m08/02/2026, 1:18:49 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/collections/receivables/reconciliation, GET} route[39m[38;5;3m +28ms[39m
+[32m[Nest] 30276  - [39m08/02/2026, 1:18:49 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/collections/plans/:planId/publish-receivable-requests, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 30276  - [39m08/02/2026, 1:18:49 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/collections/installments/:installmentId/waive, POST} route[39m[38;5;3m +13ms[39m
+[32m[Nest] 30276  - [39m08/02/2026, 1:18:49 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/collections/installments/:installmentId/reschedule, POST} route[39m[38;5;3m +22ms[39m
+[32m[Nest] 30276  - [39m08/02/2026, 1:18:49 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mHealthController {/}:[39m[38;5;3m +1ms[39m
+[32m[Nest] 30276  - [39m08/02/2026, 1:18:49 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/health, GET} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 30276  - [39m08/02/2026, 1:18:49 AM [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +28ms[39m
+{"level":30,"time":1785620929149,"service":"collections-service","component":"OutboxWorker","producerName":"collections-service","pollIntervalMs":1000,"batchSize":50,"msg":"Outbox worker started"}
+{"level":30,"time":1785621099503,"service":"collections-service","correlationId":"1785621099503-2l4ejq3sm","tenantId":"a1b2c3d4-e5f6-7890-abcd-ef1234567890","action":"collections:plan_list","msg":"collections.plan.list.request"}
+{"level":30,"time":1785621099618,"service":"collections-service","correlationId":"1785621099618-vtrir6w33","tenantId":"a1b2c3d4-e5f6-7890-abcd-ef1234567890","action":"collections:plan_list","msg":"collections.plan.list.request"}
+{"level":30,"time":1785621120964,"service":"collections-service","correlationId":"1785621120964-w79j59u3h","tenantId":"a1b2c3d4-e5f6-7890-abcd-ef1234567890","action":"collections:plan_view","planId":"test-plan-001","msg":"collections.plan.get.request"}
+{"level":30,"time":1785621121033,"service":"collections-service","correlationId":"1785621121033-zetznofhw","tenantId":"a1b2c3d4-e5f6-7890-abcd-ef1234567890","action":"collections:installment_view","installmentId":"test-installment-001","msg":"collections.installment.get.request"}
+{"level":30,"time":1785621125187,"service":"collections-service","correlationId":"1785621125187-74cqr73t0","tenantId":"a1b2c3d4-e5f6-7890-abcd-ef1234567890","action":"collections:plan_list","msg":"collections.plan.list.request"}

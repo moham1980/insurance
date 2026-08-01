@@ -125,4 +125,34 @@ export const brokerApi = {
   // Commissions & Sub-agents
   listCommissions: (limit = 50, offset = 0) => fetchBFF(`/broker/commissions?limit=${limit}&offset=${offset}`),
   listSubAgents: (limit = 50, offset = 0) => fetchBFF(`/broker/sub-agents?limit=${limit}&offset=${offset}`),
+  getSubAgentHierarchy: () => fetchBFF('/broker/sub-agents/hierarchy'),
+
+  // Documents (per carrier)
+  listDocuments: (params?: { carrierName?: string; status?: string; limit?: number; offset?: number }) => {
+    let q = `limit=${params?.limit ?? 50}&offset=${params?.offset ?? 0}`;
+    if (params?.carrierName) q += `&carrierName=${encodeURIComponent(params.carrierName)}`;
+    if (params?.status) q += `&status=${params.status}`;
+    return fetchBFF(`/broker/documents?${q}`);
+  },
+  uploadDocument: (data: FormData) => fetch(`${API_URL}${API_PREFIX}/broker/documents/upload`, {
+    method: 'POST',
+    headers: { ...getAuthHeaders() },
+    body: data,
+  }).then(res => res.json()),
+
+  // Settlements
+  listSettlements: (params?: { status?: string; carrierName?: string; limit?: number; offset?: number }) => {
+    let q = `limit=${params?.limit ?? 50}&offset=${params?.offset ?? 0}`;
+    if (params?.status) q += `&status=${params.status}`;
+    if (params?.carrierName) q += `&carrierName=${encodeURIComponent(params.carrierName)}`;
+    return fetchBFF(`/broker/settlements?${q}`);
+  },
+  getSettlement: (id: string) => fetchBFF(`/broker/settlements/${id}`),
+
+  // Partners
+  listPartners: (limit = 50, offset = 0) => fetchBFF(`/broker/partners?limit=${limit}&offset=${offset}`),
+  createPartner: (data: any) => postBFF('/broker/partners', data),
+
+  // Capabilities
+  getCapabilities: () => fetchBFF('/broker/capabilities'),
 };

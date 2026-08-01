@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Shield, Lock, Phone } from 'lucide-react'
+import { Card } from '@insurance/design-system'
 
 const TENANT_ID = process.env.NEXT_PUBLIC_TENANT_ID || 'default-tenant'
 
@@ -19,10 +20,10 @@ export default function Home() {
     setLoading(true)
 
     try {
-      const response = await fetch('/api/portal/otp/initiate', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3030'}/customer-portal/otp/initiate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tenantId: TENANT_ID, phoneNumber }),
+        body: JSON.stringify({ phoneNumber }),
       })
 
       const data = await response.json()
@@ -32,8 +33,10 @@ export default function Home() {
         return
       }
 
-      if (data.data?.sessionId) {
-        setSessionId(data.data.sessionId)
+      if (data.data?.reference) {
+        setSessionId(data.data.reference)
+      } else {
+        setSessionId(phoneNumber)
       }
       setStep('otp')
     } catch (err) {
@@ -49,10 +52,10 @@ export default function Home() {
     setLoading(true)
 
     try {
-      const response = await fetch('/api/portal/otp/verify', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3030'}/customer-portal/otp/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, otp: otpCode }),
+        body: JSON.stringify({ reference: sessionId, code: otpCode, tenantId: TENANT_ID }),
       })
 
       const data = await response.json()
@@ -62,7 +65,17 @@ export default function Home() {
         return
       }
 
-      if (data.success || data.data?.token) {
+      if (data.success && data.data?.token) {
+        document.cookie = `auth-token=${encodeURIComponent(data.data.token)}; path=/; max-age=86400; sameSite=lax`
+        if (data.data.user) {
+          document.cookie = `auth-user=${encodeURIComponent(JSON.stringify(data.data.user))}; path=/; max-age=86400; sameSite=lax`
+        }
+        window.location.href = '/dashboard'
+      } else if (data.data?.success && data.data?.data?.token) {
+        document.cookie = `auth-token=${encodeURIComponent(data.data.data.token)}; path=/; max-age=86400; sameSite=lax`
+        if (data.data.data.user) {
+          document.cookie = `auth-user=${encodeURIComponent(JSON.stringify(data.data.data.user))}; path=/; max-age=86400; sameSite=lax`
+        }
         window.location.href = '/dashboard'
       }
     } catch (err) {
@@ -73,20 +86,20 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-white flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-brand-primary to-brand-secondary flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-xl p-8">
+        <Card className="shadow-3 p-8 animate-scale-in">
           {/* Logo and Header */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-600 rounded-full mb-4">
-              <Shield className="w-8 h-8 text-white" />
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-brand-primary rounded-2xl mb-4 shadow-2">
+              <Shield className="w-8 h-8 text-text-on-brand" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">پرتال مشتری بیمه</h1>
-            <p className="text-gray-600 text-sm">ورود به حساب کاربری</p>
+            <h1 className="text-xl font-bold text-text-primary mb-2">پرتال مشتری بیمه</h1>
+            <p className="text-sm text-text-muted">ورود به حساب کاربری</p>
           </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            <div className="mb-4 p-3 bg-feedback-error-subtle border border-feedback-error/30 rounded-lg text-feedback-error text-sm">
               {error}
             </div>
           )}
@@ -94,29 +107,29 @@ export default function Home() {
           {step === 'phone' ? (
             <form onSubmit={handleRequestOtp} className="space-y-6">
               <div>
-                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="phone" className="block text-sm font-medium text-text-secondary mb-2">
                   شماره موبایل
                 </label>
                 <div className="relative">
-                  <Phone className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <Phone className="absolute right-3 top-1/2 transform -translate-y-1/2 text-text-muted w-5 h-5" />
                   <input
                     type="tel"
                     id="phone"
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
                     placeholder="09123456789"
-                    className="w-full pr-10 pl-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="w-full pr-10 pl-4 py-3 border border-border-default rounded-lg bg-bg-base text-text-primary focus:ring-2 focus:ring-brand-primary focus:border-transparent transition-colors"
                     required
                     pattern="[0-9]{11}"
                   />
                 </div>
-                <p className="mt-1 text-xs text-gray-500">فرمت: 09123456789</p>
+                <p className="mt-1 text-xs text-text-muted">فرمت: 09123456789</p>
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-primary-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="w-full bg-brand-primary text-text-on-brand py-3 px-4 rounded-lg font-medium hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
               >
                 {loading ? 'در حال ارسال...' : 'دریافت کد OTP'}
               </button>
@@ -124,30 +137,30 @@ export default function Home() {
           ) : (
             <form onSubmit={handleVerifyOtp} className="space-y-6">
               <div>
-                <label htmlFor="otp" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="otp" className="block text-sm font-medium text-text-secondary mb-2">
                   کد تأیید
                 </label>
                 <div className="relative">
-                  <Lock className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <Lock className="absolute right-3 top-1/2 transform -translate-y-1/2 text-text-muted w-5 h-5" />
                   <input
                     type="text"
                     id="otp"
                     value={otpCode}
                     onChange={(e) => setOtpCode(e.target.value)}
                     placeholder="کد ۶ رقمی"
-                    className="w-full pr-10 pl-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-center text-2xl tracking-widest"
+                    className="w-full pr-10 pl-4 py-3 border border-border-default rounded-lg bg-bg-base text-text-primary focus:ring-2 focus:ring-brand-primary focus:border-transparent text-center text-2xl tracking-widest transition-colors"
                     required
                     maxLength={6}
                     pattern="[0-9]{6}"
                   />
                 </div>
-                <p className="mt-2 text-xs text-gray-500">کد به شماره {phoneNumber} ارسال شد</p>
+                <p className="mt-2 text-xs text-text-muted">کد به شماره {phoneNumber} ارسال شد</p>
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-primary-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="w-full bg-brand-primary text-text-on-brand py-3 px-4 rounded-lg font-medium hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
               >
                 {loading ? 'در حال بررسی...' : 'تأیید و ورود'}
               </button>
@@ -155,7 +168,7 @@ export default function Home() {
               <button
                 type="button"
                 onClick={() => setStep('phone')}
-                className="w-full text-primary-600 py-2 px-4 rounded-lg font-medium hover:bg-primary-50 transition-colors"
+                className="w-full text-brand-primary py-2 px-4 rounded-lg font-medium hover:bg-brand-primary/5 transition-colors"
               >
                 تغییر شماره موبایل
               </button>
@@ -163,10 +176,10 @@ export default function Home() {
           )}
 
           {/* Footer */}
-          <div className="mt-8 text-center text-xs text-gray-500">
+          <div className="mt-8 text-center text-xs text-text-muted">
             <p>© ۱۴۰۵ شرکت بیمه - تمامی حقوق محفوظ است</p>
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   )

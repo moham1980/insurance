@@ -316,24 +316,34 @@ export default function ExecutiveBIDashboardPage() {
     return value.toFixed(1) + '%';
   };
 
+  const metricColorMap: Record<string, { bg: string; text: string }> = {
+    blue: { bg: 'bg-brand-primary-subtle', text: 'text-brand-primary' },
+    green: { bg: 'bg-feedback-success-subtle', text: 'text-feedback-success' },
+    orange: { bg: 'bg-feedback-warning-subtle', text: 'text-feedback-warning' },
+    yellow: { bg: 'bg-feedback-warning-subtle', text: 'text-feedback-warning' },
+    teal: { bg: 'bg-brand-secondary-subtle', text: 'text-brand-secondary' },
+    indigo: { bg: 'bg-brand-accent-subtle', text: 'text-brand-accent' },
+  };
+
   const renderMetricCard = (title: string, value: string, change?: number, color: string = 'blue') => {
-    const changeColor = change && change > 0 ? 'text-green-600' : change && change < 0 ? 'text-red-600' : 'text-gray-500';
+    const changeColor = change && change > 0 ? 'text-feedback-success' : change && change < 0 ? 'text-feedback-error' : 'text-text-muted';
     const changeIcon = change && change > 0 ? '↑' : change && change < 0 ? '↓' : '';
+    const colorClasses = metricColorMap[color] || metricColorMap.blue;
     
     return (
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-bg-raised rounded-lg shadow p-6">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-500">{title}</p>
-            <p className="text-2xl font-bold text-gray-900 mt-2">{value}</p>
+            <p className="text-sm font-medium text-text-muted">{title}</p>
+            <p className="text-2xl font-bold text-text-primary mt-2">{value}</p>
             {change !== undefined && (
               <p className={`text-sm mt-2 ${changeColor}`}>
                 {changeIcon} {Math.abs(change)}% نسبت به دوره قبل
               </p>
             )}
           </div>
-          <div className={`w-12 h-12 rounded-full bg-${color}-100 flex items-center justify-center`}>
-            <svg className={`w-6 h-6 text-${color}-600`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className={`w-12 h-12 rounded-full ${colorClasses.bg} flex items-center justify-center`}>
+            <svg className={`w-6 h-6 ${colorClasses.text}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
             </svg>
           </div>
@@ -342,40 +352,116 @@ export default function ExecutiveBIDashboardPage() {
     );
   };
 
-  const renderSimpleChart = (data: TrendData[], dataKey: keyof TrendData, color: string) => {
-    const maxValue = Math.max(...data.map(d => Number(d[dataKey])));
-    const minValue = Math.min(...data.map(d => Number(d[dataKey])));
+  const renderAreaChart = (data: TrendData[], dataKey: keyof TrendData, gradientId: string, color: string) => {
+    const values = data.slice(-30).map(d => Number(d[dataKey]));
+    if (values.length === 0) return <div className="h-64 flex items-center justify-center text-text-muted">داده‌ای موجود نیست</div>;
+    const maxValue = Math.max(...values);
+    const minValue = Math.min(...values);
     const range = maxValue - minValue || 1;
-    
+    const width = 100;
+    const height = 100;
+    const step = width / Math.max(values.length - 1, 1);
+    const points = values.map((v, i) => {
+      const x = i * step;
+      const y = height - ((v - minValue) / range) * (height - 10) - 5;
+      return `${x},${y}`;
+    });
+    const areaPath = `M 0,${height} L ${points.join(' L ')} L ${width},${height} Z`;
+    const linePath = `M ${points.join(' L ')}`;
     return (
-      <div className="h-64 flex items-end gap-1">
-        {data.slice(-30).map((d, i) => {
-          const value = Number(d[dataKey]);
-          const height = ((value - minValue) / range) * 100;
-          return (
-            <div
-              key={i}
-              className="flex-1 bg-blue-500 rounded-t hover:bg-blue-600 transition-colors"
-              style={{ height: `${height}%` }}
-              title={`${d.date}: ${formatNumber(value)}`}
-            />
-          );
-        })}
+      <div className="relative h-64">
+        <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="h-full w-full">
+          <defs>
+            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={color} stopOpacity="0.3" />
+              <stop offset="100%" stopColor={color} stopOpacity="0.02" />
+            </linearGradient>
+          </defs>
+          <path d={areaPath} fill={`url(#${gradientId})`} />
+          <path d={linePath} fill="none" stroke={color} strokeWidth="0.5" vectorEffect="non-scaling-stroke" />
+          {values.map((v, i) => {
+            const x = i * step;
+            const y = height - ((v - minValue) / range) * (height - 10) - 5;
+            return <circle key={i} cx={x} cy={y} r="0.8" fill={color} vectorEffect="non-scaling-stroke" />;
+          })}
+        </svg>
+        <div className="absolute bottom-0 left-0 right-0 flex justify-between text-[10px] text-text-muted px-1">
+          <span>{data[0]?.date?.slice(5) || ''}</span>
+          <span>{data[data.length - 1]?.date?.slice(5) || ''}</span>
+        </div>
+      </div>
+    );
+  };
+
+  const renderDonutChart = (items: { label: string; value: number; color: string }[]) => {
+    const total = items.reduce((sum, i) => sum + i.value, 0) || 1;
+    let cumulative = 0;
+    const radius = 15.91549;
+    return (
+      <div className="flex items-center gap-6">
+        <div className="relative h-40 w-40 flex-shrink-0">
+          <svg viewBox="0 0 36 36" className="h-full w-full -rotate-90">
+            <circle cx="18" cy="18" r={radius} fill="none" stroke="var(--color-border-default)" strokeWidth="3" />
+            {items.map((item, i) => {
+              const dash = (item.value / total) * 100;
+              const offset = (cumulative / total) * 100;
+              cumulative += item.value;
+              return (
+                <circle
+                  key={i}
+                  cx="18" cy="18" r={radius} fill="none"
+                  stroke={item.color} strokeWidth="3"
+                  strokeDasharray={`${dash} ${100 - dash}`}
+                  strokeDashoffset={-offset}
+                />
+              );
+            })}
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-2xl font-bold text-text-primary">{formatNumber(total)}</span>
+            <span className="text-[10px] text-text-muted">کل</span>
+          </div>
+        </div>
+        <div className="space-y-2">
+          {items.map((item, i) => (
+            <div key={i} className="flex items-center gap-2 text-xs">
+              <div className="h-3 w-3 rounded-full" style={{ backgroundColor: item.color }} />
+              <span className="text-text-secondary">{item.label}</span>
+              <span className="font-bold text-text-primary">{formatNumber(item.value)}</span>
+              <span className="text-text-muted">({((item.value / total) * 100).toFixed(1)}%)</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderProgressBar = (label: string, value: number, max: number, color: string) => {
+    const pct = Math.min((value / max) * 100, 100);
+    return (
+      <div className="space-y-1">
+        <div className="flex justify-between text-xs">
+          <span className="text-text-muted">{label}</span>
+          <span className="font-bold text-text-primary">{formatNumber(value)}</span>
+        </div>
+        <div className="h-2 overflow-hidden rounded-full bg-bg-base">
+          <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: color }} />
+        </div>
       </div>
     );
   };
 
   return (
-    <div className="min-h-screen bg-gray-50" dir="rtl">
-      <div className="bg-white shadow">
+    <div className="min-h-screen bg-bg-base" dir="rtl">
+      <div className="bg-bg-raised shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
-            <h1 className="text-2xl font-bold text-gray-900">داشبورد مدیریتی (Executive BI)</h1>
+            <h1 className="text-2xl font-bold text-text-primary">داشبورد مدیریتی (Executive BI)</h1>
             <div className="flex items-center gap-4">
               <select
                 value={selectedPeriod}
                 onChange={(e) => setSelectedPeriod(e.target.value as any)}
-                className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className="rounded-md border border-border-default px-3 py-2 text-sm"
               >
                 <option value="7d">۷ روز اخیر</option>
                 <option value="30d">۳۰ روز اخیر</option>
@@ -384,13 +470,13 @@ export default function ExecutiveBIDashboardPage() {
               </select>
               <button
                 onClick={() => setComparisonMode(!comparisonMode)}
-                className={`px-4 py-2 text-sm rounded-md ${comparisonMode ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
+                className={`px-4 py-2 text-sm rounded-md ${comparisonMode ? 'bg-brand-primary text-text-on-brand' : 'bg-bg-base text-text-secondary'}`}
               >
                 مقایسه دوره‌ای
               </button>
               <button
                 onClick={() => router.push('/')}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
+                className="px-4 py-2 text-sm text-text-muted hover:text-text-primary"
               >
                 بازگشت
               </button>
@@ -401,15 +487,15 @@ export default function ExecutiveBIDashboardPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {error && (
-          <div className="mb-6 rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <div className="mb-6 rounded-md border border-feedback-error/30 bg-feedback-error-subtle p-4 text-sm text-feedback-error">
             {error}
           </div>
         )}
 
         {metricsLoading ? (
           <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-500">در حال بارگذاری...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary mx-auto"></div>
+            <p className="mt-4 text-text-muted">در حال بارگذاری...</p>
           </div>
         ) : (
           <>
@@ -431,49 +517,60 @@ export default function ExecutiveBIDashboardPage() {
 
             {/* Trend Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-              <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">روند صدور بیمه‌نامه</h3>
-                {renderSimpleChart(trendData, 'policies', 'blue')}
+              <div className="bg-bg-raised rounded-xl shadow p-6">
+                <h3 className="text-lg font-semibold text-text-primary mb-4">روند صدور بیمه‌نامه</h3>
+                {renderAreaChart(trendData, 'policies', 'grad-policies', 'var(--color-brand-primary)')}
               </div>
-              <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">روند پریمیوم</h3>
-                {renderSimpleChart(trendData, 'premium', 'green')}
+              <div className="bg-bg-raised rounded-xl shadow p-6">
+                <h3 className="text-lg font-semibold text-text-primary mb-4">روند پریمیوم</h3>
+                {renderAreaChart(trendData, 'premium', 'grad-premium', 'var(--color-feedback-success)')}
               </div>
-              <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">روند خسارت‌ها</h3>
-                {renderSimpleChart(trendData, 'claims', 'red')}
+              <div className="bg-bg-raised rounded-xl shadow p-6">
+                <h3 className="text-lg font-semibold text-text-primary mb-4">روند خسارت‌ها</h3>
+                {renderAreaChart(trendData, 'claims', 'grad-claims', 'var(--color-feedback-error)')}
               </div>
-              <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">روند سود</h3>
-                {renderSimpleChart(trendData, 'profit', 'purple')}
+              <div className="bg-bg-raised rounded-xl shadow p-6">
+                <h3 className="text-lg font-semibold text-text-primary mb-4">روند سود</h3>
+                {renderAreaChart(trendData, 'profit', 'grad-profit', 'var(--color-brand-accent)')}
               </div>
             </div>
 
-            {/* Product Performance */}
-            <div className="bg-white rounded-lg shadow p-6 mb-8">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">عملکرد محصولات</h3>
+            {/* Product Performance with Progress Bars */}
+            <div className="bg-bg-raised rounded-xl shadow p-6 mb-8">
+              <h3 className="text-lg font-semibold text-text-primary mb-4">عملکرد محصولات</h3>
+              <div className="space-y-3 mb-6">
+                {productPerformance.slice(0, 5).map(p => (
+                  <div key={p.productId} className="space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="font-medium text-text-secondary">{p.productName}</span>
+                      <span className="text-text-muted">نسبت خسارت: {formatPercent(p.lossRatio)} | رشد: <span className={p.growthRate > 0 ? 'text-feedback-success' : 'text-feedback-error'}>{p.growthRate > 0 ? '+' : ''}{formatPercent(p.growthRate)}</span></span>
+                    </div>
+                    {renderProgressBar('', p.policiesCount, Math.max(...productPerformance.map(x => x.policiesCount)), 'var(--color-brand-primary)')}
+                  </div>
+                ))}
+              </div>
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                <table className="min-w-full divide-y divide-border-default">
+                  <thead className="bg-bg-base">
                     <tr>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">محصول</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">تعداد بیمه‌نامه</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">پریمیوم</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">خسارت</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">نسبت خسارت</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">نرخ رشد</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">محصول</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">تعداد بیمه‌نامه</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">پریمیوم</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">خسارت</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">نسبت خسارت</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">نرخ رشد</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-bg-raised divide-y divide-border-default">
                     {productPerformance.map((product) => (
-                      <tr key={product.productId} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{product.productName}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatNumber(product.policiesCount)}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatCurrency(product.premium)}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatNumber(product.claims)}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatPercent(product.lossRatio)}</td>
+                      <tr key={product.productId} className="hover:bg-bg-base">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-text-primary">{product.productName}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-text-muted">{formatNumber(product.policiesCount)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-text-muted">{formatCurrency(product.premium)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-text-muted">{formatNumber(product.claims)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-text-muted">{formatPercent(product.lossRatio)}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <span className={product.growthRate > 0 ? 'text-green-600' : 'text-red-600'}>
+                          <span className={product.growthRate > 0 ? 'text-feedback-success' : 'text-feedback-error'}>
                             {product.growthRate > 0 ? '+' : ''}{formatPercent(product.growthRate)}
                           </span>
                         </td>
@@ -484,28 +581,41 @@ export default function ExecutiveBIDashboardPage() {
               </div>
             </div>
 
-            {/* Regional Performance */}
-            <div className="bg-white rounded-lg shadow p-6 mb-8">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">عملکرد منطقه‌ای</h3>
+            {/* Regional Performance with Donut Chart */}
+            <div className="bg-bg-raised rounded-xl shadow p-6 mb-8">
+              <h3 className="text-lg font-semibold text-text-primary mb-4">عملکرد منطقه‌ای</h3>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                {renderDonutChart(regionalPerformance.map((r, i) => ({
+                  label: r.region,
+                  value: r.policiesCount,
+                  color: ['var(--color-brand-primary)', 'var(--color-feedback-success)', 'var(--color-feedback-warning)', 'var(--color-feedback-error)', 'var(--color-brand-accent)', 'var(--color-brand-secondary)'][i % 6],
+                })))}
+                <div className="space-y-3">
+                  {regionalPerformance.map((r, i) => (
+                    renderProgressBar(r.region, r.premium, Math.max(...regionalPerformance.map(x => x.premium)),
+                      ['var(--color-brand-primary)', 'var(--color-feedback-success)', 'var(--color-feedback-warning)', 'var(--color-feedback-error)', 'var(--color-brand-accent)', 'var(--color-brand-secondary)'][i % 6])
+                  ))}
+                </div>
+              </div>
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                <table className="min-w-full divide-y divide-border-default">
+                  <thead className="bg-bg-base">
                     <tr>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">منطقه</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">تعداد بیمه‌نامه</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">پریمیوم</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">خسارت</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">سهم بازار</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">منطقه</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">تعداد بیمه‌نامه</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">پریمیوم</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">خسارت</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">سهم بازار</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-bg-raised divide-y divide-border-default">
                     {regionalPerformance.map((region) => (
-                      <tr key={region.region} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{region.region}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatNumber(region.policiesCount)}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatCurrency(region.premium)}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatNumber(region.claims)}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatPercent(region.marketShare)}</td>
+                      <tr key={region.region} className="hover:bg-bg-base">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-text-primary">{region.region}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-text-muted">{formatNumber(region.policiesCount)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-text-muted">{formatCurrency(region.premium)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-text-muted">{formatNumber(region.claims)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-text-muted">{formatPercent(region.marketShare)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -513,32 +623,48 @@ export default function ExecutiveBIDashboardPage() {
               </div>
             </div>
 
-            {/* Top Agents */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">برترین نمایندگان</h3>
+            {/* Top Agents with Ranking Bars */}
+            <div className="bg-bg-raised rounded-xl shadow p-6">
+              <h3 className="text-lg font-semibold text-text-primary mb-4">برترین نمایندگان</h3>
+              <div className="space-y-3 mb-6">
+                {agentPerformance.map((agent, i) => (
+                  <div key={agent.agentId} className="flex items-center gap-3">
+                    <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${i === 0 ? 'bg-feedback-warning-subtle text-feedback-warning' : i === 1 ? 'bg-bg-base text-text-secondary' : i === 2 ? 'bg-feedback-warning-subtle text-feedback-warning' : 'bg-brand-primary-subtle text-brand-primary'}`}>
+                      {agent.ranking}
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <div className="flex justify-between text-xs">
+                        <span className="font-medium text-text-secondary">{agent.agentName}</span>
+                        <span className="text-text-muted">{formatNumber(agent.policiesCount)} بیمه‌نامه</span>
+                      </div>
+                      {renderProgressBar('', agent.premium, Math.max(...agentPerformance.map(a => a.premium)), ['var(--color-feedback-warning)', 'var(--color-text-muted)', 'var(--color-brand-secondary)', 'var(--color-brand-primary)', 'var(--color-brand-accent)'][i % 5])}
+                    </div>
+                  </div>
+                ))}
+              </div>
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                <table className="min-w-full divide-y divide-border-default">
+                  <thead className="bg-bg-base">
                     <tr>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">رتبه</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">نام نماینده</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">تعداد بیمه‌نامه</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">پریمیوم</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">کمیسیون</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">رتبه</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">نام نماینده</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">تعداد بیمه‌نامه</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">پریمیوم</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">کمیسیون</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-bg-raised divide-y divide-border-default">
                     {agentPerformance.map((agent) => (
-                      <tr key={agent.agentId} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-800">
+                      <tr key={agent.agentId} className="hover:bg-bg-base">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-text-primary">
+                          <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-brand-primary-subtle text-brand-primary">
                             {agent.ranking}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{agent.agentName}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatNumber(agent.policiesCount)}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatCurrency(agent.premium)}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatCurrency(agent.commissions)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-text-primary">{agent.agentName}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-text-muted">{formatNumber(agent.policiesCount)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-text-muted">{formatCurrency(agent.premium)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-text-muted">{formatCurrency(agent.commissions)}</td>
                       </tr>
                     ))}
                   </tbody>

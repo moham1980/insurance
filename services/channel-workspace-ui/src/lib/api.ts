@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_CHANNEL_BFF_URL || 'http://localhost:3020';
+const API_URL = process.env.NEXT_PUBLIC_CHANNEL_BFF_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3020';
 
 export function getAuthHeaders(): Record<string, string> {
   if (typeof document === 'undefined') return {};
@@ -24,7 +24,21 @@ export async function patchBFF(path: string, body: any) {
   return fetchBFF(path, { method: 'PATCH', body: JSON.stringify(body) });
 }
 
+export async function loginBFF(username: string, password: string) {
+  const res = await fetch(`${API_URL}/api/v1/channel/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: `HTTP ${res.status}` }));
+    throw new Error(err.message || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
 export const channelApi = {
+  getCapabilities: () => fetchBFF('/api/v1/channel/capabilities'),
   getDashboard: () => fetchBFF('/api/v1/channel/dashboard'),
   getWorkspaces: () => fetchBFF('/api/v1/channel/workspaces/mine'),
   getSubAgents: () => fetchBFF('/api/v1/channel/sub-agents'),
@@ -36,6 +50,7 @@ export const channelApi = {
 };
 
 export const brokerApi = {
+  getCapabilities: () => fetchBFF('/api/v1/broker/capabilities'),
   getDashboard: () => fetchBFF('/api/v1/broker/dashboard'),
   getAgreements: () => fetchBFF('/api/v1/broker/carrier-agreements'),
   getAgreement: (id: string) => fetchBFF(`/api/v1/broker/carrier-agreements/${id}`),

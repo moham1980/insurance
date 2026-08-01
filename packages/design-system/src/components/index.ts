@@ -14,7 +14,7 @@ export { BarChart, type BarChartProps } from './BarChart';
 export { LineChart, type LineChartProps } from './LineChart';
 export { PolicyCard, type PolicyCardProps } from './PolicyCard';
 export { CoverageMatrix, type CoverageMatrixProps } from './CoverageMatrix';
-export { QuoteComparisonTable, type QuoteComparisonTableProps } from './QuoteComparisonTable';
+export { QuoteComparisonTable, type QuoteComparisonTableProps, type QuoteComparisonItem } from './QuoteComparisonTable';
 export { QuoteScoreBreakdown, type QuoteScoreBreakdownProps } from './QuoteScoreBreakdown';
 export { NextBestAction, type NBACardProps } from './NextBestAction';
 export { StatCard, type StatCardProps } from './StatCard';
@@ -28,12 +28,12 @@ export { ThemeToggle } from './ThemeToggle';
 export { SkipLink } from './SkipLink';
 
 // P7 — shared components for Experience & AI phase
-export { ConsentPanel, type ConsentPanelProps } from './ConsentPanel';
+export { ConsentPanel, type ConsentPanelProps, type ConsentPurpose } from './ConsentPanel';
 export { CopilotChat, type CopilotChatProps } from './CopilotChat';
 export { CopilotSuggestionCard, type CopilotSuggestionCardProps, type CopilotSuggestion } from './CopilotSuggestionCard';
-export { BrandWrapper, type BrandWrapperProps } from './BrandWrapper';
+export { BrandWrapper, type BrandWrapperProps, type BrandConfig } from './BrandWrapper';
 export { SubmissionWizard, type SubmissionWizardProps } from './SubmissionWizard';
-export { CarrierSelector, type CarrierSelectorProps } from './CarrierSelector';
-export { PolicyTimeline, type PolicyTimelineProps } from './PolicyTimeline';
-export { CommissionLedgerCard, type CommissionLedgerCardProps } from './CommissionLedgerCard';
-export { SubAgentTree, type SubAgentTreeProps } from './SubAgentTree';
+export { CarrierSelector, type CarrierSelectorProps, type CarrierOption } from './CarrierSelector';
+export { PolicyTimeline, type PolicyTimelineProps, type TimelineEvent } from './PolicyTimeline';
+export { CommissionLedgerCard, type CommissionLedgerCardProps, type CommissionLine } from './CommissionLedgerCard';
+export { SubAgentTree, type SubAgentTreeProps, type SubAgentNode } from './SubAgentTree';

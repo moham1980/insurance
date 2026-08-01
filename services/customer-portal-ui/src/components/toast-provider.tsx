@@ -1,3 +1,5 @@
 'use client';
 
-export { ToastProvider, ToastViewport } from '@insurance/ui-utils';
+import { ToastProvider, ToastViewport } from '@insurance/ui-utils';
+
+export { ToastProvider, ToastViewport };

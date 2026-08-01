@@ -10,9 +10,9 @@ export class CopilotAudit {
   auditId!: string;
 
   @Column({ name: 'resource_type', type: 'text' })
-  resourceType!: 'claim' | 'document' | 'policy' | 'complaint';
+  resourceType!: 'claim' | 'document' | 'policy' | 'complaint' | 'chat';
 
-  @Column({ name: 'resource_id', type: 'uuid' })
+  @Column({ name: 'resource_id', type: 'text' })
   resourceId!: string;
 
   @Column({ name: 'correlation_id', type: 'text', nullable: true })

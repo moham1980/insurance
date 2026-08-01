@@ -1,3 +1,4 @@
+'use client';
 import * as React from 'react';
 import { useTheme, useReducedMotion } from '@insurance/ui-utils';
 import { Sun, Moon, Monitor } from 'lucide-react';

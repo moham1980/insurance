@@ -1,7 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { Building2, Plus, RefreshCw, Network } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
+import { Button, Card, StatCard } from '@insurance/design-system';
+import { MOCK_ORG_UNITS } from '@/lib/mock-data';
 
 type OrgUnit = {
   orgUnitId: string;
@@ -43,6 +46,7 @@ export default function OrgUnitsPage() {
     setLoading(true);
     const res = await apiFetch<OrgUnit[]>('/auth/org-units');
     if (res.success) setItems(res.data);
+    else setItems(MOCK_ORG_UNITS as unknown as OrgUnit[]);
     setLoading(false);
   }
 
@@ -71,21 +75,60 @@ export default function OrgUnitsPage() {
     load();
   }, []);
 
+  const typeLabel = (t: string) => orgUnitTypes.find((x) => x.key === t)?.label || t;
+
+  const typeBadge = (t: string) => {
+    const cfg: Record<string, { bg: string; text: string }> = {
+      insurer: { bg: 'bg-brand-primary-subtle', text: 'text-brand-primary' },
+      head_office: { bg: 'bg-feedback-info-subtle', text: 'text-feedback-info' },
+      branch: { bg: 'bg-feedback-success-subtle', text: 'text-feedback-success' },
+      agency: { bg: 'bg-feedback-warning-subtle', text: 'text-feedback-warning' },
+      brokerage: { bg: 'bg-brand-secondary-subtle', text: 'text-brand-secondary' },
+    };
+    const c = cfg[t] || { bg: 'bg-bg-base', text: 'text-text-secondary' };
+    return (
+      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${c.bg} ${c.text}`}>
+        <Building2 className="w-3 h-3" />
+        {typeLabel(t)}
+      </span>
+    );
+  };
+
   return (
-    <main className="p-6">
-      <div>
-        <h1 className="text-xl font-semibold">واحدهای سازمانی</h1>
-        <p className="mt-1 text-sm text-neutral-600">ستاد/شعبه/نمایندگی/کارگزاری و سایر ذی‌نفعان عملیاتی</p>
+    <main className="p-6 max-w-7xl mx-auto" dir="rtl">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
+            <Network className="h-5 w-5" />
+          </div>
+          <div>
+            <h1 className="text-xl font-semibold">واحدهای سازمانی</h1>
+            <p className="mt-1 text-sm text-text-muted">ستاد/شعبه/نمایندگی/کارگزاری و سایر ذی‌نفعان عملیاتی</p>
+          </div>
+        </div>
+        <Button variant="ghost" size="sm" onClick={load} disabled={loading} isLoading={loading}>
+          <RefreshCw className="h-4 w-4 ml-1" />
+          بروزرسانی
+        </Button>
+      </div>
+
+      <div className="mt-6 grid gap-4 md:grid-cols-3">
+        <StatCard title="کل واحدها" value={items.length} icon={Network} />
+        <StatCard title="شعبه‌ها" value={items.filter((x) => x.type === 'branch').length} icon={Building2} />
+        <StatCard title="نمایندگی‌ها" value={items.filter((x) => x.type === 'agency').length} icon={Building2} />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <section className="rounded-2xl border p-4">
-          <div className="text-sm font-semibold">ایجاد واحد</div>
+        <Card className="p-4">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Plus className="h-4 w-4 text-brand-primary" />
+            ایجاد واحد
+          </div>
 
           <div className="mt-4 grid gap-3">
             <label className="grid gap-1 text-sm">
-              <span className="text-xs text-neutral-600">نوع</span>
-              <select className="rounded-xl border px-3 py-2" value={type} onChange={(e) => setType(e.target.value)}>
+              <span className="text-xs text-text-muted">نوع</span>
+              <select className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={type} onChange={(e) => setType(e.target.value)}>
                 {orgUnitTypes.map((t) => (
                   <option key={t.key} value={t.key}>
                     {t.label}
@@ -95,19 +138,19 @@ export default function OrgUnitsPage() {
             </label>
 
             <label className="grid gap-1 text-sm">
-              <span className="text-xs text-neutral-600">نام</span>
-              <input className="rounded-xl border px-3 py-2" value={name} onChange={(e) => setName(e.target.value)} />
+              <span className="text-xs text-text-muted">نام</span>
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={name} onChange={(e) => setName(e.target.value)} />
             </label>
 
             <label className="grid gap-1 text-sm">
-              <span className="text-xs text-neutral-600">کد</span>
-              <input className="rounded-xl border px-3 py-2" value={code} onChange={(e) => setCode(e.target.value)} />
+              <span className="text-xs text-text-muted">کد</span>
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={code} onChange={(e) => setCode(e.target.value)} />
             </label>
 
             <label className="grid gap-1 text-sm">
-              <span className="text-xs text-neutral-600">واحد بالادست (اختیاری)</span>
+              <span className="text-xs text-text-muted">واحد بالادست (اختیاری)</span>
               <select
-                className="rounded-xl border px-3 py-2"
+                className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary"
                 value={parentOrgUnitId}
                 onChange={(e) => setParentOrgUnitId(e.target.value)}
               >
@@ -120,44 +163,39 @@ export default function OrgUnitsPage() {
               </select>
             </label>
 
-            <button
-              type="button"
-              disabled={saving || !type || !name || !code}
+            <Button
               onClick={create}
-              className="inline-flex items-center justify-center rounded-xl bg-neutral-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+              disabled={saving || !type || !name || !code}
+              isLoading={saving}
+              fullWidth
             >
               {saving ? 'در حال ذخیره…' : 'ایجاد'}
-            </button>
+            </Button>
           </div>
-        </section>
+        </Card>
 
-        <section className="rounded-2xl border p-4">
+        <Card className="p-4">
           <div className="flex items-center justify-between">
             <div className="text-sm font-semibold">لیست واحدها</div>
-            <button
-              type="button"
-              onClick={load}
-              className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
-              disabled={loading}
-            >
+            <Button variant="ghost" size="sm" onClick={load} disabled={loading} isLoading={loading}>
               بروزرسانی
-            </button>
+            </Button>
           </div>
 
           <div className="mt-4 space-y-2">
             {items.map((x) => (
-              <div key={x.orgUnitId} className="rounded-xl border px-3 py-2">
+              <div key={x.orgUnitId} className="rounded-xl border border-border-default bg-bg-base px-3 py-2">
                 <div className="flex items-center justify-between">
                   <div className="text-sm font-semibold">{x.name}</div>
-                  <div className="text-xs text-neutral-600">{x.type}</div>
+                  {typeBadge(x.type)}
                 </div>
-                <div className="mt-1 text-xs text-neutral-600">کد: {x.code}</div>
-                {x.parentOrgUnitId ? <div className="mt-1 text-xs text-neutral-600">بالادست: {x.parentOrgUnitId}</div> : null}
+                <div className="mt-1 text-xs text-text-muted">کد: {x.code}</div>
+                {x.parentOrgUnitId ? <div className="mt-1 text-xs text-text-muted">بالادست: {x.parentOrgUnitId}</div> : null}
               </div>
             ))}
-            {!loading && items.length === 0 ? <div className="text-sm text-neutral-600">موردی وجود ندارد.</div> : null}
+            {!loading && items.length === 0 ? <div className="text-sm text-text-muted text-center py-8">موردی وجود ندارد.</div> : null}
           </div>
-        </section>
+        </Card>
       </div>
     </main>
   );

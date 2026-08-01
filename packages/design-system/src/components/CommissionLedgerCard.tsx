@@ -1,3 +1,4 @@
+'use client';
 import * as React from 'react';
 import { cn } from '@insurance/ui-utils';
 import { Card } from './Card';
@@ -9,7 +10,7 @@ export interface CommissionLine {
   policyNumber?: string;
   policyholder?: string;
   amountMinor: number;
-  currency: string;
+  currency: 'IRR' | 'IRT';
   type: 'accrual' | 'paid' | 'clawback' | 'pending';
   period: string;
   paidAt?: string;
@@ -17,7 +18,7 @@ export interface CommissionLine {
 
 export interface CommissionLedgerCardProps {
   balanceMinor: number;
-  currency: string;
+  currency: 'IRR' | 'IRT';
   lines: CommissionLine[];
   pendingMinor: number;
   paidYtdMinor: number;

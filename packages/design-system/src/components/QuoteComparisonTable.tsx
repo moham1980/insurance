@@ -1,3 +1,4 @@
+'use client';
 import * as React from 'react';
 import { cn } from '@insurance/ui-utils';
 import { Button } from './Button';
@@ -67,7 +68,7 @@ export function QuoteComparisonTable({ items, onSelect, loading, className }: Qu
   }
 
   const allCoverages = items.flatMap((i) => i.coverages.map((c) => c.code));
-  const uniqueCoverages = [...new Set(allCoverages)];
+  const uniqueCoverages = Array.from(new Set(allCoverages));
 
   return (
     <div className={cn('overflow-x-auto rounded-xl border border-border-default', className)}>
@@ -146,7 +147,7 @@ export function QuoteComparisonTable({ items, onSelect, loading, className }: Qu
               <td key={item.quoteResponseId} className="px-4 py-3">
                 <Button
                   size="sm"
-                  variant={selectedId === item.quoteResponseId ? 'primary' : 'outline'}
+                  variant={selectedId === item.quoteResponseId ? 'primary' : 'secondary'}
                   onClick={() => handleSelect(item.quoteResponseId)}
                   disabled={item.isSelected}
                 >
@@ -164,7 +165,7 @@ export function QuoteComparisonTable({ items, onSelect, loading, className }: Qu
         title="تأیید انتخاب quote"
         footer={
           <>
-            <Button variant="outline" onClick={() => setConfirmId(null)}>انصراف</Button>
+            <Button variant="secondary" onClick={() => setConfirmId(null)}>انصراف</Button>
             <Button variant="primary" onClick={handleConfirm}>تأیید</Button>
           </>
         }

@@ -2,10 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { FileText, RefreshCw, Upload, Search, Download, Eye, AlertCircle, CheckCircle, Clock, FileCheck, XCircle } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { getAuthUser } from '@/lib/api';
 import { enterprisePermissionsForRoles, hasEnterprisePermission } from '@/lib/enterprise-rbac';
 import { LoadingOverlay } from '@/components/loading-spinner';
+import { Button, Card, StatCard } from '@insurance/design-system';
+import { MOCK_DOCUMENTS } from '@/lib/mock-data';
 
 type DocumentRow = {
   documentId: string;
@@ -48,7 +51,10 @@ export default function DocumentsPage() {
 
     const res = await apiFetch<DocumentRow[]>(`/documents${qs.toString() ? `?${qs.toString()}` : ''}`);
     if (res.success) setRows(res.data);
-    else setError({ message: res.error.message, correlationId: res.correlationId });
+    else {
+      setError({ message: res.error.message, correlationId: res.correlationId });
+      setRows(MOCK_DOCUMENTS as unknown as DocumentRow[]);
+    }
     setLoading(false);
   }
 
@@ -94,116 +100,144 @@ export default function DocumentsPage() {
     setUploading(false);
   }
 
+  const statusBadge = (s: string) => {
+    const cfg: Record<string, { bg: string; text: string; icon: any }> = {
+      processed: { bg: 'bg-feedback-success-subtle', text: 'text-feedback-success', icon: CheckCircle },
+      pending: { bg: 'bg-feedback-warning-subtle', text: 'text-feedback-warning', icon: Clock },
+      rejected: { bg: 'bg-feedback-error-subtle', text: 'text-feedback-error', icon: XCircle },
+      uploaded: { bg: 'bg-feedback-info-subtle', text: 'text-feedback-info', icon: FileCheck },
+    };
+    const c = cfg[s] || { bg: 'bg-bg-base', text: 'text-text-secondary', icon: AlertCircle };
+    const Icon = c.icon;
+    return (
+      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${c.bg} ${c.text}`}>
+        <Icon className="w-3 h-3" />
+        {s}
+      </span>
+    );
+  };
+
   return (
-    <main className="p-6">
+    <main className="p-6 max-w-7xl mx-auto" dir="rtl">
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold">Documents (اسناد)</h1>
-          <p className="mt-1 text-sm text-neutral-600">آپلود و مدیریت اسناد مرتبط با خسارت/بیمه‌گذار/بیمه‌نامه</p>
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
+            <FileText className="h-5 w-5" />
+          </div>
+          <div>
+            <h1 className="text-xl font-semibold">اسناد</h1>
+            <p className="mt-1 text-sm text-text-muted">آپلود و مدیریت اسناد مرتبط با خسارت/بیمه‌گذار/بیمه‌نامه</p>
+          </div>
         </div>
         <div className="flex gap-2">
-          <button type="button" onClick={load} className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" disabled={loading}>
+          <Button variant="ghost" size="sm" onClick={load} disabled={loading} isLoading={loading}>
+            <RefreshCw className="h-4 w-4 ml-1" />
             بروزرسانی
-          </button>
+          </Button>
           {canUpload ? (
-            <button type="button" onClick={() => setShowUpload(true)} className="rounded-xl bg-neutral-900 px-3 py-2 text-sm text-white hover:bg-neutral-800">
-              + آپلود سند
-            </button>
+            <Button size="sm" onClick={() => setShowUpload(true)}>
+              <Upload className="h-4 w-4 ml-1" />
+              آپلود سند
+            </Button>
           ) : null}
         </div>
       </div>
 
-      <div className="mt-6 grid gap-3 md:grid-cols-4">
-        <input className="rounded-xl border px-3 py-2" placeholder="claimId" value={claimId} onChange={(e) => setClaimId(e.target.value)} />
-        <div />
-        <div />
-        <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" onClick={load} disabled={loading}>
+      <div className="mt-6 grid gap-4 md:grid-cols-3">
+        <StatCard title="کل اسناد" value={rows.length} icon={FileText} />
+        <StatCard title="پردازش‌شده" value={rows.filter((r) => r.status === 'processed').length} changeType="positive" change="تکمیل‌شده" icon={CheckCircle} />
+        <StatCard title="در انتظار" value={rows.filter((r) => r.status === 'pending').length} changeType="warning" change="در انتظار" icon={Clock} />
+      </div>
+
+      <div className="mt-6 flex flex-col gap-3 md:flex-row md:items-end">
+        <label className="grid flex-1 gap-1 text-sm">
+          <span className="text-xs text-text-muted">فیلتر: Claim ID</span>
+          <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" placeholder="claimId" value={claimId} onChange={(e) => setClaimId(e.target.value)} />
+        </label>
+        <Button variant="secondary" onClick={load} disabled={loading}>
+          <Search className="h-4 w-4 ml-1" />
           اعمال فیلتر
-        </button>
+        </Button>
       </div>
 
       {error ? (
-        <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
-          <div>خطا: {error.message}</div>
-          {error.correlationId ? <div className="mt-1 text-xs">correlationId: {error.correlationId}</div> : null}
+        <div className="mt-6 rounded-xl border border-feedback-error/30 bg-feedback-error-subtle p-4 text-sm text-feedback-error flex items-start gap-2">
+          <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+          <div>
+            <div>خطا: {error.message}</div>
+            {error.correlationId ? <div className="mt-1 text-xs">correlationId: {error.correlationId}</div> : null}
+          </div>
         </div>
       ) : null}
 
       {showUpload && canUpload ? (
-        <div className="mt-6 rounded-2xl border p-4">
+        <Card className="mt-6 p-4">
           <h3 className="font-semibold">آپلود سند جدید</h3>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             <input
               type="file"
-              className="rounded-xl border px-3 py-2 md:col-span-2"
+              className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary md:col-span-2"
               onChange={(e) => setFile(e.target.files?.[0] || null)}
             />
-            <select className="rounded-xl border px-3 py-2" value={uploadForm.documentType} onChange={(e) => setUploadForm({ ...uploadForm, documentType: e.target.value })}>
-              <option value="invoice">Invoice</option>
-              <option value="medical_report">Medical Report</option>
-              <option value="police_report">Police Report</option>
-              <option value="photo">Photo</option>
-              <option value="receipt">Receipt</option>
-              <option value="other">Other</option>
+            <select className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={uploadForm.documentType} onChange={(e) => setUploadForm({ ...uploadForm, documentType: e.target.value })}>
+              <option value="invoice">فاکتور</option>
+              <option value="medical_report">گزارش پزشکی</option>
+              <option value="police_report">گزارش پلیس</option>
+              <option value="photo">تصویر</option>
+              <option value="receipt">رسید</option>
+              <option value="other">سایر</option>
             </select>
-            <input className="rounded-xl border px-3 py-2" placeholder="claimId (required)" value={uploadForm.claimId} onChange={(e) => setUploadForm({ ...uploadForm, claimId: e.target.value })} />
+            <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" placeholder="claimId (اجباری)" value={uploadForm.claimId} onChange={(e) => setUploadForm({ ...uploadForm, claimId: e.target.value })} />
           </div>
           <div className="mt-4 flex gap-2">
-            <button type="button" onClick={upload} disabled={uploading || !file} className="rounded-xl bg-neutral-900 px-4 py-2 text-sm text-white hover:bg-neutral-800 disabled:opacity-50">
+            <Button onClick={upload} disabled={uploading || !file} isLoading={uploading}>
               {uploading ? 'در حال آپلود...' : 'آپلود'}
-            </button>
-            <button type="button" onClick={() => setShowUpload(false)} className="rounded-xl border px-4 py-2 text-sm hover:bg-neutral-50">
+            </Button>
+            <Button variant="ghost" onClick={() => setShowUpload(false)}>
               انصراف
-            </button>
+            </Button>
           </div>
-        </div>
+        </Card>
       ) : null}
 
       <div className="mt-6 space-y-3">
         {rows.map((d) => (
-          <div key={d.documentId} className="rounded-2xl border p-4">
+          <Card key={d.documentId} className="p-4">
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div>
-                <div className="text-sm font-semibold">{d.fileName}</div>
-                <div className="mt-1 text-xs text-neutral-600">type: {d.documentType} | status: {d.status}</div>
-                <div className="mt-1 text-xs text-neutral-600">documentId: {d.documentId}</div>
-                <div className="mt-1 text-xs text-neutral-600">claimId: {d.claimId}</div>
-                <div className="mt-1 text-xs text-neutral-600">mime: {d.mimeType || '—'} | size: {typeof d.fileSize === 'number' ? `${(d.fileSize / 1024).toFixed(1)} KB` : '—'}</div>
-                <div className="mt-1 text-xs text-neutral-600">
+                <div className="flex items-center gap-2">
+                  <div className="text-sm font-semibold">{d.fileName}</div>
+                  {statusBadge(d.status)}
+                </div>
+                <div className="mt-1 text-xs text-text-muted">type: {d.documentType}</div>
+                <div className="mt-1 text-xs text-text-muted">documentId: {d.documentId}</div>
+                <div className="mt-1 text-xs text-text-muted">claimId: {d.claimId}</div>
+                <div className="mt-1 text-xs text-text-muted">mime: {d.mimeType || '—'} | size: {typeof d.fileSize === 'number' ? `${(d.fileSize / 1024).toFixed(1)} KB` : '—'}</div>
+                <div className="mt-1 text-xs text-text-muted">
                   ایجاد: {new Date(d.createdAt).toLocaleString('fa-IR')} | بروزرسانی: {new Date(d.updatedAt).toLocaleString('fa-IR')}
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
-                  onClick={() => window.open(`/documents/${d.documentId}/download`, '_blank')}
-                >
+                <Button variant="ghost" size="sm" onClick={() => window.open(`/documents/${d.documentId}/download`, '_blank')}>
+                  <Download className="h-4 w-4 ml-1" />
                   دانلود
-                </button>
+                </Button>
                 {(d.mimeType?.startsWith('image/') || d.mimeType === 'application/pdf') && (
-                  <button
-                    type="button"
-                    className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
-                    onClick={() => window.open(`/documents/${d.documentId}/preview`, '_blank')}
-                  >
+                  <Button variant="ghost" size="sm" onClick={() => window.open(`/documents/${d.documentId}/preview`, '_blank')}>
+                    <Eye className="h-4 w-4 ml-1" />
                     پیش‌نمایش
-                  </button>
+                  </Button>
                 )}
                 {d.claimId && (
-                  <button
-                    type="button"
-                    className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
-                    onClick={() => router.push(`/claims/${d.claimId}`)}
-                  >
+                  <Button variant="ghost" size="sm" onClick={() => router.push(`/claims/${d.claimId}`)}>
                     مشاهده خسارت
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
-          </div>
+          </Card>
         ))}
-        {!loading && rows.length === 0 ? <div className="text-sm text-neutral-600">موردی یافت نشد.</div> : null}
+        {!loading && rows.length === 0 ? <div className="text-sm text-text-muted text-center py-8">موردی یافت نشد.</div> : null}
       </div>
       <LoadingOverlay loading={loading} text="در حال بارگذاری اسناد..." />
     </main>

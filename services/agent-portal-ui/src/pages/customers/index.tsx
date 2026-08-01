@@ -1,9 +1,8 @@
-import { NextBestAction, PolicyCard } from '@insurance/design-system';
-import { User, Phone, Mail, Calendar, MapPin, Shield, FileText, Loader2 } from 'lucide-react';
-import useSWR from 'swr';
-import axios from 'axios';
-
-const fetcher = (url: string) => axios.get(url).then((res) => res.data);
+import { useState, useEffect } from 'react';
+import { NextBestAction, PolicyCard, Card } from '@insurance/design-system';
+import { User, Phone, Mail, Calendar, MapPin, Shield, FileText, Loader2, AlertCircle } from 'lucide-react';
+import { agentPortalAPI } from '../../lib/api';
+import { mockCustomer360 } from '../../lib/mock-data';
 
 interface Customer {
   name: string;
@@ -29,9 +28,28 @@ interface Customer {
 }
 
 export default function CustomersPage() {
-  const { data, error, isLoading } = useSWR<Customer>('/api/agent/customers/360', fetcher);
+  const [customer, setCustomer] = useState<Customer | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  if (isLoading) {
+  useEffect(() => {
+    async function loadCustomer() {
+      try {
+        setLoading(true);
+        setError('');
+        const data = await agentPortalAPI.getCustomerDetail('current');
+        setCustomer(data);
+      } catch (err: any) {
+        setError(err.message || 'خطا در بارگذاری اطلاعات مشتری');
+        setCustomer(mockCustomer360);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadCustomer();
+  }, []);
+
+  if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
@@ -40,33 +58,31 @@ export default function CustomersPage() {
     );
   }
 
-  if (error) {
+  if (error && !customer) {
     return (
-      <div className="rounded-xl border border-border-error bg-bg-error p-4 text-text-error">
+      <div className="rounded-xl border border-feedback-error/30 bg-feedback-error-subtle p-4 text-feedback-error">
         <p className="font-semibold">خطا در بارگذاری داده</p>
-        <p className="mt-1 text-sm">{axios.isAxiosError(error) ? error.message : 'ارتباط با سرور برقرار نشد.'}</p>
+        <p className="mt-1 text-sm">{error}</p>
       </div>
     );
   }
 
-  if (!data) {
+  if (!customer) {
     return (
-      <div className="rounded-xl border border-border-default bg-bg-raised p-8 text-center text-text-muted">
+      <Card className="p-8 text-center text-text-muted">
         <User className="mx-auto mb-2 h-10 w-10 opacity-50" />
         <p className="font-semibold text-text-primary">اطلاعات مشتری یافت نشد</p>
         <p className="mt-1 text-sm">مشتری انتخاب نشده یا دسترسی وجود ندارد.</p>
-      </div>
+      </Card>
     );
   }
-
-  const customer = data;
 
   return (
     <div className="space-y-6">
       <h1 className="text-xl font-bold text-text-primary">مشتری ۳۶۰°</h1>
 
       {/* Profile Header */}
-      <div className="rounded-xl border border-border-default bg-bg-raised p-4">
+      <Card className="p-4">
         <div className="flex items-start gap-4">
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-primary/10 text-brand-primary">
             <User className="h-8 w-8" />
@@ -81,7 +97,7 @@ export default function CustomersPage() {
             </div>
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* NBA Actions */}
       {customer.nextBestActions && customer.nextBestActions.length > 0 && (

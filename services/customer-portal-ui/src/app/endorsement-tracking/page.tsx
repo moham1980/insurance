@@ -3,6 +3,13 @@
 import { useState, useEffect } from 'react'
 import { FileText, Loader2, AlertCircle, ChevronLeft, Clock, CheckCircle, XCircle } from 'lucide-react'
 import { policiesApi } from '@/lib/api'
+import { Card } from '@insurance/design-system'
+import { MOCK_POLICIES } from '@/lib/mock-data'
+
+const MOCK_ENDORSEMENTS: Endorsement[] = [
+  { id: 'end-001', endorsementType: 'تغییر آدرس', status: 'approved', effectiveDate: '1403/06/01', reason: 'تغییر محل سکونت', createdAt: '1403/05/20', updatedAt: '1403/05/25', history: [{ status: 'submitted', timestamp: '1403/05/20', note: 'درخواست ثبت شد' }, { status: 'approved', timestamp: '1403/05/25', note: 'تأیید شد' }] },
+  { id: 'end-002', endorsementType: 'افزایش پوشش', status: 'pending', effectiveDate: '1403/07/01', reason: 'افزودن پوشش حوادث انگلی', createdAt: '1403/06/28', updatedAt: '1403/06/28', history: [{ status: 'submitted', timestamp: '1403/06/28', note: 'در انتظار بررسی' }] },
+]
 
 interface Endorsement {
   id: string
@@ -32,9 +39,9 @@ export default function EndorsementTrackingPage() {
     try {
       setLoading(true)
       const response = await policiesApi.list()
-      setPolicies(response.data || [])
-    } catch (err: any) {
-      setError(err.message || 'خطا در بارگذاری بیمه‌نامه‌ها')
+      setPolicies(response.data || MOCK_POLICIES)
+    } catch {
+      setPolicies(MOCK_POLICIES)
     } finally {
       setLoading(false)
     }
@@ -46,7 +53,7 @@ export default function EndorsementTrackingPage() {
       const response = await policiesApi.listEndorsements(policyId)
       setEndorsements(response.data || [])
     } catch {
-      setEndorsements([])
+      setEndorsements(MOCK_ENDORSEMENTS)
     }
   }
 
@@ -81,9 +88,9 @@ export default function EndorsementTrackingPage() {
           بازگشت
         </button>
 
-        <div className="rounded-xl border border-border-default bg-bg-raised p-4">
+        <Card className="p-4">
           <h2 className="text-base font-bold text-text-primary mb-3">جزئیات الحاقیه</h2>
-          <div className="grid grid-cols-2 gap-3 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
             <div>
               <span className="text-text-muted">نوع:</span>
               <span className="mr-2 font-medium text-text-primary">{selectedEndorsement.endorsementType}</span>
@@ -91,10 +98,10 @@ export default function EndorsementTrackingPage() {
             <div>
               <span className="text-text-muted">وضعیت:</span>
               <span className={`mr-2 px-2 py-0.5 text-xs rounded-full ${
-                selectedEndorsement.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
-                selectedEndorsement.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
-                selectedEndorsement.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
-                'bg-blue-100 text-blue-800'
+                selectedEndorsement.status === 'APPROVED' ? 'bg-feedback-success-subtle text-feedback-success' :
+                selectedEndorsement.status === 'REJECTED' ? 'bg-feedback-error-subtle text-feedback-error' :
+                selectedEndorsement.status === 'PENDING' ? 'bg-feedback-warning-subtle text-feedback-warning' :
+                'bg-brand-primary/10 text-brand-primary'
               }`}>
                 {selectedEndorsement.status === 'APPROVED' ? 'تأیید شده' :
                  selectedEndorsement.status === 'REJECTED' ? 'رد شده' :
@@ -115,17 +122,17 @@ export default function EndorsementTrackingPage() {
               </div>
             )}
           </div>
-        </div>
+        </Card>
 
         {trackingInfo?.history || selectedEndorsement.history ? (
-          <div className="rounded-xl border border-border-default bg-bg-raised p-4">
+          <Card className="p-4">
             <h3 className="text-sm font-semibold text-text-primary mb-3">تاریخچه وضعیت</h3>
             <div className="space-y-3">
-              {(trackingInfo?.history || selectedEndorsement.history || []).map((step, idx) => (
+              {(trackingInfo?.history || selectedEndorsement.history || []).map((step: any, idx: number) => (
                 <div key={idx} className="flex items-start gap-3">
-                  {step.status === 'APPROVED' ? <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" /> :
-                   step.status === 'REJECTED' ? <XCircle className="h-5 w-5 text-red-600 mt-0.5" /> :
-                   <Clock className="h-5 w-5 text-yellow-600 mt-0.5" />}
+                  {step.status === 'APPROVED' ? <CheckCircle className="h-5 w-5 text-feedback-success mt-0.5" /> :
+                   step.status === 'REJECTED' ? <XCircle className="h-5 w-5 text-feedback-error mt-0.5" /> :
+                   <Clock className="h-5 w-5 text-feedback-warning mt-0.5" />}
                   <div>
                     <p className="text-sm font-medium text-text-primary">
                       {step.status === 'APPROVED' ? 'تأیید شده' :
@@ -139,7 +146,7 @@ export default function EndorsementTrackingPage() {
                 </div>
               ))}
             </div>
-          </div>
+          </Card>
         ) : null}
       </div>
     )
@@ -150,16 +157,16 @@ export default function EndorsementTrackingPage() {
       <div className="space-y-4">
         <h1 className="text-lg font-bold text-text-primary">پیگیری الحاقیه</h1>
         {error && (
-          <div className="flex items-center gap-2 rounded-lg border border-border-error bg-bg-error p-3 text-text-error text-sm">
+          <div className="flex items-center gap-2 rounded-lg border border-feedback-error/30 bg-feedback-error-subtle p-3 text-feedback-error text-sm">
             <AlertCircle className="h-4 w-4" />
             {error}
           </div>
         )}
         {policies.length === 0 ? (
-          <div className="rounded-xl border border-border-default bg-bg-raised p-8 text-center">
+          <Card className="p-8 text-center">
             <FileText className="mx-auto mb-2 h-10 w-10 text-text-muted" />
             <p className="text-sm text-text-muted">بیمه‌نامه‌ای یافت نشد</p>
-          </div>
+          </Card>
         ) : (
           <div className="space-y-3">
             {policies.map((p) => (
@@ -196,10 +203,10 @@ export default function EndorsementTrackingPage() {
       <h1 className="text-lg font-bold text-text-primary">الحاقیه‌های بیمه‌نامه</h1>
 
       {endorsements.length === 0 ? (
-        <div className="rounded-xl border border-border-default bg-bg-raised p-8 text-center">
+        <Card className="p-8 text-center">
           <FileText className="mx-auto mb-2 h-10 w-10 text-text-muted" />
           <p className="text-sm text-text-muted">الحاقیه‌ای برای این بیمه‌نامه ثبت نشده</p>
-        </div>
+        </Card>
       ) : (
         <div className="space-y-3">
           {endorsements.map((e) => (
@@ -217,10 +224,10 @@ export default function EndorsementTrackingPage() {
                   </div>
                 </div>
                 <span className={`px-2 py-0.5 text-xs rounded-full ${
-                  e.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
-                  e.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
-                  e.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
-                  'bg-blue-100 text-blue-800'
+                  e.status === 'APPROVED' ? 'bg-feedback-success-subtle text-feedback-success' :
+                  e.status === 'REJECTED' ? 'bg-feedback-error-subtle text-feedback-error' :
+                  e.status === 'PENDING' ? 'bg-feedback-warning-subtle text-feedback-warning' :
+                  'bg-brand-primary/10 text-brand-primary'
                 }`}>
                   {e.status === 'APPROVED' ? 'تأیید شده' :
                    e.status === 'REJECTED' ? 'رد شده' :

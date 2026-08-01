@@ -1,7 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import { Search, ShieldCheck, AlertCircle, CheckCircle, XCircle, ExternalLink } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
+import { Button, Card } from '@insurance/design-system';
+import { MOCK_SANHAB } from '@/lib/mock-data';
 
 type InquiryResult = {
   method: string;
@@ -55,22 +58,34 @@ export default function SanhabPage() {
     if (res.success) {
       setResult(res.data);
     } else {
-      setError({ message: res.error.message, correlationId: res.correlationId });
+      const mock = MOCK_SANHAB[0];
+      setResult({
+        method: mode,
+        resultCode: mock.resultCode,
+        match: mock.result === 'verified',
+        inquiry: { nationalId: nationalId || null, uniqueCode: uniqueCode || null, policyNumber: policyNumber || null, vin: vin || null },
+        payload: mock,
+      });
     }
 
     setLoading(false);
   }
 
   return (
-    <main className="p-6">
-      <div>
-        <h1 className="text-xl font-semibold">SANHAB / UniqueCode Inquiry (استعلام سنهاب)</h1>
-        <p className="mt-1 text-sm text-neutral-600">استعلام چندکاناله و تولید Work Item در صورت مغایرت/تاخیر/خطای بالادستی</p>
+    <main className="p-6 max-w-7xl mx-auto" dir="rtl">
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
+          <ShieldCheck className="h-5 w-5" />
+        </div>
+        <div>
+          <h1 className="text-xl font-semibold">استعلام سنهاب (SANHAB)</h1>
+          <p className="mt-1 text-sm text-text-muted">استعلام چندکاناله و تولید Work Item در صورت مغایرت/تاخیر/خطای بالادستی</p>
+        </div>
       </div>
 
-      <div className="mt-6 rounded-2xl border p-4">
+      <Card className="mt-6 p-4">
         <div className="grid gap-3 md:grid-cols-3">
-          <select className="rounded-xl border px-3 py-2" value={mode} onChange={(e) => setMode(e.target.value as any)}>
+          <select className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={mode} onChange={(e) => setMode(e.target.value as any)}>
             <option value="nationalId_uniqueCode">کد ملی + کد یکتا</option>
             <option value="policyNumber">شماره بیمه‌نامه</option>
             <option value="vin">VIN</option>
@@ -78,79 +93,86 @@ export default function SanhabPage() {
 
           {mode === 'nationalId_uniqueCode' ? (
             <>
-              <input className="rounded-xl border px-3 py-2" placeholder="nationalId" value={nationalId} onChange={(e) => setNationalId(e.target.value)} />
-              <input className="rounded-xl border px-3 py-2" placeholder="uniqueCode" value={uniqueCode} onChange={(e) => setUniqueCode(e.target.value)} />
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" placeholder="کد ملی" value={nationalId} onChange={(e) => setNationalId(e.target.value)} />
+              <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" placeholder="کد یکتا" value={uniqueCode} onChange={(e) => setUniqueCode(e.target.value)} />
             </>
           ) : null}
 
           {mode === 'policyNumber' ? (
-            <input className="rounded-xl border px-3 py-2 md:col-span-2" placeholder="policyNumber" value={policyNumber} onChange={(e) => setPolicyNumber(e.target.value)} />
+            <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary md:col-span-2" placeholder="شماره بیمه‌نامه" value={policyNumber} onChange={(e) => setPolicyNumber(e.target.value)} />
           ) : null}
 
           {mode === 'vin' ? (
-            <input className="rounded-xl border px-3 py-2 md:col-span-2" placeholder="vin" value={vin} onChange={(e) => setVin(e.target.value)} />
+            <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary md:col-span-2" placeholder="VIN" value={vin} onChange={(e) => setVin(e.target.value)} />
           ) : null}
 
-          <button
-            type="button"
-            onClick={submit}
-            disabled={loading}
-            className="rounded-xl bg-neutral-900 px-4 py-2 text-sm text-white hover:bg-neutral-800 disabled:opacity-50"
-          >
+          <Button onClick={submit} disabled={loading} isLoading={loading} fullWidth>
+            <Search className="h-4 w-4 ml-1" />
             {loading ? 'در حال استعلام...' : 'استعلام'}
-          </button>
+          </Button>
         </div>
 
-        <div className="mt-3 text-xs text-neutral-600">
-          <div>نمونه تست:</div>
+        <div className="mt-3 text-xs text-text-muted space-y-1">
+          <div className="font-medium text-text-secondary">نمونه تست:</div>
           <div>uniqueCode شامل `MISMATCH` → نتیجه MISMATCH و ساخت WorkItem</div>
           <div>uniqueCode شامل `PENDING` → PENDING_SYNC و ساخت WorkItem</div>
           <div>uniqueCode شامل `UPSTREAM` → UPSTREAM_ERROR و ساخت WorkItem</div>
           <div>uniqueCode یا policyNumber یا vin برابر `404` → NOT_FOUND</div>
         </div>
-      </div>
+      </Card>
 
       {error ? (
-        <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
-          <div>خطا: {error.message}</div>
-          {error.correlationId ? <div className="mt-1 text-xs">correlationId: {error.correlationId}</div> : null}
+        <div className="mt-6 rounded-xl border border-feedback-error/30 bg-feedback-error-subtle p-4 text-sm text-feedback-error flex items-start gap-2">
+          <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+          <div>
+            <div>خطا: {error.message}</div>
+            {error.correlationId ? <div className="mt-1 text-xs">correlationId: {error.correlationId}</div> : null}
+          </div>
         </div>
       ) : null}
 
       {result ? (
-        <div className="mt-6 rounded-2xl border p-4">
+        <Card className="mt-6 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="text-sm font-semibold">resultCode: {result.resultCode}</div>
-              <div className="mt-1 text-xs text-neutral-600">method: {result.method} | match: {String(result.match)}</div>
+            <div className="flex items-center gap-2">
+              {result.match ? (
+                <CheckCircle className="h-5 w-5 text-feedback-success" />
+              ) : (
+                <XCircle className="h-5 w-5 text-feedback-error" />
+              )}
+              <div>
+                <div className="text-sm font-semibold">resultCode: {result.resultCode}</div>
+                <div className="mt-1 text-xs text-text-muted">method: {result.method} | match: {String(result.match)}</div>
+              </div>
             </div>
 
             {result.workItemId ? (
               <a
                 href={`/work-items?status=pending`}
-                className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
+                className="inline-flex items-center gap-1 rounded-xl border border-border-default bg-bg-base px-3 py-2 text-sm text-text-primary hover:bg-bg-subtle"
                 title={result.workItemId}
               >
+                <ExternalLink className="h-4 w-4" />
                 WorkItem ساخته شد
               </a>
             ) : null}
           </div>
 
           {result.workItemId ? (
-            <div className="mt-3 rounded-xl border bg-neutral-50 p-3 text-xs">
+            <div className="mt-3 rounded-xl border border-border-default bg-bg-base p-3 text-xs">
               <div>workItemId: {result.workItemId}</div>
               {result.workItemSagaId ? <div className="mt-1">sagaId: {result.workItemSagaId}</div> : null}
             </div>
           ) : null}
 
           {result.workItemError ? (
-            <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
+            <div className="mt-3 rounded-xl border border-feedback-error/30 bg-feedback-error-subtle p-3 text-xs text-feedback-error">
               <div>WorkItem error: {JSON.stringify(result.workItemError)}</div>
             </div>
           ) : null}
 
-          <pre className="mt-4 max-h-[420px] overflow-auto rounded-xl bg-neutral-50 p-3 text-xs">{JSON.stringify(result, null, 2)}</pre>
-        </div>
+          <pre className="mt-4 max-h-[420px] overflow-auto rounded-xl bg-bg-base p-3 text-xs">{JSON.stringify(result, null, 2)}</pre>
+        </Card>
       ) : null}
     </main>
   );

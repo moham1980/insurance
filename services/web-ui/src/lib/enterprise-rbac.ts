@@ -98,7 +98,8 @@ export type EnterprisePermissionKey =
   | 'rm:claims:view'
   | 'rm:claims:summary'
   | 'rm:fraud:view'
-  | 'rm:complaints:view';
+  | 'rm:complaints:view'
+  | 'ai:governance:view';
 
 const ROLE_TO_PERMISSIONS: Record<string, EnterprisePermissionKey[]> = {
   super_admin: [

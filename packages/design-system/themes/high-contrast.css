@@ -24,6 +24,19 @@
   --color-status-danger: #FF0000;
   --color-status-info: #00FFFF;
 
+  --color-feedback-success: #00FF00;
+  --color-feedback-warning: #FFFF00;
+  --color-feedback-error: #FF0000;
+  --color-feedback-info: #00FFFF;
+  --color-feedback-success-subtle: rgba(0, 255, 0, 0.15);
+  --color-feedback-warning-subtle: rgba(255, 255, 0, 0.15);
+  --color-feedback-error-subtle: rgba(255, 0, 0, 0.15);
+  --color-feedback-info-subtle: rgba(0, 255, 255, 0.15);
+
+  --color-brand-primary-subtle: rgba(0, 255, 255, 0.15);
+  --color-brand-secondary-subtle: rgba(0, 255, 0, 0.15);
+  --color-brand-accent-subtle: rgba(255, 255, 0, 0.15);
+
   --color-border-default: #FFFFFF;
   --color-border-subtle: #FFFFFF;
   --color-border-focus: #00FFFF;

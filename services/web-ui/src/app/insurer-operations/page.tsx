@@ -15,6 +15,59 @@ function getAuthHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+const mockProducts = { rows: [
+  { productId: 'pr-001', code: 'MOT-3RD-1403', nameFa: 'بیمه ثالثی شخصی', lineOfBusiness: 'خودرو', status: 'فعال', premiumMin: 1500000, premiumMax: 4000000 },
+  { productId: 'pr-002', code: 'FIRE-RES-1403', nameFa: 'بیمه آتش‌سوزی مسکونی', lineOfBusiness: 'آتش‌سوزی', status: 'فعال', premiumMin: 800000, premiumMax: 2500000 },
+  { productId: 'pr-003', code: 'ACC-IND-1403', nameFa: 'بیمه حوادث انفرادی', lineOfBusiness: 'حوادث', status: 'فعال', premiumMin: 500000, premiumMax: 3000000 },
+  { productId: 'pr-004', code: 'ENG-CIV-1403', nameFa: 'بیمه مهندسی عمران', lineOfBusiness: 'مهندسی', status: 'فعال', premiumMin: 2000000, premiumMax: 10000000 },
+  { productId: 'pr-005', code: 'HEA-SUP-1403', nameFa: 'بیمه درمان تکمیلی', lineOfBusiness: 'درمان', status: 'پیش‌نویس', premiumMin: 3000000, premiumMax: 8000000 },
+]};
+
+const mockAgreements = { rows: [
+  { agreementId: 'ag-001', partnerName: 'کارگزاری بیمه ایران', agreementType: 'کارگزاری', commissionRate: '18%', startDate: '1403/01/01', endDate: '1404/01/01', status: 'فعال' },
+  { agreementId: 'ag-002', partnerName: 'نمایندگی بیمه آسیه', agreementType: 'نمایندگی', commissionRate: '15%', startDate: '1403/02/15', endDate: '1404/02/15', status: 'فعال' },
+  { agreementId: 'ag-003', partnerName: 'بازاریاب بیمه پاسارگاد', agreementType: 'بازاریاب', commissionRate: '20%', startDate: '1403/03/01', endDate: '1404/03/01', status: 'فعال' },
+  { agreementId: 'ag-004', partnerName: 'کارگزاری بیمه البرز', agreementType: 'کارگزاری', commissionRate: '12%', startDate: '1403/04/10', endDate: '1404/04/10', status: 'در مذاکره' },
+]};
+
+const mockRfqs = { rows: [
+  { rfqId: 'rfq-001', rfqNumber: 'RFQ-1403-001', customerName: 'علی محمدی', productName: 'بیمه ثالثی', channel: 'کارگزاری', status: 'در انتظار قیمت‌گذاری', createdAt: '1403/05/10' },
+  { rfqId: 'rfq-002', rfqNumber: 'RFQ-1403-002', customerName: 'مریم احمدی', productName: 'بیمه آتش‌سوزی', channel: 'نمایندگی', status: 'قیمت‌گذاری شده', createdAt: '1403/05/12' },
+  { rfqId: 'rfq-003', rfqNumber: 'RFQ-1403-003', customerName: 'حسین رضایی', productName: 'بیمه حوادث', channel: 'بازاریاب', status: 'تسویه شده', createdAt: '1403/05/08' },
+  { rfqId: 'rfq-004', rfqNumber: 'RFQ-1403-004', customerName: 'فاطمه کریمی', productName: 'بیمه مهندسی', channel: 'کارگزاری', status: 'در انتظار قیمت‌گذاری', createdAt: '1403/05/14' },
+]};
+
+const mockClaims = { rows: [
+  { claimId: 'cl-001', claimNumber: 'CLM-1403-92145', policyNumber: 'POL-1403-0231', customerName: 'علی محمدی', lossType: 'تصادف', amount: 15000000, status: 'در حال بررسی', date: '1403/05/10' },
+  { claimId: 'cl-002', claimNumber: 'CLM-1403-92146', policyNumber: 'POL-1403-0232', customerName: 'مریم احمدی', lossType: 'سرقت', amount: 85000000, status: 'تأیید شده', date: '1403/05/08' },
+  { claimId: 'cl-003', claimNumber: 'CLM-1403-92147', policyNumber: 'POL-1403-0233', customerName: 'حسین رضایی', lossType: 'آتش‌سوزی', amount: 120000000, status: 'ثبت شده', date: '1403/05/14' },
+]};
+
+const mockSettlements = { rows: [
+  { settlementId: 'st-001', period: 'خرداد 1403', channel: 'کارگزاری بیمه ایران', totalPremium: 45000000, commissionAmount: 8100000, status: 'تسویه شده', settlementDate: '1403/04/01' },
+  { settlementId: 'st-002', period: 'خرداد 1403', channel: 'نمایندگی بیمه آسیه', totalPremium: 28000000, commissionAmount: 4200000, status: 'تسویه شده', settlementDate: '1403/04/01' },
+  { settlementId: 'st-003', period: 'تیر 1403', channel: 'کارگزاری بیمه ایران', totalPremium: 52000000, commissionAmount: 9360000, status: 'در انتظار', settlementDate: '-' },
+]};
+
+const mockReports = { rows: [
+  { reportId: 'rp-001', reportType: 'گزارش ماهانه فروش', period: 'خرداد 1403', submittedBy: 'سیستم خودکار', status: 'ارسال شده', submissionDate: '1403/04/05' },
+  { reportId: 'rp-002', reportType: 'گزارش خسارات', period: 'خرداد 1403', submittedBy: 'محمد احمدی', status: 'ارسال شده', submissionDate: '1403/04/05' },
+  { reportId: 'rp-003', reportType: 'گزارش ماهانه فروش', period: 'تیر 1403', submittedBy: '-', status: 'در حال تهیه', submissionDate: '-' },
+]};
+
+const mockMap: Record<string, any> = {
+  products: mockProducts,
+  agreements: mockAgreements,
+  rfqs: mockRfqs,
+  claims: mockClaims,
+  settlements: mockSettlements,
+  reports: mockReports,
+};
+
+function formatToman(amount: number): string {
+  return new Intl.NumberFormat('fa-IR').format(amount) + ' تومان';
+}
+
 export default function InsurerOperationsPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'products' | 'agreements' | 'rfqs' | 'claims' | 'settlements' | 'reports'>('products');
@@ -50,6 +103,7 @@ export default function InsurerOperationsPage() {
       setData(json.data || {});
     } catch (err: any) {
       setError(err.message);
+      setData(mockMap[activeTab] || {});
     } finally {
       setLoading(false);
     }
@@ -64,13 +118,61 @@ export default function InsurerOperationsPage() {
     { key: 'reports' as const, label: 'گزارش‌های نظارتی', icon: BarChart3 },
   ];
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
-      </div>
-    );
-  }
+  const rows = data?.rows || (Array.isArray(data) ? data : []);
+
+  const columnSets: Record<string, any[]> = {
+    products: [
+      { key: 'code', header: 'کد', cell: (row: any) => <span className="font-medium text-text-primary">{row.code || '-'}</span> },
+      { key: 'nameFa', header: 'نام محصول', cell: (row: any) => row.nameFa || '-' },
+      { key: 'lineOfBusiness', header: 'رشته بیمه', cell: (row: any) => row.lineOfBusiness || '-' },
+      { key: 'premiumMin', header: 'حداقل حق بیمه', cell: (row: any) => <span className="text-text-muted">{row.premiumMin ? formatToman(row.premiumMin) : '-'}</span> },
+      { key: 'premiumMax', header: 'حداکثر حق بیمه', cell: (row: any) => <span className="text-text-muted">{row.premiumMax ? formatToman(row.premiumMax) : '-'}</span> },
+      { key: 'status', header: 'وضعیت', cell: (row: any) => <span className={cn('inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium', row.status === 'فعال' ? 'border-feedback-success/30 bg-feedback-success-subtle text-feedback-success' : 'border-feedback-warning/30 bg-feedback-warning-subtle text-feedback-warning')}>{row.status || '-'}</span> },
+    ],
+    agreements: [
+      { key: 'agreementId', header: 'شماره', cell: (row: any) => <span className="font-medium text-text-primary">{row.agreementId || '-'}</span> },
+      { key: 'partnerName', header: 'طرف قرارداد', cell: (row: any) => row.partnerName || '-' },
+      { key: 'agreementType', header: 'نوع قرارداد', cell: (row: any) => row.agreementType || '-' },
+      { key: 'commissionRate', header: 'نرخ پورسانت', cell: (row: any) => <span className="inline-flex items-center rounded-lg bg-brand-primary/10 px-2 py-0.5 text-xs font-medium text-brand-primary">{row.commissionRate || '-'}</span> },
+      { key: 'startDate', header: 'شروع', cell: (row: any) => <span className="text-text-muted">{row.startDate || '-'}</span> },
+      { key: 'endDate', header: 'پایان', cell: (row: any) => <span className="text-text-muted">{row.endDate || '-'}</span> },
+      { key: 'status', header: 'وضعیت', cell: (row: any) => <span className={cn('inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium', row.status === 'فعال' ? 'border-feedback-success/30 bg-feedback-success-subtle text-feedback-success' : 'border-feedback-warning/30 bg-feedback-warning-subtle text-feedback-warning')}>{row.status || '-'}</span> },
+    ],
+    rfqs: [
+      { key: 'rfqNumber', header: 'شماره استعلام', cell: (row: any) => <span className="font-medium text-text-primary">{row.rfqNumber || '-'}</span> },
+      { key: 'customerName', header: 'مشتری', cell: (row: any) => row.customerName || '-' },
+      { key: 'productName', header: 'محصول', cell: (row: any) => row.productName || '-' },
+      { key: 'channel', header: 'کانال فروش', cell: (row: any) => row.channel || '-' },
+      { key: 'status', header: 'وضعیت', cell: (row: any) => <span className={cn('inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium', row.status === 'تسویه شده' ? 'border-feedback-success/30 bg-feedback-success-subtle text-feedback-success' : row.status === 'قیمت‌گذاری شده' ? 'border-brand-primary/30 bg-brand-primary-subtle text-brand-primary' : 'border-feedback-warning/30 bg-feedback-warning-subtle text-feedback-warning')}>{row.status || '-'}</span> },
+      { key: 'createdAt', header: 'تاریخ', cell: (row: any) => <span className="text-text-muted">{row.createdAt || '-'}</span> },
+    ],
+    claims: [
+      { key: 'claimNumber', header: 'شماره خسارت', cell: (row: any) => <span className="font-medium text-text-primary">{row.claimNumber || '-'}</span> },
+      { key: 'policyNumber', header: 'بیمه‌نامه', cell: (row: any) => row.policyNumber || '-' },
+      { key: 'customerName', header: 'مشتری', cell: (row: any) => row.customerName || '-' },
+      { key: 'lossType', header: 'نوع خسارت', cell: (row: any) => row.lossType || '-' },
+      { key: 'amount', header: 'مبلغ', cell: (row: any) => <span className="font-medium text-text-primary">{row.amount > 0 ? formatToman(row.amount) : '-'}</span> },
+      { key: 'status', header: 'وضعیت', cell: (row: any) => <span className={cn('inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium', row.status === 'تأیید شده' ? 'border-feedback-success/30 bg-feedback-success-subtle text-feedback-success' : row.status === 'در حال بررسی' ? 'border-feedback-warning/30 bg-feedback-warning-subtle text-feedback-warning' : 'border-border-default bg-bg-base text-text-muted')}>{row.status || '-'}</span> },
+      { key: 'date', header: 'تاریخ', cell: (row: any) => <span className="text-text-muted">{row.date || '-'}</span> },
+    ],
+    settlements: [
+      { key: 'period', header: 'دوره', cell: (row: any) => <span className="font-medium text-text-primary">{row.period || '-'}</span> },
+      { key: 'channel', header: 'کانال', cell: (row: any) => row.channel || '-' },
+      { key: 'totalPremium', header: 'کل حق بیمه', cell: (row: any) => <span className="text-text-muted">{row.totalPremium ? formatToman(row.totalPremium) : '-'}</span> },
+      { key: 'commissionAmount', header: 'مبلغ پورسانت', cell: (row: any) => <span className="font-medium text-text-primary">{row.commissionAmount ? formatToman(row.commissionAmount) : '-'}</span> },
+      { key: 'status', header: 'وضعیت', cell: (row: any) => <span className={cn('inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium', row.status === 'تسویه شده' ? 'border-feedback-success/30 bg-feedback-success-subtle text-feedback-success' : 'border-feedback-warning/30 bg-feedback-warning-subtle text-feedback-warning')}>{row.status || '-'}</span> },
+      { key: 'settlementDate', header: 'تاریخ تسویه', cell: (row: any) => <span className="text-text-muted">{row.settlementDate || '-'}</span> },
+    ],
+    reports: [
+      { key: 'reportType', header: 'نوع گزارش', cell: (row: any) => <span className="font-medium text-text-primary">{row.reportType || '-'}</span> },
+      { key: 'period', header: 'دوره', cell: (row: any) => row.period || '-' },
+      { key: 'submittedBy', header: 'ارسال کننده', cell: (row: any) => row.submittedBy || '-' },
+      { key: 'status', header: 'وضعیت', cell: (row: any) => <span className={cn('inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium', row.status === 'ارسال شده' ? 'border-feedback-success/30 bg-feedback-success-subtle text-feedback-success' : 'border-feedback-warning/30 bg-feedback-warning-subtle text-feedback-warning')}>{row.status || '-'}</span> },
+      { key: 'submissionDate', header: 'تاریخ ارسال', cell: (row: any) => <span className="text-text-muted">{row.submissionDate || '-'}</span> },
+    ],
+  };
+
+  const columns = columnSets[activeTab] || [];
 
   return (
     <div className="min-h-screen bg-bg-base">
@@ -106,26 +208,26 @@ export default function InsurerOperationsPage() {
 
       <main className="mx-auto max-w-7xl px-4 py-6">
         {error && (
-          <div className="mb-4 rounded-lg border border-danger bg-danger/10 p-3 text-body-sm text-danger">
-            {error}
+          <div className="mb-4 rounded-lg border border-feedback-warning/30 bg-feedback-warning-subtle p-3 text-body-sm text-feedback-warning">
+            در حال نمایش داده‌های نمونه — ارتباط با سرور برقرار نشد
           </div>
         )}
 
-        <Card className="p-4">
-          {data?.rows?.length > 0 ? (
-            <DataTable
-              columns={Object.keys(data.rows[0] || {}).slice(0, 6).map((key) => ({
-                key,
-                header: key,
-                cell: (row: any) => String(row[key] ?? '-'),
-              }))}
-              rows={data.rows}
-              keyExtractor={(row: any) => row.id || row.productId || row.agreementId || String(row._index || Math.random())}
-            />
-          ) : (
+        {loading ? (
+          <div className="flex h-64 items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-brand-primary" />
+          </div>
+        ) : rows.length > 0 ? (
+          <DataTable
+            columns={columns}
+            rows={rows}
+            keyExtractor={(row: any) => row.id || row.productId || row.agreementId || row.claimId || row.settlementId || row.reportId || row.rfqId || String(Math.random())}
+          />
+        ) : (
+          <Card className="p-8 text-center">
             <p className="text-text-muted">داده‌ای یافت نشد</p>
-          )}
-        </Card>
+          </Card>
+        )}
       </main>
     </div>
   );

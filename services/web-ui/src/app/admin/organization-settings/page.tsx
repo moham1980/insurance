@@ -476,14 +476,14 @@ export default function OrganizationSettingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50" dir="rtl">
-      <div className="bg-white shadow">
+    <div className="min-h-screen bg-bg-base" dir="rtl">
+      <div className="bg-bg-raised shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
-            <h1 className="text-2xl font-bold text-gray-900">تنظیمات سازمانی</h1>
+            <h1 className="text-2xl font-bold text-text-primary">تنظیمات سازمانی</h1>
             <button
               onClick={() => router.push('/admin')}
-              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
+              className="px-4 py-2 text-sm text-text-muted hover:text-text-primary"
             >
               بازگشت
             </button>
@@ -493,7 +493,7 @@ export default function OrganizationSettingsPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Tabs */}
-        <div className="border-b border-gray-200 mb-6">
+        <div className="border-b border-border-default mb-6">
           <nav className="-mb-px flex space-x-8 space-x-reverse">
             {[
               { id: 'sla' as const, label: 'تنظیمات SLA' },
@@ -506,8 +506,8 @@ export default function OrganizationSettingsPage() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`${
                   activeTab === tab.id
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-brand-primary text-brand-primary'
+                    : 'border-transparent text-text-muted hover:text-text-secondary hover:border-border-default'
                 } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
               >
                 {tab.label}
@@ -517,21 +517,21 @@ export default function OrganizationSettingsPage() {
         </div>
 
         {error && (
-          <div className="mb-6 rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <div className="mb-6 rounded-md border border-feedback-error/30 bg-feedback-error-subtle p-4 text-sm text-feedback-error">
             {error}
           </div>
         )}
 
         {success && (
-          <div className="mb-6 rounded-md border border-green-200 bg-green-50 p-4 text-sm text-green-700">
+          <div className="mb-6 rounded-md border border-feedback-success/30 bg-feedback-success-subtle p-4 text-sm text-feedback-success">
             {success}
           </div>
         )}
 
         {loading ? (
           <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-500">در حال بارگذاری...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary mx-auto"></div>
+            <p className="mt-4 text-text-muted">در حال بارگذاری...</p>
           </div>
         ) : (
           <>
@@ -539,7 +539,7 @@ export default function OrganizationSettingsPage() {
             {activeTab === 'sla' && (
               <div className="space-y-6">
                 <div className="flex justify-between items-center">
-                  <h2 className="text-lg font-semibold text-gray-900">تنظیمات SLA</h2>
+                  <h2 className="text-lg font-semibold text-text-primary">تنظیمات SLA</h2>
                   <button
                     onClick={() => setEditingSLA({
                       id: '',
@@ -551,41 +551,41 @@ export default function OrganizationSettingsPage() {
                       businessHoursOnly: true,
                       active: true,
                     })}
-                    className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+                    className="rounded-md bg-brand-primary px-4 py-2 text-sm text-text-on-brand hover:opacity-90"
                   >
                     افزودن SLA جدید
                   </button>
                 </div>
 
-                <div className="bg-white rounded-lg shadow overflow-hidden">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+                <div className="bg-bg-raised rounded-lg shadow overflow-hidden">
+                  <table className="min-w-full divide-y divide-border-default">
+                    <thead className="bg-bg-base">
                       <tr>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">نام</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">نوع موجودیت</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">SLA (ساعت)</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">هشدار</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">بحرانی</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">وضعیت</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">عملیات</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">نام</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">نوع موجودیت</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">SLA (ساعت)</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">هشدار</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">بحرانی</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">وضعیت</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">عملیات</th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="bg-bg-raised divide-y divide-border-default">
                       {slaConfigs.map((sla) => (
-                        <tr key={sla.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{sla.name}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{sla.entityType}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{sla.slaHours} ساعت</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{sla.warningThreshold} ساعت</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{sla.criticalThreshold} ساعت</td>
+                        <tr key={sla.id} className="hover:bg-bg-base">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-text-primary">{sla.name}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-text-muted">{sla.entityType}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-text-muted">{sla.slaHours} ساعت</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-text-muted">{sla.warningThreshold} ساعت</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-text-muted">{sla.criticalThreshold} ساعت</td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${sla.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${sla.active ? 'bg-feedback-success-subtle text-feedback-success' : 'bg-bg-base text-text-primary'}`}>
                               {sla.active ? 'فعال' : 'غیرفعال'}
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2 space-x-reverse">
-                            <button onClick={() => setEditingSLA(sla)} className="text-blue-600 hover:text-blue-900">ویرایش</button>
-                            <button onClick={() => handleDeleteSLA(sla.id)} className="text-red-600 hover:text-red-900">حذف</button>
+                            <button onClick={() => setEditingSLA(sla)} className="text-brand-primary hover:text-brand-primary">ویرایش</button>
+                            <button onClick={() => handleDeleteSLA(sla.id)} className="text-feedback-error hover:text-feedback-error">حذف</button>
                           </td>
                         </tr>
                       ))}
@@ -594,26 +594,26 @@ export default function OrganizationSettingsPage() {
                 </div>
 
                 {editingSLA && (
-                  <div className="bg-white rounded-lg shadow p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  <div className="bg-bg-raised rounded-lg shadow p-6">
+                    <h3 className="text-lg font-semibold text-text-primary mb-4">
                       {editingSLA.id ? 'ویرایش SLA' : 'افزودن SLA جدید'}
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">نام</label>
+                        <label className="block text-sm font-medium text-text-secondary mb-1">نام</label>
                         <input
                           type="text"
                           value={editingSLA.name}
                           onChange={(e) => setEditingSLA({ ...editingSLA, name: e.target.value })}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                          className="w-full rounded-md border border-border-default px-3 py-2 text-sm"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">نوع موجودیت</label>
+                        <label className="block text-sm font-medium text-text-secondary mb-1">نوع موجودیت</label>
                         <select
                           value={editingSLA.entityType}
                           onChange={(e) => setEditingSLA({ ...editingSLA, entityType: e.target.value as any })}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                          className="w-full rounded-md border border-border-default px-3 py-2 text-sm"
                         >
                           <option value="claim">خسارت</option>
                           <option value="policy">بیمه‌نامه</option>
@@ -622,30 +622,30 @@ export default function OrganizationSettingsPage() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">SLA (ساعت)</label>
+                        <label className="block text-sm font-medium text-text-secondary mb-1">SLA (ساعت)</label>
                         <input
                           type="number"
                           value={editingSLA.slaHours}
                           onChange={(e) => setEditingSLA({ ...editingSLA, slaHours: Number(e.target.value) })}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                          className="w-full rounded-md border border-border-default px-3 py-2 text-sm"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">آستانه هشدار (ساعت)</label>
+                        <label className="block text-sm font-medium text-text-secondary mb-1">آستانه هشدار (ساعت)</label>
                         <input
                           type="number"
                           value={editingSLA.warningThreshold}
                           onChange={(e) => setEditingSLA({ ...editingSLA, warningThreshold: Number(e.target.value) })}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                          className="w-full rounded-md border border-border-default px-3 py-2 text-sm"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">آستانه بحرانی (ساعت)</label>
+                        <label className="block text-sm font-medium text-text-secondary mb-1">آستانه بحرانی (ساعت)</label>
                         <input
                           type="number"
                           value={editingSLA.criticalThreshold}
                           onChange={(e) => setEditingSLA({ ...editingSLA, criticalThreshold: Number(e.target.value) })}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                          className="w-full rounded-md border border-border-default px-3 py-2 text-sm"
                         />
                       </div>
                       <div className="flex items-center">
@@ -654,9 +654,9 @@ export default function OrganizationSettingsPage() {
                           id="businessHours"
                           checked={editingSLA.businessHoursOnly}
                           onChange={(e) => setEditingSLA({ ...editingSLA, businessHoursOnly: e.target.checked })}
-                          className="rounded border-gray-300"
+                          className="rounded border-border-default"
                         />
-                        <label htmlFor="businessHours" className="mr-2 text-sm text-gray-700">فقط ساعات کاری</label>
+                        <label htmlFor="businessHours" className="mr-2 text-sm text-text-secondary">فقط ساعات کاری</label>
                       </div>
                       <div className="flex items-center">
                         <input
@@ -664,31 +664,31 @@ export default function OrganizationSettingsPage() {
                           id="active"
                           checked={editingSLA.active}
                           onChange={(e) => setEditingSLA({ ...editingSLA, active: e.target.checked })}
-                          className="rounded border-gray-300"
+                          className="rounded border-border-default"
                         />
-                        <label htmlFor="active" className="mr-2 text-sm text-gray-700">فعال</label>
+                        <label htmlFor="active" className="mr-2 text-sm text-text-secondary">فعال</label>
                       </div>
                     </div>
                     <div className="mt-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">توضیحات</label>
+                      <label className="block text-sm font-medium text-text-secondary mb-1">توضیحات</label>
                       <textarea
                         value={editingSLA.description || ''}
                         onChange={(e) => setEditingSLA({ ...editingSLA, description: e.target.value })}
-                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                        className="w-full rounded-md border border-border-default px-3 py-2 text-sm"
                         rows={3}
                       />
                     </div>
                     <div className="mt-4 flex justify-end space-x-3 space-x-reverse">
                       <button
                         onClick={() => setEditingSLA(null)}
-                        className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                        className="rounded-md border border-border-default px-4 py-2 text-sm text-text-secondary hover:bg-bg-base"
                         disabled={saving}
                       >
                         انصراف
                       </button>
                       <button
                         onClick={() => handleSaveSLA(editingSLA)}
-                        className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+                        className="rounded-md bg-brand-primary px-4 py-2 text-sm text-text-on-brand hover:opacity-90"
                         disabled={saving}
                       >
                         {saving ? 'در حال ذخیره...' : 'ذخیره'}
@@ -703,7 +703,7 @@ export default function OrganizationSettingsPage() {
             {activeTab === 'sms' && (
               <div className="space-y-6">
                 <div className="flex justify-between items-center">
-                  <h2 className="text-lg font-semibold text-gray-900">قالب‌های پیامک</h2>
+                  <h2 className="text-lg font-semibold text-text-primary">قالب‌های پیامک</h2>
                   <button
                     onClick={() => setEditingTemplate({
                       id: '',
@@ -716,41 +716,41 @@ export default function OrganizationSettingsPage() {
                       active: true,
                       language: 'fa',
                     })}
-                    className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+                    className="rounded-md bg-brand-primary px-4 py-2 text-sm text-text-on-brand hover:opacity-90"
                   >
                     افزودن قالب جدید
                   </button>
                 </div>
 
-                <div className="bg-white rounded-lg shadow overflow-hidden">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+                <div className="bg-bg-raised rounded-lg shadow overflow-hidden">
+                  <table className="min-w-full divide-y divide-border-default">
+                    <thead className="bg-bg-base">
                       <tr>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">نام</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">کد</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">دسته‌بندی</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">ارائه‌دهنده</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">زبان</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">وضعیت</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">عملیات</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">نام</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">کد</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">دسته‌بندی</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">ارائه‌دهنده</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">زبان</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">وضعیت</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">عملیات</th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="bg-bg-raised divide-y divide-border-default">
                       {smsTemplates.map((template) => (
-                        <tr key={template.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{template.name}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">{template.templateCode}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{template.category}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{template.provider}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{template.language}</td>
+                        <tr key={template.id} className="hover:bg-bg-base">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-text-primary">{template.name}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-text-muted font-mono">{template.templateCode}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-text-muted">{template.category}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-text-muted">{template.provider}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-text-muted">{template.language}</td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${template.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${template.active ? 'bg-feedback-success-subtle text-feedback-success' : 'bg-bg-base text-text-primary'}`}>
                               {template.active ? 'فعال' : 'غیرفعال'}
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2 space-x-reverse">
-                            <button onClick={() => setEditingTemplate(template)} className="text-blue-600 hover:text-blue-900">ویرایش</button>
-                            <button onClick={() => handleDeleteTemplate(template.id)} className="text-red-600 hover:text-red-900">حذف</button>
+                            <button onClick={() => setEditingTemplate(template)} className="text-brand-primary hover:text-brand-primary">ویرایش</button>
+                            <button onClick={() => handleDeleteTemplate(template.id)} className="text-feedback-error hover:text-feedback-error">حذف</button>
                           </td>
                         </tr>
                       ))}
@@ -759,35 +759,35 @@ export default function OrganizationSettingsPage() {
                 </div>
 
                 {editingTemplate && (
-                  <div className="bg-white rounded-lg shadow p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  <div className="bg-bg-raised rounded-lg shadow p-6">
+                    <h3 className="text-lg font-semibold text-text-primary mb-4">
                       {editingTemplate.id ? 'ویرایش قالب' : 'افزودن قالب جدید'}
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">نام</label>
+                        <label className="block text-sm font-medium text-text-secondary mb-1">نام</label>
                         <input
                           type="text"
                           value={editingTemplate.name}
                           onChange={(e) => setEditingTemplate({ ...editingTemplate, name: e.target.value })}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                          className="w-full rounded-md border border-border-default px-3 py-2 text-sm"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">کد قالب</label>
+                        <label className="block text-sm font-medium text-text-secondary mb-1">کد قالب</label>
                         <input
                           type="text"
                           value={editingTemplate.templateCode}
                           onChange={(e) => setEditingTemplate({ ...editingTemplate, templateCode: e.target.value })}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-mono"
+                          className="w-full rounded-md border border-border-default px-3 py-2 text-sm font-mono"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">دسته‌بندی</label>
+                        <label className="block text-sm font-medium text-text-secondary mb-1">دسته‌بندی</label>
                         <select
                           value={editingTemplate.category}
                           onChange={(e) => setEditingTemplate({ ...editingTemplate, category: e.target.value as any })}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                          className="w-full rounded-md border border-border-default px-3 py-2 text-sm"
                         >
                           <option value="policy_issued">صدور بیمه‌نامه</option>
                           <option value="claim_submitted">ثبت خسارت</option>
@@ -798,11 +798,11 @@ export default function OrganizationSettingsPage() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">ارائه‌دهنده</label>
+                        <label className="block text-sm font-medium text-text-secondary mb-1">ارائه‌دهنده</label>
                         <select
                           value={editingTemplate.provider}
                           onChange={(e) => setEditingTemplate({ ...editingTemplate, provider: e.target.value as any })}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                          className="w-full rounded-md border border-border-default px-3 py-2 text-sm"
                         >
                           <option value="kavenegar">کاوه‌نگار</option>
                           <option value="twilio">Twilio</option>
@@ -810,11 +810,11 @@ export default function OrganizationSettingsPage() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">زبان</label>
+                        <label className="block text-sm font-medium text-text-secondary mb-1">زبان</label>
                         <select
                           value={editingTemplate.language}
                           onChange={(e) => setEditingTemplate({ ...editingTemplate, language: e.target.value as any })}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                          className="w-full rounded-md border border-border-default px-3 py-2 text-sm"
                         >
                           <option value="fa">فارسی</option>
                           <option value="en">انگلیسی</option>
@@ -826,33 +826,33 @@ export default function OrganizationSettingsPage() {
                           id="templateActive"
                           checked={editingTemplate.active}
                           onChange={(e) => setEditingTemplate({ ...editingTemplate, active: e.target.checked })}
-                          className="rounded border-gray-300"
+                          className="rounded border-border-default"
                         />
-                        <label htmlFor="templateActive" className="mr-2 text-sm text-gray-700">فعال</label>
+                        <label htmlFor="templateActive" className="mr-2 text-sm text-text-secondary">فعال</label>
                       </div>
                     </div>
                     <div className="mt-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">محتوای پیامک</label>
+                      <label className="block text-sm font-medium text-text-secondary mb-1">محتوای پیامک</label>
                       <textarea
                         value={editingTemplate.content}
                         onChange={(e) => setEditingTemplate({ ...editingTemplate, content: e.target.value })}
-                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                        className="w-full rounded-md border border-border-default px-3 py-2 text-sm"
                         rows={4}
                         placeholder="از متغیرها با فرمت {variableName} استفاده کنید"
                       />
-                      <p className="text-xs text-gray-500 mt-1">متغیرها: {editingTemplate.variables.join(', ')}</p>
+                      <p className="text-xs text-text-muted mt-1">متغیرها: {editingTemplate.variables.join(', ')}</p>
                     </div>
                     <div className="mt-4 flex justify-end space-x-3 space-x-reverse">
                       <button
                         onClick={() => setEditingTemplate(null)}
-                        className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                        className="rounded-md border border-border-default px-4 py-2 text-sm text-text-secondary hover:bg-bg-base"
                         disabled={saving}
                       >
                         انصراف
                       </button>
                       <button
                         onClick={() => handleSaveTemplate(editingTemplate)}
-                        className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+                        className="rounded-md bg-brand-primary px-4 py-2 text-sm text-text-on-brand hover:opacity-90"
                         disabled={saving}
                       >
                         {saving ? 'در حال ذخیره...' : 'ذخیره'}
@@ -867,7 +867,7 @@ export default function OrganizationSettingsPage() {
             {activeTab === 'fiscal' && (
               <div className="space-y-6">
                 <div className="flex justify-between items-center">
-                  <h2 className="text-lg font-semibold text-gray-900">دوره‌های مالی</h2>
+                  <h2 className="text-lg font-semibold text-text-primary">دوره‌های مالی</h2>
                   <button
                     onClick={() => setEditingPeriod({
                       id: '',
@@ -878,42 +878,42 @@ export default function OrganizationSettingsPage() {
                       year: new Date().getFullYear(),
                       description: '',
                     })}
-                    className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+                    className="rounded-md bg-brand-primary px-4 py-2 text-sm text-text-on-brand hover:opacity-90"
                   >
                     افزودن دوره جدید
                   </button>
                 </div>
 
-                <div className="bg-white rounded-lg shadow overflow-hidden">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+                <div className="bg-bg-raised rounded-lg shadow overflow-hidden">
+                  <table className="min-w-full divide-y divide-border-default">
+                    <thead className="bg-bg-base">
                       <tr>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">نام</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">سال</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">تاریخ شروع</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">تاریخ پایان</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">وضعیت</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">عملیات</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">نام</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">سال</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">تاریخ شروع</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">تاریخ پایان</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">وضعیت</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">عملیات</th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="bg-bg-raised divide-y divide-border-default">
                       {fiscalPeriods.map((period) => (
-                        <tr key={period.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{period.name}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{period.year}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{period.startDate}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{period.endDate}</td>
+                        <tr key={period.id} className="hover:bg-bg-base">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-text-primary">{period.name}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-text-muted">{period.year}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-text-muted">{period.startDate}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-text-muted">{period.endDate}</td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              period.status === 'open' ? 'bg-green-100 text-green-800' :
-                              period.status === 'closed' ? 'bg-gray-100 text-gray-800' :
-                              'bg-red-100 text-red-800'
+                              period.status === 'open' ? 'bg-feedback-success-subtle text-feedback-success' :
+                              period.status === 'closed' ? 'bg-bg-base text-text-primary' :
+                              'bg-feedback-error-subtle text-feedback-error'
                             }`}>
                               {period.status === 'open' ? 'باز' : period.status === 'closed' ? 'بسته' : 'قفل شده'}
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            <button onClick={() => setEditingPeriod(period)} className="text-blue-600 hover:text-blue-900">ویرایش</button>
+                            <button onClick={() => setEditingPeriod(period)} className="text-brand-primary hover:text-brand-primary">ویرایش</button>
                           </td>
                         </tr>
                       ))}
@@ -922,53 +922,53 @@ export default function OrganizationSettingsPage() {
                 </div>
 
                 {editingPeriod && (
-                  <div className="bg-white rounded-lg shadow p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  <div className="bg-bg-raised rounded-lg shadow p-6">
+                    <h3 className="text-lg font-semibold text-text-primary mb-4">
                       {editingPeriod.id ? 'ویرایش دوره مالی' : 'افزودن دوره مالی جدید'}
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">نام</label>
+                        <label className="block text-sm font-medium text-text-secondary mb-1">نام</label>
                         <input
                           type="text"
                           value={editingPeriod.name}
                           onChange={(e) => setEditingPeriod({ ...editingPeriod, name: e.target.value })}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                          className="w-full rounded-md border border-border-default px-3 py-2 text-sm"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">سال</label>
+                        <label className="block text-sm font-medium text-text-secondary mb-1">سال</label>
                         <input
                           type="number"
                           value={editingPeriod.year}
                           onChange={(e) => setEditingPeriod({ ...editingPeriod, year: Number(e.target.value) })}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                          className="w-full rounded-md border border-border-default px-3 py-2 text-sm"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">تاریخ شروع</label>
+                        <label className="block text-sm font-medium text-text-secondary mb-1">تاریخ شروع</label>
                         <input
                           type="date"
                           value={editingPeriod.startDate}
                           onChange={(e) => setEditingPeriod({ ...editingPeriod, startDate: e.target.value })}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                          className="w-full rounded-md border border-border-default px-3 py-2 text-sm"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">تاریخ پایان</label>
+                        <label className="block text-sm font-medium text-text-secondary mb-1">تاریخ پایان</label>
                         <input
                           type="date"
                           value={editingPeriod.endDate}
                           onChange={(e) => setEditingPeriod({ ...editingPeriod, endDate: e.target.value })}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                          className="w-full rounded-md border border-border-default px-3 py-2 text-sm"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">وضعیت</label>
+                        <label className="block text-sm font-medium text-text-secondary mb-1">وضعیت</label>
                         <select
                           value={editingPeriod.status}
                           onChange={(e) => setEditingPeriod({ ...editingPeriod, status: e.target.value as any })}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                          className="w-full rounded-md border border-border-default px-3 py-2 text-sm"
                         >
                           <option value="open">باز</option>
                           <option value="closed">بسته</option>
@@ -977,25 +977,25 @@ export default function OrganizationSettingsPage() {
                       </div>
                     </div>
                     <div className="mt-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">توضیحات</label>
+                      <label className="block text-sm font-medium text-text-secondary mb-1">توضیحات</label>
                       <textarea
                         value={editingPeriod.description || ''}
                         onChange={(e) => setEditingPeriod({ ...editingPeriod, description: e.target.value })}
-                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                        className="w-full rounded-md border border-border-default px-3 py-2 text-sm"
                         rows={3}
                       />
                     </div>
                     <div className="mt-4 flex justify-end space-x-3 space-x-reverse">
                       <button
                         onClick={() => setEditingPeriod(null)}
-                        className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                        className="rounded-md border border-border-default px-4 py-2 text-sm text-text-secondary hover:bg-bg-base"
                         disabled={saving}
                       >
                         انصراف
                       </button>
                       <button
                         onClick={() => handleSavePeriod(editingPeriod)}
-                        className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+                        className="rounded-md bg-brand-primary px-4 py-2 text-sm text-text-on-brand hover:opacity-90"
                         disabled={saving}
                       >
                         {saving ? 'در حال ذخیره...' : 'ذخیره'}
@@ -1009,33 +1009,33 @@ export default function OrganizationSettingsPage() {
             {/* General Settings */}
             {activeTab === 'general' && (
               <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-gray-900">تنظیمات عمومی</h2>
-                <div className="bg-white rounded-lg shadow">
-                  <div className="divide-y divide-gray-200">
+                <h2 className="text-lg font-semibold text-text-primary">تنظیمات عمومی</h2>
+                <div className="bg-bg-raised rounded-lg shadow">
+                  <div className="divide-y divide-border-default">
                     {orgSettings.map((setting) => (
                       <div key={setting.id} className="p-6">
                         <div className="flex items-center justify-between">
                           <div className="flex-1">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">{setting.description}</label>
-                            <p className="text-xs text-gray-500 mb-2">{setting.key}</p>
+                            <label className="block text-sm font-medium text-text-secondary mb-1">{setting.description}</label>
+                            <p className="text-xs text-text-muted mb-2">{setting.key}</p>
                             {setting.type === 'boolean' ? (
                               <input
                                 type="checkbox"
                                 checked={setting.value === 'true'}
                                 onChange={(e) => handleSaveSetting({ ...setting, value: e.target.checked.toString() })}
-                                className="rounded border-gray-300"
+                                className="rounded border-border-default"
                               />
                             ) : (
                               <input
                                 type={setting.type === 'number' ? 'number' : 'text'}
                                 value={setting.value}
                                 onChange={(e) => handleSaveSetting({ ...setting, value: e.target.value })}
-                                className="w-full max-w-md rounded-md border border-gray-300 px-3 py-2 text-sm"
+                                className="w-full max-w-md rounded-md border border-border-default px-3 py-2 text-sm"
                               />
                             )}
                           </div>
                           <div className="mr-4">
-                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800`}>
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-bg-base text-text-primary`}>
                               {setting.category}
                             </span>
                           </div>

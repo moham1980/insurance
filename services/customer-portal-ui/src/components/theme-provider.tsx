@@ -1,3 +1,5 @@
 'use client';
 
-export { ThemeProvider, useTheme } from '@insurance/ui-utils';
+import { ThemeProvider, useTheme } from '@insurance/ui-utils';
+
+export { ThemeProvider, useTheme };

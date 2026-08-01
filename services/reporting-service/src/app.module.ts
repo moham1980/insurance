@@ -52,6 +52,7 @@ import { RegulatoryReportController } from './regulatory-report/regulatory-repor
 import { AmlFraudRegulatoryService } from './aml-fraud/aml-fraud-regulatory.service';
 import { AmlFraudRegulatoryController } from './aml-fraud/aml-fraud-regulatory.controller';
 import { HealthController } from './health.controller';
+import { AbacGuard } from './abac.guard';
 
 import { TenantGuard } from './tenant.guard';
 @Module({

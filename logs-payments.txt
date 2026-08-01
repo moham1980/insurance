@@ -1,0 +1,70 @@
+[32m[Nest] 28800  - [39m08/02/2026, 1:18:57 AM [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[32m[Nest] 28800  - [39m08/02/2026, 1:18:57 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +270ms[39m
+[32m[Nest] 28800  - [39m08/02/2026, 1:19:00 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmCoreModule dependencies initialized[39m[38;5;3m +2110ms[39m
+[32m[Nest] 28800  - [39m08/02/2026, 1:19:00 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +72ms[39m
+[32m[Nest] 28800  - [39m08/02/2026, 1:19:00 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +67ms[39m
+{"level":30,"time":1785620943562,"service":"payments-service","component":"KafkaProducer","msg":"Kafka producer connected"}
+{"level":30,"time":1785620943562,"service":"payments-service","component":"OutboxWorker","producerName":"payments-service","pollIntervalMs":1000,"batchSize":50,"msg":"Outbox worker started"}
+{"level":30,"time":1785620943912,"service":"payments-service","component":"KafkaConsumer","groupId":"payments-service","msg":"Kafka consumer connected"}
+{"level":30,"time":1785620943932,"service":"payments-service","component":"KafkaConsumer","groupId":"payments-service","topic":"insurance.claim.payment_requested","fromBeginning":false,"msg":"Subscribed to topic"}
+{"level":30,"time":1785620943947,"service":"payments-service","component":"KafkaConsumer","groupId":"payments-service","topic":"bank.payment.completed","fromBeginning":false,"msg":"Subscribed to topic"}
+{"level":30,"time":1785620944065,"service":"payments-service","msg":"DLQ Service initialized"}
+{"level":"INFO","timestamp":"2026-08-01T21:49:04.066Z","logger":"kafkajs","message":"[Consumer] Starting","groupId":"payments-service"}
+{"level":30,"time":1785620944065,"service":"payments-service","intervalMs":60000,"msg":"DLQ retry processor started"}
+{"level":"INFO","timestamp":"2026-08-01T21:49:07.481Z","logger":"kafkajs","message":"[ConsumerGroup] Consumer has joined the group","groupId":"payments-service","memberId":"payments-service-ad45f72e-ce48-488d-96b0-24e58873d6c3","leaderId":"payments-service-ad45f72e-ce48-488d-96b0-24e58873d6c3","isLeader":true,"memberAssignment":{"insurance.claim.payment_requested":[0],"bank.payment.completed":[0]},"groupProtocol":"RoundRobinAssigner","duration":3219}
+[32m[Nest] 28800  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mPaymentsController {/}:[39m[38;5;3m +7319ms[39m
+[32m[Nest] 28800  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payments/prepare, POST} route[39m[38;5;3m +46ms[39m
+[32m[Nest] 28800  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payments/:paymentIntentId/approve, POST} route[39m[38;5;3m +29ms[39m
+[32m[Nest] 28800  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payments/:paymentIntentId/execute, POST} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 28800  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payments/:paymentIntentId/fail, POST} route[39m[38;5;3m +16ms[39m
+[32m[Nest] 28800  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payments/:paymentIntentId/notify, POST} route[39m[38;5;3m +3ms[39m
+[32m[Nest] 28800  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payments/:paymentIntentId, GET} route[39m[38;5;3m +31ms[39m
+[32m[Nest] 28800  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/ecosystem/payments/:paymentId, GET} route[39m[38;5;3m +4ms[39m
+[32m[Nest] 28800  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payments, GET} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 28800  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payments/:paymentIntentId/gateway/initiate, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 28800  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payments/reconcile, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 28800  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payments/:paymentId/refund, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 28800  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payments/:paymentId/dispute, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 28800  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payments/disputes/:disputeId/resolve, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 28800  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mGatewayCallbackController {/}:[39m[38;5;3m +17ms[39m
+[32m[Nest] 28800  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payments/gateway/callback, POST} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 28800  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mHealthController {/}:[39m[38;5;3m +4ms[39m
+[32m[Nest] 28800  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/health, GET} route[39m[38;5;3m +7ms[39m
+[32m[Nest] 28800  - [39m08/02/2026, 1:19:07 AM [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +12ms[39m
+[01:19:34.561] [32mINFO[39m: [36mpayments.list.request[39m
+    service: "payments-service"
+    correlationId: "1785620974560-ugwd2wjw4"
+    tenantId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    actorUserId: "broker-user"
+    action: "payments:list"
+[01:21:39.140] [32mINFO[39m: [36mpayments.list.request[39m
+    service: "payments-service"
+    correlationId: "1785621099140-dox0zpepb"
+    tenantId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    actorUserId: "broker_owner-user"
+    action: "payments:list"
+[01:21:39.235] [32mINFO[39m: [36mpayments.list.request[39m
+    service: "payments-service"
+    correlationId: "1785621099235-xho84hgq0"
+    tenantId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    actorUserId: "broker_owner-user"
+    action: "payments:list"
+[01:22:00.773] [32mINFO[39m: [36mpayments.get.request[39m
+    service: "payments-service"
+    correlationId: "1785621120773-1236zc1jc"
+    tenantId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    actorUserId: "broker_owner-user"
+    action: "payments:view"
+    paymentIntentId: "test-payment-001"
+[01:22:04.467] [32mINFO[39m: [36mpayments.list.request[39m
+    service: "payments-service"
+    correlationId: "1785621124466-qdducowbt"
+    tenantId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    actorUserId: "broker_owner-user"
+    action: "payments:list"
+[01:22:05.149] [32mINFO[39m: [36mpayments.list.request[39m
+    service: "payments-service"
+    correlationId: "1785621125149-r6s19n6uu"
+    tenantId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    actorUserId: "broker_owner-user"
+    action: "payments:list"

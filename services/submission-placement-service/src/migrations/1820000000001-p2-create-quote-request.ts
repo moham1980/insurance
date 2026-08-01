@@ -20,6 +20,7 @@ export class P2CreateQuoteRequest1820000000001 implements MigrationInterface {
         subjectivities_snapshot JSONB,
         aml_snapshot JSONB,
         underwriting_snapshot JSONB,
+        selection_criteria JSONB,
         created_by TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()

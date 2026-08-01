@@ -14,7 +14,19 @@ export class BrokerBffService {
 
   private serviceUrl(name: string): string {
     const envKey = `${name.toUpperCase().replace(/-/g, '_')}_URL`;
-    return this.config.get<string>(envKey) || `http://localhost:8080`;
+    const defaults: Record<string, string> = {
+      'submission-placement-service': 'http://localhost:18005',
+      'sales-network-service': 'http://localhost:18022',
+      'product-service': 'http://localhost:18018',
+      'claims-service': 'http://localhost:18002',
+      'billing-service': 'http://localhost:18039',
+      'policy-service': 'http://localhost:18007',
+      'collections-service': 'http://localhost:18025',
+      'payments-service': 'http://localhost:18004',
+      'underwriting-service': 'http://localhost:18020',
+      'reporting-service': 'http://localhost:18014',
+    };
+    return this.config.get<string>(envKey) || defaults[name] || `http://localhost:8080`;
   }
 
   private async get(token: string, path: string) {
@@ -46,15 +58,15 @@ export class BrokerBffService {
   }
 
   getDashboard(token: string) {
-    return this.get(token, `${this.serviceUrl('submission-placement-service')}/api/v1/broker/dashboard`);
+    return this.get(token, `${this.serviceUrl('sales-network-service')}/sales-network/agent/summary`);
   }
 
   listAgreements(token: string, pagination: { limit: number; offset: number }) {
-    return this.get(token, `${this.serviceUrl('sales-network-service')}/api/v1/distribution-agreements?limit=${pagination.limit}&offset=${pagination.offset}`);
+    return this.get(token, `${this.serviceUrl('sales-network-service')}/sales-network/agreements?limit=${pagination.limit}&offset=${pagination.offset}`);
   }
 
   listOfferings(token: string, pagination: { limit: number; offset: number }) {
-    return this.get(token, `${this.serviceUrl('product-service')}/api/v1/broker-product-offerings?limit=${pagination.limit}&offset=${pagination.offset}&status=active`);
+    return this.get(token, `${this.serviceUrl('product-service')}/api/v1/broker-offerings?limit=${pagination.limit}&offset=${pagination.offset}&status=active`);
   }
 
   listSubmissions(token: string, pagination: { limit: number; offset: number }) {
@@ -70,7 +82,7 @@ export class BrokerBffService {
   }
 
   createPlacement(token: string, body: any) {
-    return this.post(token, `${this.serviceUrl('submission-placement-service')}/api/v1/placements`, body);
+    return this.post(token, `${this.serviceUrl('submission-placement-service')}/api/v1/quote-responses/${body.quoteResponseId}/placement`, body);
   }
 
   listPlacements(token: string, params: { limit: number; offset: number; status?: string; submissionId?: string }) {
@@ -97,51 +109,51 @@ export class BrokerBffService {
   }
 
   listClaims(token: string, pagination: { limit: number; offset: number }) {
-    return this.get(token, `${this.serviceUrl('claims-service')}/api/v1/advocacy-cases?limit=${pagination.limit}&offset=${pagination.offset}`);
+    return this.get(token, `${this.serviceUrl('claims-service')}/claims?limit=${pagination.limit}&offset=${pagination.offset}`);
   }
 
   getClaim(token: string, id: string) {
-    return this.get(token, `${this.serviceUrl('claims-service')}/api/v1/advocacy-cases/${id}`);
+    return this.get(token, `${this.serviceUrl('claims-service')}/claims/${id}`);
   }
 
   addClaimCommunication(token: string, id: string, body: any) {
-    return this.post(token, `${this.serviceUrl('claims-service')}/api/v1/advocacy-cases/${id}/communications`, body);
+    return this.post(token, `${this.serviceUrl('claims-service')}/claims/${id}/communications`, body);
   }
 
   createFnolClaim(token: string, body: any) {
-    return this.post(token, `${this.serviceUrl('claims-service')}/api/v1/claims/fnol`, body);
+    return this.post(token, `${this.serviceUrl('claims-service')}/claims/fnol`, body);
   }
 
   assessClaim(token: string, id: string, body: any) {
-    return this.post(token, `${this.serviceUrl('claims-service')}/api/v1/claims/${id}/assess`, body);
+    return this.post(token, `${this.serviceUrl('claims-service')}/claims/${id}/assess`, body);
   }
 
   approveClaim(token: string, id: string, body: any) {
-    return this.post(token, `${this.serviceUrl('claims-service')}/api/v1/claims/${id}/approve`, body);
+    return this.post(token, `${this.serviceUrl('claims-service')}/claims/${id}/approve`, body);
   }
 
   rejectClaim(token: string, id: string, body: any) {
-    return this.post(token, `${this.serviceUrl('claims-service')}/api/v1/claims/${id}/reject`, body);
+    return this.post(token, `${this.serviceUrl('claims-service')}/claims/${id}/reject`, body);
   }
 
   getClaimAdvocacy(token: string, id: string) {
-    return this.get(token, `${this.serviceUrl('claims-service')}/api/v1/claims/${id}/advocacy-cases`);
+    return this.get(token, `${this.serviceUrl('claims-service')}/claims/${id}/advocacy-cases`);
   }
 
   openAdvocacyCase(token: string, id: string, body: any) {
-    return this.post(token, `${this.serviceUrl('claims-service')}/api/v1/claims/${id}/advocacy-cases`, body);
+    return this.post(token, `${this.serviceUrl('claims-service')}/claims/${id}/advocacy-cases`, body);
   }
 
   listCommissions(token: string, pagination: { limit: number; offset: number }) {
-    return this.get(token, `${this.serviceUrl('billing-service')}/api/v1/commissions?limit=${pagination.limit}&offset=${pagination.offset}`);
+    return this.get(token, `${this.serviceUrl('billing-service')}/brokerage/commissions?limit=${pagination.limit}&offset=${pagination.offset}`);
   }
 
   listSubAgents(token: string, pagination: { limit: number; offset: number }) {
-    return this.get(token, `${this.serviceUrl('sales-network-service')}/api/v1/parties?role=sub_agent&limit=${pagination.limit}&offset=${pagination.offset}`);
+    return this.get(token, `${this.serviceUrl('sales-network-service')}/sales-network/partners?kind=agent&limit=${pagination.limit}&offset=${pagination.offset}`);
   }
 
   getBrokerTransactionReport(token: string, periodId: string) {
-    return this.get(token, `${this.serviceUrl('reporting-service')}/api/v1/broker-reports?periodId=${periodId}`);
+    return this.get(token, `${this.serviceUrl('reporting-service')}/broker-reports?periodId=${periodId}`);
   }
 
   // Issue 4.1: KYC proxy endpoints to party-kyc-service
@@ -150,68 +162,68 @@ export class BrokerBffService {
   }
 
   getPartyKycStatus(token: string, partyId: string) {
-    return this.get(token, `${this.partyKycUrl()}/api/v1/party/${partyId}/kyc`);
+    return this.get(token, `${this.partyKycUrl()}/party/${partyId}/kyc`);
   }
 
   getPartyKycHistory(token: string, partyId: string, limit: number, offset: number) {
-    return this.get(token, `${this.partyKycUrl()}/api/v1/party/${partyId}/kyc-history?limit=${limit}&offset=${offset}`);
+    return this.get(token, `${this.partyKycUrl()}/party/${partyId}/kyc-history?limit=${limit}&offset=${offset}`);
   }
 
   initiateBrokerKyc(token: string, partyId: string, body: any) {
-    return this.post(token, `${this.partyKycUrl()}/api/v1/party/${partyId}/broker-kyc/initiate`, body);
+    return this.post(token, `${this.partyKycUrl()}/party/${partyId}/broker-kyc/initiate`, body);
   }
 
   updateBrokerKycCheck(token: string, partyId: string, body: any) {
-    return this.post(token, `${this.partyKycUrl()}/api/v1/party/${partyId}/broker-kyc/check`, body);
+    return this.post(token, `${this.partyKycUrl()}/party/${partyId}/broker-kyc/check`, body);
   }
 
   bulkReviewKyc(token: string, body: any) {
-    return this.post(token, `${this.partyKycUrl()}/api/v1/kyc/bulk-review`, body);
+    return this.post(token, `${this.partyKycUrl()}/kyc/bulk-review`, body);
   }
 
   screenCommissionTransaction(token: string, partyId: string, body: any) {
-    return this.post(token, `${this.partyKycUrl()}/api/v1/party/${partyId}/aml/commission-screening`, body);
+    return this.post(token, `${this.partyKycUrl()}/party/${partyId}/aml/commission-screening`, body);
   }
 
   screenSettlementBatch(token: string, body: any) {
-    return this.post(token, `${this.partyKycUrl()}/api/v1/aml/settlement-batch-screening`, body);
+    return this.post(token, `${this.partyKycUrl()}/aml/settlement-batch-screening`, body);
   }
 
   grantCrossOrgConsent(token: string, partyId: string, body: any) {
-    return this.post(token, `${this.partyKycUrl()}/api/v1/party/${partyId}/cross-org-consent/grant`, body);
+    return this.post(token, `${this.partyKycUrl()}/party/${partyId}/cross-org-consent/grant`, body);
   }
 
   revokeCrossOrgConsent(token: string, partyId: string, body: any) {
-    return this.post(token, `${this.partyKycUrl()}/api/v1/party/${partyId}/cross-org-consent/revoke`, body);
+    return this.post(token, `${this.partyKycUrl()}/party/${partyId}/cross-org-consent/revoke`, body);
   }
 
   checkCrossOrgConsent(token: string, partyId: string, targetOrganizationId: string, consentType?: string) {
     const params = consentType ? `&consentType=${consentType}` : '';
-    return this.get(token, `${this.partyKycUrl()}/api/v1/party/${partyId}/cross-org-consent/check?targetOrganizationId=${targetOrganizationId}${params}`);
+    return this.get(token, `${this.partyKycUrl()}/party/${partyId}/cross-org-consent/check?targetOrganizationId=${targetOrganizationId}${params}`);
   }
 
   escalateKycException(token: string, exceptionId: string, body: any) {
-    return this.post(token, `${this.partyKycUrl()}/api/v1/kyc-exception/${exceptionId}/escalate-to-organization`, body);
+    return this.post(token, `${this.partyKycUrl()}/kyc-exception/${exceptionId}/escalate-to-organization`, body);
   }
 
   getPartiesByOrganization(token: string, organizationId: string, params: { roleType?: string; status?: string; limit?: number; offset?: number }) {
     let query = `limit=${params.limit || 50}&offset=${params.offset || 0}`;
     if (params.roleType) query += `&roleType=${params.roleType}`;
     if (params.status) query += `&status=${params.status}`;
-    return this.get(token, `${this.partyKycUrl()}/api/v1/organizations/${organizationId}/parties?${query}`);
+    return this.get(token, `${this.partyKycUrl()}/organizations/${organizationId}/parties?${query}`);
   }
 
   createParty(token: string, body: any) {
-    return this.post(token, `${this.partyKycUrl()}/api/v1/parties`, body);
+    return this.post(token, `${this.partyKycUrl()}/parties`, body);
   }
 
   linkPartyToOrganization(token: string, partyId: string, body: any) {
-    return this.post(token, `${this.partyKycUrl()}/api/v1/party/${partyId}/link-organization`, body);
+    return this.post(token, `${this.partyKycUrl()}/party/${partyId}/link-organization`, body);
   }
 
   // Policy endpoints - broker access to policy-service
   private policyServiceUrl(): string {
-    return this.config.get<string>('POLICY_SERVICE_URL') || 'http://localhost:8086';
+    return this.config.get<string>('POLICY_SERVICE_URL') || 'http://localhost:18007';
   }
 
   listPolicies(token: string, params: { distributionOrganizationId?: string; partyId?: string; uniqueCode?: string; status?: string; limit?: number; offset?: number }) {
@@ -220,55 +232,55 @@ export class BrokerBffService {
     if (params.partyId) query += `&partyId=${params.partyId}`;
     if (params.uniqueCode) query += `&uniqueCode=${params.uniqueCode}`;
     if (params.status) query += `&status=${params.status}`;
-    return this.get(token, `${this.policyServiceUrl()}/api/v1/policies?${query}`);
+    return this.get(token, `${this.policyServiceUrl()}/policies?${query}`);
   }
 
   getPolicy(token: string, policyId: string) {
-    return this.get(token, `${this.policyServiceUrl()}/api/v1/policies/${policyId}`);
+    return this.get(token, `${this.policyServiceUrl()}/policies/${policyId}`);
   }
 
   getPolicyDetails(token: string, policyId: string) {
-    return this.get(token, `${this.policyServiceUrl()}/api/v1/policies/${policyId}/details`);
+    return this.get(token, `${this.policyServiceUrl()}/policies/${policyId}`);
   }
 
   listPolicyProjections(token: string, params: { brokerOrganizationId?: string; placementId?: string; limit?: number; offset?: number }) {
     let query = `limit=${params.limit || 50}&offset=${params.offset || 0}`;
     if (params.brokerOrganizationId) query += `&brokerOrganizationId=${params.brokerOrganizationId}`;
     if (params.placementId) query += `&placementId=${params.placementId}`;
-    return this.get(token, `${this.policyServiceUrl()}/api/v1/policies/projections?${query}`);
+    return this.get(token, `${this.policyServiceUrl()}/policies/projections?${query}`);
   }
 
   getPolicyProjection(token: string, policyId: string) {
-    return this.get(token, `${this.policyServiceUrl()}/api/v1/policies/projections/${policyId}`);
+    return this.get(token, `${this.policyServiceUrl()}/policies/projections/${policyId}`);
   }
 
   requestQuote(token: string, body: any) {
-    return this.post(token, `${this.policyServiceUrl()}/api/v1/policies/quote`, body);
+    return this.post(token, `${this.policyServiceUrl()}/policies/quote`, body);
   }
 
   convertQuote(token: string, body: any) {
-    return this.post(token, `${this.policyServiceUrl()}/api/v1/policies/convert-quote`, body);
+    return this.post(token, `${this.policyServiceUrl()}/policies/convert-quote`, body);
   }
 
   endorsePolicy(token: string, policyId: string, body: any) {
-    return this.post(token, `${this.policyServiceUrl()}/api/v1/policies/${policyId}/endorse`, body);
+    return this.post(token, `${this.policyServiceUrl()}/policies/${policyId}/endorse`, body);
   }
 
   renewPolicy(token: string, policyId: string, body: any) {
-    return this.post(token, `${this.policyServiceUrl()}/api/v1/policies/${policyId}/renew`, body);
+    return this.post(token, `${this.policyServiceUrl()}/policies/${policyId}/renew`, body);
   }
 
   listPolicyEndorsements(token: string, policyId: string, limit: number, offset: number) {
-    return this.get(token, `${this.policyServiceUrl()}/api/v1/policies/${policyId}/endorsements?limit=${limit}&offset=${offset}`);
+    return this.get(token, `${this.policyServiceUrl()}/policies/${policyId}/endorsements?limit=${limit}&offset=${offset}`);
   }
 
   getPolicyHistory(token: string, policyId: string, limit: number, offset: number) {
-    return this.get(token, `${this.policyServiceUrl()}/api/v1/policies/${policyId}/history?limit=${limit}&offset=${offset}`);
+    return this.get(token, `${this.policyServiceUrl()}/policies/${policyId}/changes?limit=${limit}&offset=${offset}`);
   }
 
   // Regulatory gateway proxy endpoints
   private regulatoryGatewayUrl(): string {
-    return this.config.get<string>('REGULATORY_GATEWAY_SERVICE_URL') || 'http://localhost:8084';
+    return this.config.get<string>('REGULATORY_GATEWAY_SERVICE_URL') || 'http://localhost:18024';
   }
 
   validateBrokerLicense(token: string, body: any) {
@@ -304,7 +316,7 @@ export class BrokerBffService {
 
   // Collections proxy endpoints
   private collectionsServiceUrl(): string {
-    return this.config.get<string>('COLLECTIONS_SERVICE_URL') || 'http://localhost:8010';
+    return this.config.get<string>('COLLECTIONS_SERVICE_URL') || 'http://localhost:18025';
   }
 
   listCollectionsPlans(token: string, params: { policyId?: string; status?: string; limit?: number; offset?: number }) {
@@ -328,7 +340,7 @@ export class BrokerBffService {
 
   // Payments proxy endpoints
   private paymentsServiceUrl(): string {
-    return this.config.get<string>('PAYMENTS_SERVICE_URL') || 'http://localhost:8011';
+    return this.config.get<string>('PAYMENTS_SERVICE_URL') || 'http://localhost:18004';
   }
 
   listPayments(token: string, params: { policyId?: string; claimId?: string; status?: string; limit?: number; offset?: number }) {
@@ -349,7 +361,7 @@ export class BrokerBffService {
 
   // Underwriting proxy endpoints
   private underwritingServiceUrl(): string {
-    return this.config.get<string>('UNDERWRITING_SERVICE_URL') || 'http://localhost:8012';
+    return this.config.get<string>('UNDERWRITING_SERVICE_URL') || 'http://localhost:18020';
   }
 
   listUnderwritingRequests(token: string, params: { status?: string; policyId?: string; limit?: number; offset?: number }) {
@@ -372,5 +384,29 @@ export class BrokerBffService {
     if (params.from) query += `from=${params.from}`;
     if (params.to) query += `${query ? '&' : ''}to=${params.to}`;
     return this.get(token, `${this.underwritingServiceUrl()}/underwriting/sla/metrics${query ? '?' + query : ''}`);
+  }
+
+  // Copilot proxy — forwards chat to copilot-service
+  private copilotServiceUrl(): string {
+    return this.config.get<string>('COPILOT_SERVICE_URL') || 'http://localhost:18030';
+  }
+
+  async copilotChat(token: string, message: string, conversationHistory?: { role: 'user' | 'assistant'; content: string }[]) {
+    const url = `${this.copilotServiceUrl()}/copilot/chat`;
+    try {
+      const res = await firstValueFrom(
+        this.http.post(url, { message, conversationHistory }, {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: token,
+            'X-AI-Enabled': 'true',
+          },
+        }),
+      );
+      return res.data;
+    } catch (error: any) {
+      this.logger.error(`Copilot chat failed: ${error.message}`);
+      throw error;
+    }
   }
 }

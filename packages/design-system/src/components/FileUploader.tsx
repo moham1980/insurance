@@ -1,3 +1,4 @@
+'use client';
 import * as React from 'react';
 import { cn } from '@insurance/ui-utils';
 import { UploadCloud, X, FileText } from 'lucide-react';

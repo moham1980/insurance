@@ -1,0 +1,64 @@
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:49 AM [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:49 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +337ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:49 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmCoreModule dependencies initialized[39m[38;5;3m +304ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:49 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +5ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:49 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +3ms[39m
+{"level":30,"time":1785620930423,"service":"product","component":"KafkaProducer","msg":"Kafka producer connected"}
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mProductController {/}:[39m[38;5;3m +453ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/product/products, POST} route[39m[38;5;3m +6ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/product/products/:productId, GET} route[39m[38;5;3m +4ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/product/products, GET} route[39m[38;5;3m +3ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/product/products/:productId, PATCH} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/product/products/:productId/archive, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/product/coverages, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/product/coverages/:coverageId, GET} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/product/coverages, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/product/coverages/:coverageId, PATCH} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/product/coverages/:coverageId/archive, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/product/deductibles, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/product/deductibles/:deductibleId, GET} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/product/deductibles, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/product/deductibles/:deductibleId, PATCH} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/product/deductibles/:deductibleId/archive, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/product/pricing-rules, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/product/pricing-rules/:pricingRuleId, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/product/pricing-rules, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/product/pricing-rules/:pricingRuleId, PATCH} route[39m[38;5;3m +3ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/product/pricing-rules/:pricingRuleId/archive, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/product/export, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/product/quote, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/product/quote/compare, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/product/products/:productId/versions, GET} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/product/products/:productId/versions/:version, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/product/products/:productId/pricing-rules/evaluate, POST} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mBrokerageProductController {/api/v1}:[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/products, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/products, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/products/:productId, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/products/:productId/versions, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/products/:productId/versions, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/products/:productId/versions/:version, GET} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/products/:productId/versions/:version/activate, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/products/:productId/versions/:version/retire, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/products/:productId/versions/:version/clone, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/products/:productId/visibility, POST} route[39m[38;5;3m +3ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/products/visibility/bulk, POST} route[39m[38;5;3m +3ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/products/:productId/visibility, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/products/:productId/visibility/:visibilityId, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/products/:productId/visibility/:visibilityId, PATCH} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/products/:productId/visibility/:visibilityId/revoke, POST} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/distributors/:distributorOrganizationId/visible-products, GET} route[39m[38;5;3m +16ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker-offerings, POST} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker-offerings, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker-offerings/:offeringId, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker-offerings/:offeringId, PATCH} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker-offerings/:offeringId/commission-tiers, PUT} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker-offerings/:offeringId/activate, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/broker-offerings/:offeringId/inactivate, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/v1/customers/offerings, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mHealthController {/}:[39m[38;5;3m +1ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/health, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 33892  - [39m08/02/2026, 1:18:50 AM [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +3ms[39m
+{"level":30,"time":1785620930424,"service":"product","component":"KafkaProducer","msg":"Kafka producer connected"}
+{"level":30,"time":1785620930425,"service":"product","component":"OutboxWorker","producerName":"product","pollIntervalMs":5000,"batchSize":50,"msg":"Outbox worker started"}
+{"level":30,"time":1785620930425,"service":"product","msg":"OutboxWorker started for product"}

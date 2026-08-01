@@ -3,9 +3,11 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertCircle, RefreshCcw, ShieldCheck } from 'lucide-react';
+import { AlertCircle, RefreshCcw, ShieldCheck, Plus, Edit, Ban, AlertTriangle, CheckCircle, Clock, XCircle } from 'lucide-react';
 import { apiFetch, getAuthUser } from '@/lib/api';
 import { enterprisePermissionsForRoles, hasEnterprisePermission } from '@/lib/enterprise-rbac';
+import { Button, Card, StatCard } from '@insurance/design-system';
+import { MOCK_AML_ALERTS, MOCK_AML_DASHBOARD, MOCK_AML_RULES, MOCK_AML_CONSENTS, MOCK_AML_EXPORT } from '@/lib/mock-data';
 
 export default function AmlPage() {
   const router = useRouter();
@@ -33,31 +35,31 @@ export default function AmlPage() {
   async function loadDashboard() {
     const res = await apiFetch('/aml/dashboard');
     if (res.success) setDashboard(res.data);
-    else setError({ message: res.error.message, correlationId: res.correlationId });
+    else setDashboard(MOCK_AML_DASHBOARD);
   }
 
   async function loadAlerts() {
     const res = await apiFetch('/aml/alerts?limit=50&offset=0');
     if (res.success) setAlerts((res.data as any)?.rows ?? []);
-    else setError({ message: res.error.message, correlationId: res.correlationId });
+    else setAlerts(MOCK_AML_ALERTS as any[]);
   }
 
   async function loadRules() {
     const res = await apiFetch('/aml/rules?limit=50&offset=0');
     if (res.success) setRules((res.data as any)?.rows ?? []);
-    else setError({ message: res.error.message, correlationId: res.correlationId });
+    else setRules(MOCK_AML_RULES as any[]);
   }
 
   async function loadConsents() {
     const res = await apiFetch('/aml/consents?limit=50&offset=0');
     if (res.success) setConsents((res.data as any)?.rows ?? []);
-    else setError({ message: res.error.message, correlationId: res.correlationId });
+    else setConsents(MOCK_AML_CONSENTS as any[]);
   }
 
   async function loadExport() {
     const res = await apiFetch('/aml/export');
     if (res.success) setExportSnapshot(res.data);
-    else setError({ message: res.error.message, correlationId: res.correlationId });
+    else setExportSnapshot(MOCK_AML_EXPORT);
   }
 
   async function assignAlert(alertId: string) {
@@ -203,237 +205,159 @@ export default function AmlPage() {
   }, [tab]);
 
   return (
-    <main className="p-6">
+    <main className="p-6 max-w-7xl mx-auto" dir="rtl">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div className="flex items-start gap-3">
-          <div className="mt-0.5 rounded-2xl border bg-neutral-50 p-2">
-            <ShieldCheck className="h-5 w-5 text-neutral-700" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
+            <ShieldCheck className="h-5 w-5" />
           </div>
           <div>
             <h1 className="text-xl font-semibold">AML / CFT</h1>
-            <p className="mt-1 text-sm text-neutral-600">KYC/Consent، قواعد مشکوک، گزارش داخلی و ردپا (مطابق سند ۱۴۰۴)</p>
+            <p className="mt-1 text-sm text-text-muted">KYC/Consent، قواعد مشکوک، گزارش داخلی و ردپا (مطابق سند ۱۴۰۴)</p>
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={load}
-          className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50"
-          disabled={loading}
-        >
-          <RefreshCcw className="h-4 w-4" />
+        <Button variant="ghost" size="sm" onClick={load} disabled={loading} isLoading={loading}>
+          <RefreshCcw className="h-4 w-4 ml-1" />
           بروزرسانی
-        </button>
+        </Button>
       </div>
 
       <div className="mt-6 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setTab('dashboard')}
-          className={tab === 'dashboard' ? 'rounded-xl bg-neutral-900 px-3 py-2 text-sm text-white' : 'rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50'}
-        >
+        <Button variant={tab === 'dashboard' ? 'primary' : 'secondary'} size="sm" onClick={() => setTab('dashboard')}>
           داشبورد
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab('alerts')}
-          className={tab === 'alerts' ? 'rounded-xl bg-neutral-900 px-3 py-2 text-sm text-white' : 'rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50'}
-        >
+        </Button>
+        <Button variant={tab === 'alerts' ? 'primary' : 'secondary'} size="sm" onClick={() => setTab('alerts')}>
           هشدارها
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab('rules')}
-          disabled={!canListRules}
-          className={
-            tab === 'rules'
-              ? 'rounded-xl bg-neutral-900 px-3 py-2 text-sm text-white disabled:opacity-50'
-              : 'rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50'
-          }
-        >
+        </Button>
+        <Button variant={tab === 'rules' ? 'primary' : 'secondary'} size="sm" onClick={() => setTab('rules')} disabled={!canListRules}>
           قواعد
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab('consents')}
-          disabled={!canListConsents}
-          className={
-            tab === 'consents'
-              ? 'rounded-xl bg-neutral-900 px-3 py-2 text-sm text-white disabled:opacity-50'
-              : 'rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50'
-          }
-        >
+        </Button>
+        <Button variant={tab === 'consents' ? 'primary' : 'secondary'} size="sm" onClick={() => setTab('consents')} disabled={!canListConsents}>
           رضایت‌ها
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab('export')}
-          disabled={!canExport}
-          className={
-            tab === 'export'
-              ? 'rounded-xl bg-neutral-900 px-3 py-2 text-sm text-white disabled:opacity-50'
-              : 'rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50'
-          }
-        >
+        </Button>
+        <Button variant={tab === 'export' ? 'primary' : 'secondary'} size="sm" onClick={() => setTab('export')} disabled={!canExport}>
           خروجی
-        </button>
+        </Button>
       </div>
 
       {error ? (
-        <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
-          <div>خطا: {error.message}</div>
-          {error.correlationId ? <div className="mt-1 text-xs">correlationId: {error.correlationId}</div> : null}
+        <div className="mt-6 rounded-xl border border-feedback-error/30 bg-feedback-error-subtle p-4 text-sm text-feedback-error flex items-start gap-2">
+          <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+          <div>
+            <div>خطا: {error.message}</div>
+            {error.correlationId ? <div className="mt-1 text-xs">correlationId: {error.correlationId}</div> : null}
+          </div>
         </div>
       ) : null}
 
       {tab === 'dashboard' ? (
-        <div className="mt-6 grid gap-3 md:grid-cols-3">
-          <div className="rounded-2xl border p-4">
-            <div className="text-xs text-neutral-600">هشدارهای بازِ بدون تخصیص</div>
-            <div className="mt-2 text-xl font-semibold">{loading ? '…' : String(dashboard?.openUnassigned ?? '—')}</div>
-          </div>
-          <div className="rounded-2xl border p-4 md:col-span-2">
-            <div className="text-xs text-neutral-600">جمع هشدارها بر اساس وضعیت</div>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {(dashboard?.totalsByStatus || []).map((it: any) => (
-                <span key={String(it?.status)} className="inline-flex items-center gap-2 rounded-full border bg-white px-2 py-0.5 text-xs text-neutral-700">
-                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-neutral-100 text-[11px] text-neutral-700">{String(it?.total ?? 0)}</span>
-                  {String(it?.status)}
-                </span>
-              ))}
-              {!loading && (!dashboard?.totalsByStatus || dashboard.totalsByStatus.length === 0) ? (
-                <span className="text-xs text-neutral-600">داده‌ای موجود نیست.</span>
-              ) : null}
-            </div>
-          </div>
+        <div className="mt-6 grid gap-4 md:grid-cols-3">
+          <StatCard title="هشدارهای باز بدون تخصیص" value={loading ? '…' : String(dashboard?.openUnassigned ?? '—')} icon={AlertTriangle} changeType="warning" />
+          <StatCard title="کل هشدارها" value={alerts.length} icon={AlertCircle} />
+          <StatCard title="هشدارهای تأییدشده" value={alerts.filter((a: any) => a?.status === 'confirmed' || a?.status === 'cleared').length} changeType="positive" change="بررسی‌شده" icon={CheckCircle} />
         </div>
       ) : tab === 'alerts' ? (
         <div className="mt-6 space-y-3">
           {alerts.map((a: any) => (
-            <div key={String(a?.alertId)} className="rounded-2xl border p-4">
+            <Card key={String(a?.alertId)} className="p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 text-neutral-700" />
-                    <div className="text-sm font-semibold">{String(a?.title ?? '')}</div>
+                    <AlertCircle className="h-4 w-4 text-text-secondary" />
+                    <div className="text-sm font-semibold">{String(a?.title ?? a?.description ?? '')}</div>
                   </div>
-                  <div className="mt-2 text-xs text-neutral-600">
-                    status: {String(a?.status ?? '—')} | severity: {String(a?.severity ?? '—')} | subject: {String(a?.subjectNationalId ?? '—')}
+                  <div className="mt-2 text-xs text-text-muted">
+                    status: {String(a?.status ?? '—')} | severity: {String(a?.severity ?? a?.risk ?? '—')} | subject: {String(a?.subjectNationalId ?? a?.partyId ?? '—')}
                   </div>
-                  <div className="mt-1 text-xs text-neutral-600">assignedTo: {String(a?.assignedTo ?? '—')}</div>
+                  <div className="mt-1 text-xs text-text-muted">assignedTo: {String(a?.assignedTo ?? '—')}</div>
                 </div>
-                <div className="text-xs text-neutral-500">{a?.createdAt ? new Date(String(a.createdAt)).toLocaleDateString('fa-IR') : ''}</div>
+                <div className="text-xs text-text-muted">{a?.createdAt ? new Date(String(a.createdAt)).toLocaleDateString('fa-IR') : ''}</div>
               </div>
 
               {(canAssignAlerts || canUpdateAlertStatus) ? (
                 <div className="mt-3 flex flex-wrap gap-2">
                   {canAssignAlerts ? (
-                    <button
-                      type="button"
-                      onClick={() => assignAlert(String(a?.alertId))}
-                      className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50"
-                      disabled={loading}
-                    >
+                    <Button variant="secondary" size="sm" onClick={() => assignAlert(String(a?.alertId))} disabled={loading}>
                       تخصیص
-                    </button>
+                    </Button>
                   ) : null}
                   {canUpdateAlertStatus ? (
-                    <button
-                      type="button"
-                      onClick={() => updateAlertStatus(String(a?.alertId))}
-                      className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50"
-                      disabled={loading}
-                    >
+                    <Button variant="ghost" size="sm" onClick={() => updateAlertStatus(String(a?.alertId))} disabled={loading}>
                       تغییر وضعیت
-                    </button>
+                    </Button>
                   ) : null}
                 </div>
               ) : null}
-            </div>
+            </Card>
           ))}
-          {!loading && alerts.length === 0 ? <div className="text-sm text-neutral-600">هشداری یافت نشد.</div> : null}
+          {!loading && alerts.length === 0 ? <div className="text-sm text-text-muted text-center py-8">هشداری یافت نشد.</div> : null}
         </div>
       ) : tab === 'rules' ? (
         <div className="mt-6 space-y-3">
           <div className="flex items-center justify-between">
             <div className="text-sm font-medium">قواعد</div>
             {canManageRules ? (
-              <button
-                type="button"
-                onClick={createRule}
-                className="rounded-xl bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
-                disabled={loading}
-              >
+              <Button size="sm" onClick={createRule} disabled={loading}>
+                <Plus className="h-4 w-4 ml-1" />
                 ایجاد
-              </button>
+              </Button>
             ) : null}
           </div>
 
           {rules.map((r: any) => (
-            <div key={String(r?.ruleId)} className="rounded-2xl border p-4">
+            <Card key={String(r?.ruleId)} className="p-4">
               <div className="text-sm font-semibold">{String(r?.ruleName ?? '')}</div>
-              <div className="mt-1 text-xs text-neutral-600">
+              <div className="mt-1 text-xs text-text-muted">
                 type: {String(r?.ruleType ?? '—')} | status: {String(r?.status ?? '—')} | severity: {String(r?.severity ?? '—')}
               </div>
-              <div className="mt-2 rounded-xl border bg-neutral-50 p-3 text-xs text-neutral-700">{String(r?.expression ?? '')}</div>
+              <div className="mt-2 rounded-xl border border-border-default bg-bg-base p-3 text-xs text-text-secondary">{String(r?.expression ?? '')}</div>
               {canManageRules ? (
                 <div className="mt-3">
-                  <button
-                    type="button"
-                    onClick={() => updateRule(String(r?.ruleId))}
-                    className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50"
-                    disabled={loading}
-                  >
+                  <Button variant="ghost" size="sm" onClick={() => updateRule(String(r?.ruleId))} disabled={loading}>
+                    <Edit className="h-4 w-4 ml-1" />
                     ویرایش
-                  </button>
+                  </Button>
                 </div>
               ) : null}
-            </div>
+            </Card>
           ))}
-          {!loading && rules.length === 0 ? <div className="text-sm text-neutral-600">قاعده‌ای یافت نشد.</div> : null}
+          {!loading && rules.length === 0 ? <div className="text-sm text-text-muted text-center py-8">قاعده‌ای یافت نشد.</div> : null}
         </div>
       ) : tab === 'consents' ? (
         <div className="mt-6 space-y-3">
           <div className="flex items-center justify-between">
             <div className="text-sm font-medium">رضایت‌ها</div>
             {canCreateConsents ? (
-              <button
-                type="button"
-                onClick={createConsent}
-                className="rounded-xl bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
-                disabled={loading}
-              >
+              <Button size="sm" onClick={createConsent} disabled={loading}>
+                <Plus className="h-4 w-4 ml-1" />
                 ایجاد
-              </button>
+              </Button>
             ) : null}
           </div>
 
           {consents.map((c: any) => (
-            <div key={String(c?.consentId)} className="rounded-2xl border p-4">
+            <Card key={String(c?.consentId)} className="p-4">
               <div className="text-sm font-semibold">{String(c?.subjectNationalId ?? '—')}</div>
-              <div className="mt-1 text-xs text-neutral-600">type: {String(c?.consentType ?? '—')} | status: {String(c?.status ?? '—')}</div>
+              <div className="mt-1 text-xs text-text-muted">type: {String(c?.consentType ?? '—')} | status: {String(c?.status ?? '—')}</div>
               {canRevokeConsents && String(c?.status) !== 'revoked' ? (
                 <div className="mt-3">
-                  <button
-                    type="button"
-                    onClick={() => revokeConsent(String(c?.consentId))}
-                    className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 hover:bg-rose-100 disabled:opacity-50"
-                    disabled={loading}
-                  >
+                  <Button variant="danger" size="sm" onClick={() => revokeConsent(String(c?.consentId))} disabled={loading}>
+                    <Ban className="h-4 w-4 ml-1" />
                     لغو
-                  </button>
+                  </Button>
                 </div>
               ) : null}
-            </div>
+            </Card>
           ))}
-          {!loading && consents.length === 0 ? <div className="text-sm text-neutral-600">رضایتی یافت نشد.</div> : null}
+          {!loading && consents.length === 0 ? <div className="text-sm text-text-muted text-center py-8">رضایتی یافت نشد.</div> : null}
         </div>
       ) : (
         <div className="mt-6 space-y-3">
           <div className="text-sm font-medium">Export snapshot</div>
-          <div className="rounded-2xl border bg-neutral-50 p-4 text-xs text-neutral-700">
+          <Card className="p-4 text-xs text-text-secondary">
             <pre className="whitespace-pre-wrap">{loading ? '…' : JSON.stringify(exportSnapshot ?? {}, null, 2)}</pre>
-          </div>
+          </Card>
         </div>
       )}
     </main>

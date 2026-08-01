@@ -18,6 +18,10 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
   loss_adjuster: ['payments:prepare', 'payments:view', 'payments:list'],
   branch_manager: ['payments:prepare', 'payments:view', 'payments:list'],
   auditor: ['payments:view', 'payments:list', 'payments:reconcile', 'payments:dispute'],
+  broker_owner: ['payments:view', 'payments:list'],
+  broker_staff: ['payments:view', 'payments:list'],
+  agency_owner: ['payments:view', 'payments:list'],
+  agency_staff: ['payments:view', 'payments:list'],
 };
 
 export function permissionsForRoles(roles: string[] | undefined | null): PermissionKey[] {

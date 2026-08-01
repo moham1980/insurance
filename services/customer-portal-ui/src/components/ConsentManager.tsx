@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { customer360Api } from '../lib/api';
@@ -79,42 +79,42 @@ export default function ConsentManager({ customerId }: { customerId: string }) {
   const predefinedPurposes = ['marketing', 'analytics', 'fraud_detection', 'third_party', 'affiliates'];
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+    <div className="bg-bg-raised rounded-lg shadow-1 border border-border-default p-6">
       <div className="flex items-center gap-2 mb-4">
-        <Shield className="w-5 h-5 text-indigo-600" />
-        <h2 className="text-lg font-semibold text-gray-900">مدیریت رضایت‌ها</h2>
+        <Shield className="w-5 h-5 text-brand-primary" />
+        <h2 className="text-lg font-semibold text-text-primary">مدیریت رضایت‌ها</h2>
       </div>
 
       {error && (
-        <div className="mb-4 p-3 rounded-md bg-red-50 text-red-700 text-sm flex items-center gap-2">
+        <div className="mb-4 p-3 rounded-md bg-feedback-error-subtle text-feedback-error text-sm flex items-center gap-2">
           <AlertCircle className="w-4 h-4" /> {error}
         </div>
       )}
 
       {loading && consents.length === 0 ? (
-        <div className="text-center py-8 text-gray-500 text-sm flex items-center justify-center gap-2">
+        <div className="text-center py-8 text-text-muted text-sm flex items-center justify-center gap-2">
           <RefreshCw className="w-4 h-4 animate-spin" /> در حال بارگذاری...
         </div>
       ) : (
         <div className="space-y-4">
           <div>
-            <h3 className="text-sm font-medium text-gray-700 mb-2">رضایت‌های فعال</h3>
+            <h3 className="text-sm font-medium text-text-secondary mb-2">رضایت‌های فعال</h3>
             {consents.length === 0 ? (
-              <p className="text-sm text-gray-500">هیچ رضایت ثبت‌شده‌ای وجود ندارد.</p>
+              <p className="text-sm text-text-muted">هیچ رضایت ثبت‌شده‌ای وجود ندارد.</p>
             ) : (
               <ul className="space-y-2">
                 {consents.map((consent) => (
-                  <li key={consent.consentId} className="flex items-center justify-between p-3 border border-gray-100 rounded-md bg-gray-50">
+                  <li key={consent.consentId} className="flex items-center justify-between p-3 border border-border-subtle rounded-md bg-bg-subtle">
                     <div>
-                      <p className="text-sm font-medium text-gray-900">{PURPOSE_LABELS[consent.purpose] || consent.purpose}</p>
-                      <p className="text-xs text-gray-500">وضعیت: {consent.status}</p>
-                      {consent.expiresAt && <p className="text-xs text-gray-500">انقضا: {new Date(consent.expiresAt).toLocaleDateString('fa-IR')}</p>}
+                      <p className="text-sm font-medium text-text-primary">{PURPOSE_LABELS[consent.purpose] || consent.purpose}</p>
+                      <p className="text-xs text-text-muted">وضعیت: {consent.status}</p>
+                      {consent.expiresAt && <p className="text-xs text-text-muted">انقضا: {new Date(consent.expiresAt).toLocaleDateString('fa-IR')}</p>}
                     </div>
                     {consent.status === 'granted' && (
                       <button
                         onClick={() => handleRevoke(consent.consentId)}
                         disabled={loading}
-                        className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-700 bg-white border border-red-200 rounded-md hover:bg-red-50 disabled:opacity-50"
+                        className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-feedback-error bg-bg-raised border border-feedback-error/30 rounded-md hover:bg-feedback-error-subtle disabled:opacity-50"
                       >
                         <X className="w-3 h-3" /> لغو
                       </button>
@@ -126,7 +126,7 @@ export default function ConsentManager({ customerId }: { customerId: string }) {
           </div>
 
           <div>
-            <h3 className="text-sm font-medium text-gray-700 mb-2">افزودن رضایت</h3>
+            <h3 className="text-sm font-medium text-text-secondary mb-2">افزودن رضایت</h3>
             <div className="flex flex-wrap gap-2">
               {predefinedPurposes
                 .filter((p) => !activePurposes.has(p))
@@ -135,7 +135,7 @@ export default function ConsentManager({ customerId }: { customerId: string }) {
                     key={purpose}
                     onClick={() => handleGrant(purpose)}
                     disabled={loading}
-                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-text-on-brand bg-brand-primary rounded-md hover:bg-brand-primary disabled:opacity-50"
                   >
                     <Check className="w-3 h-3" /> {PURPOSE_LABELS[purpose] || purpose}
                   </button>

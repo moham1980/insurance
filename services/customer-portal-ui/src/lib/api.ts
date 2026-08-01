@@ -1,6 +1,6 @@
 import axios, { AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3030'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:18027'
 
 const api = axios.create({
   baseURL: `${API_BASE_URL}/customer-portal`,
@@ -185,6 +185,40 @@ export const paymentsApi = {
   },
 }
 
+export const offeringsApi = {
+  list: async () => {
+    const response = await api.get('/offerings')
+    return response.data
+  },
+
+  requestQuote: async (data: {
+    offeringId: string
+    customerInfo: {
+      nationalId?: string
+      phone?: string
+      vehicleType?: string
+      vehicleYear?: string
+      propertyType?: string
+      propertySize?: string
+      age?: string
+      familySize?: string
+    }
+  }) => {
+    const response = await api.post('/offerings/request-quote', data)
+    return response.data
+  },
+
+  compareQuotes: async (rfqId: string) => {
+    const response = await api.get(`/rfq/${rfqId}/compare-quotes`)
+    return response.data
+  },
+
+  acceptQuote: async (rfqId: string, quoteId: string) => {
+    const response = await api.post(`/rfq/${rfqId}/quotes/${quoteId}/accept`)
+    return response.data
+  },
+}
+
 export const complaintsApi = {
   list: async () => {
     const response = await api.get('/complaints')
@@ -202,7 +236,7 @@ export const complaintsApi = {
   },
 }
 
-const CUSTOMER_360_BASE_URL = process.env.NEXT_PUBLIC_CUSTOMER_360_URL || 'http://localhost:3010'
+const CUSTOMER_360_BASE_URL = process.env.NEXT_PUBLIC_CUSTOMER_360_URL || 'http://localhost:18026'
 
 const customer360Client = axios.create({
   baseURL: `${CUSTOMER_360_BASE_URL}/customer-360`,

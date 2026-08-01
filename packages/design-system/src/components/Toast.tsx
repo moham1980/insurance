@@ -1,3 +1,4 @@
+'use client';
 import * as React from 'react';
 
 export type ToastVariant = 'default' | 'success' | 'error' | 'warning' | 'info';

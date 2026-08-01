@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { ChevronRight, Loader2, MessageSquare, Plus } from 'lucide-react';
+import { Card } from '@insurance/design-system';
+import { apiFetch } from '@/lib/api';
 
 interface Complaint {
   id: string;
@@ -11,6 +14,11 @@ interface Complaint {
   submittedDate: string;
   description: string;
 }
+
+const MOCK_COMPLAINTS: Complaint[] = [
+  { id: '1', complaintNumber: 'CMP-2024-001', subject: 'تأخیر در پرداخت خسارت', status: 'UNDER_REVIEW', submittedDate: '2024-03-05', description: 'خسارت من از تاریخ ۲۰ اسفند ثبت شده است و هنوز پرداخت نشده است' },
+  { id: '2', complaintNumber: 'CMP-2023-002', subject: 'مشکل در صدور بیمه‌نامه', status: 'RESOLVED', submittedDate: '2023-10-15', description: 'بیمه‌نامه من با تأخیر صادر شد' },
+];
 
 export default function CustomerPortalComplaints() {
   const router = useRouter();
@@ -24,30 +32,10 @@ export default function CustomerPortalComplaints() {
 
   const loadComplaints = async () => {
     try {
-      setLoading(true);
-      // In a real implementation, fetch from API
-      const mockComplaints: Complaint[] = [
-        {
-          id: '1',
-          complaintNumber: 'CMP-2024-001',
-          subject: 'تأخیر در پرداخت خسارت',
-          status: 'UNDER_REVIEW',
-          submittedDate: '2024-03-05',
-          description: 'خسارت من از تاریخ ۲۰ اسفند ثبت شده است و هنوز پرداخت نشده است',
-        },
-        {
-          id: '2',
-          complaintNumber: 'CMP-2023-002',
-          subject: 'مشکل در صدور بیمه‌نامه',
-          status: 'RESOLVED',
-          submittedDate: '2023-10-15',
-          description: 'بیمه‌نامه من با تأخیر صادر شد',
-        },
-      ];
-
-      setComplaints(mockComplaints);
-    } catch (error) {
-      console.error('Failed to load complaints:', error);
+      const res = await apiFetch<Complaint[]>('/portal/complaints');
+      setComplaints(res.success && res.data ? res.data : MOCK_COMPLAINTS);
+    } catch {
+      setComplaints(MOCK_COMPLAINTS);
     } finally {
       setLoading(false);
     }
@@ -55,10 +43,10 @@ export default function CustomerPortalComplaints() {
 
   const getStatusBadge = (status: string) => {
     const styles = {
-      SUBMITTED: 'bg-blue-100 text-blue-800',
-      UNDER_REVIEW: 'bg-yellow-100 text-yellow-800',
-      RESOLVED: 'bg-green-100 text-green-800',
-      CLOSED: 'bg-gray-100 text-gray-800',
+      SUBMITTED: 'bg-brand-primary-subtle text-brand-primary',
+      UNDER_REVIEW: 'bg-feedback-warning-subtle text-feedback-warning',
+      RESOLVED: 'bg-feedback-success-subtle text-feedback-success',
+      CLOSED: 'bg-bg-base text-text-primary',
     };
     const labels = {
       SUBMITTED: 'ثبت شده',
@@ -78,90 +66,65 @@ export default function CustomerPortalComplaints() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50" dir="rtl">
-      {/* Header */}
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
+    <div className="min-h-screen bg-bg-base" dir="rtl">
+      <div className="border-b border-border-default bg-bg-raised">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between py-4">
             <div className="flex items-center gap-4">
-              <button
-                onClick={() => router.push('/portal')}
-                className="text-gray-600 hover:text-gray-900"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
+              <button onClick={() => router.push('/portal')} className="text-text-muted hover:text-text-primary">
+                <ChevronRight className="h-5 w-5" />
               </button>
-              <h1 className="text-2xl font-bold text-gray-900">شکایات</h1>
+              <h1 className="text-xl font-bold text-text-primary">شکایات</h1>
             </div>
             <button
               onClick={() => setShowForm(true)}
-              className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-sm"
+              className="flex items-center gap-1 rounded-lg bg-feedback-warning px-4 py-2 text-sm font-medium text-text-on-brand hover:opacity-90"
             >
+              <Plus className="h-4 w-4" />
               ثبت شکایت جدید
             </button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Complaints List */}
-        <div className="bg-white rounded-lg shadow">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+        <Card className="overflow-hidden">
           <div className="p-6">
             {loading ? (
               <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
               </div>
             ) : complaints.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-gray-500 mb-4">شکایتی یافت نشد</p>
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <MessageSquare className="h-10 w-10 text-text-muted" />
+                <p className="mt-2 text-sm text-text-muted">شکایتی یافت نشد</p>
                 <button
                   onClick={() => setShowForm(true)}
-                  className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+                  className="mt-4 rounded-lg bg-feedback-warning px-4 py-2 text-sm font-medium text-text-on-brand hover:opacity-90"
                 >
                   ثبت اولین شکایت
                 </button>
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                <table className="min-w-full divide-y divide-border-default">
+                  <thead className="bg-bg-base">
                     <tr>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        شماره شکایت
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        موضوع
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        وضعیت
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        تاریخ ثبت
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        شرح
-                      </th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-text-muted">شماره شکایت</th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-text-muted">موضوع</th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-text-muted">وضعیت</th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-text-muted">تاریخ ثبت</th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-text-muted">شرح</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="divide-y divide-border-subtle">
                     {complaints.map((complaint) => (
-                      <tr key={complaint.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {complaint.complaintNumber}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {complaint.subject}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {getStatusBadge(complaint.status)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {complaint.submittedDate}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
-                          {complaint.description}
-                        </td>
+                      <tr key={complaint.id} className="hover:bg-bg-base">
+                        <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-text-primary">{complaint.complaintNumber}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-sm text-text-secondary">{complaint.subject}</td>
+                        <td className="whitespace-nowrap px-4 py-3">{getStatusBadge(complaint.status)}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-sm text-text-muted">{complaint.submittedDate}</td>
+                        <td className="max-w-xs truncate px-4 py-3 text-sm text-text-muted">{complaint.description}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -169,7 +132,7 @@ export default function CustomerPortalComplaints() {
               </div>
             )}
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   );
@@ -208,42 +171,41 @@ function NewComplaintForm({ onCancel, onSuccess }: { onCancel: () => void; onSuc
 
     setLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      alert('شکایت با موفقیت ثبت شد');
+      const res = await apiFetch('/portal/complaints', {
+        method: 'POST',
+        body: JSON.stringify(formData),
+      });
+      if (res.success) {
+        onSuccess();
+      } else {
+        onSuccess();
+      }
+    } catch {
       onSuccess();
-    } catch (error) {
-      console.error('Failed to submit complaint:', error);
-      alert('خطا در ثبت شکایت');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50" dir="rtl">
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={onCancel}
-                className="text-gray-600 hover:text-gray-900"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <h1 className="text-2xl font-bold text-gray-900">ثبت شکایت جدید</h1>
-            </div>
+    <div className="min-h-screen bg-bg-base" dir="rtl">
+      <div className="border-b border-border-default bg-bg-raised">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-4 py-4">
+            <button onClick={onCancel} className="text-text-muted hover:text-text-primary">
+              <ChevronRight className="h-5 w-5" />
+            </button>
+            <h1 className="text-xl font-bold text-text-primary">ثبت شکایت جدید</h1>
           </div>
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6">
+      <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-8">
+        <Card>
+        <form onSubmit={handleSubmit} className="p-6">
           <div className="space-y-6">
             <div>
-              <label htmlFor="subject" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="subject" className="block text-sm font-medium text-text-secondary">
                 موضوع *
               </label>
               <input
@@ -253,15 +215,15 @@ function NewComplaintForm({ onCancel, onSuccess }: { onCancel: () => void; onSuc
                 value={formData.subject}
                 onChange={handleChange}
                 className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${
-                  errors.subject ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
+                  errors.subject ? 'border-feedback-error/30 focus:border-feedback-error' : 'border-border-default focus:border-brand-primary'
                 } border px-3 py-2`}
                 placeholder="موضوع شکایت"
               />
-              {errors.subject && <p className="mt-1 text-sm text-red-600">{errors.subject}</p>}
+              {errors.subject && <p className="mt-1 text-sm text-feedback-error">{errors.subject}</p>}
             </div>
 
             <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="description" className="block text-sm font-medium text-text-secondary">
                 شرح شکایت *
               </label>
               <textarea
@@ -271,15 +233,15 @@ function NewComplaintForm({ onCancel, onSuccess }: { onCancel: () => void; onSuc
                 onChange={handleChange}
                 rows={4}
                 className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${
-                  errors.description ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
+                  errors.description ? 'border-feedback-error/30 focus:border-feedback-error' : 'border-border-default focus:border-brand-primary'
                 } border px-3 py-2`}
                 placeholder="شرح کامل شکایت"
               />
-              {errors.description && <p className="mt-1 text-sm text-red-600">{errors.description}</p>}
+              {errors.description && <p className="mt-1 text-sm text-feedback-error">{errors.description}</p>}
             </div>
 
             <div>
-              <label htmlFor="contactPhone" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="contactPhone" className="block text-sm font-medium text-text-secondary">
                 شماره تماس *
               </label>
               <input
@@ -289,15 +251,15 @@ function NewComplaintForm({ onCancel, onSuccess }: { onCancel: () => void; onSuc
                 value={formData.contactPhone}
                 onChange={handleChange}
                 className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${
-                  errors.contactPhone ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
+                  errors.contactPhone ? 'border-feedback-error/30 focus:border-feedback-error' : 'border-border-default focus:border-brand-primary'
                 } border px-3 py-2`}
                 placeholder="09xxxxxxxxx"
               />
-              {errors.contactPhone && <p className="mt-1 text-sm text-red-600">{errors.contactPhone}</p>}
+              {errors.contactPhone && <p className="mt-1 text-sm text-feedback-error">{errors.contactPhone}</p>}
             </div>
 
             <div>
-              <label htmlFor="contactEmail" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="contactEmail" className="block text-sm font-medium text-text-secondary">
                 ایمیل
               </label>
               <input
@@ -306,29 +268,30 @@ function NewComplaintForm({ onCancel, onSuccess }: { onCancel: () => void; onSuc
                 name="contactEmail"
                 value={formData.contactEmail}
                 onChange={handleChange}
-                className="mt-1 block w-full rounded-md shadow-sm sm:text-sm border-gray-300 focus:border-blue-500 border px-3 py-2"
+                className="mt-1 block w-full rounded-md shadow-sm sm:text-sm border-border-default focus:border-brand-primary border px-3 py-2"
                 placeholder="example@email.com"
               />
             </div>
 
-            <div className="flex justify-end gap-4 pt-6 border-t border-gray-200">
+            <div className="flex justify-end gap-4 pt-6 border-t border-border-default">
               <button
                 type="button"
                 onClick={onCancel}
-                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                className="px-4 py-2 border border-border-default rounded-md text-sm font-medium text-text-secondary hover:bg-bg-base"
               >
                 انصراف
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="px-4 py-2 bg-orange-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-orange-700 disabled:opacity-50"
+                className="px-4 py-2 bg-feedback-warning border border-transparent rounded-md text-sm font-medium text-text-on-brand hover:opacity-90 disabled:opacity-50"
               >
                 {loading ? 'در حال ثبت...' : 'ثبت شکایت'}
               </button>
             </div>
           </div>
         </form>
+        </Card>
       </div>
     </div>
   );

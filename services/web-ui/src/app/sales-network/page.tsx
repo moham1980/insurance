@@ -1,8 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { Network, RefreshCw, AlertCircle, CheckCircle, Clock, XCircle, FileText, Plus, BadgeCheck, Ban, PlayCircle, Users, BarChart3, BookOpen } from 'lucide-react';
 import { apiFetch, getAuthUser } from '@/lib/api';
 import { enterprisePermissionsForRoles, hasEnterprisePermission } from '@/lib/enterprise-rbac';
+import { Button, Card, StatCard } from '@insurance/design-system';
+import { MOCK_SALES_NETWORK_PARTNERS } from '@/lib/mock-data';
 
 type PartnerRow = {
   partnerId: string;
@@ -142,6 +145,9 @@ export default function SalesNetworkPage() {
     if (res.success) {
       setPartners(res.data);
       setPartnersTotal(res.pagination?.total || 0);
+    } else {
+      setPartners(MOCK_SALES_NETWORK_PARTNERS as unknown as PartnerRow[]);
+      setPartnersTotal(MOCK_SALES_NETWORK_PARTNERS.length);
     }
     setPartnersLoading(false);
   }
@@ -310,109 +316,142 @@ export default function SalesNetworkPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, partnersLimit, partnersOffset, partnerKind, partnerStatus, contractsLimit, contractsOffset, contractsOrgUnitId, contractsStatus, ledgerLimit, ledgerOffset, ledgerOrgUnitId, ledgerStatus, kpiLimit, kpiOffset, kpiOrgUnitId, kpiDayFrom, kpiDayTo]);
 
+  const statusBadge = (s: string) => {
+    const cfg: Record<string, { bg: string; text: string; icon: any }> = {
+      pending: { bg: 'bg-feedback-warning-subtle', text: 'text-feedback-warning', icon: Clock },
+      verified: { bg: 'bg-feedback-info-subtle', text: 'text-feedback-info', icon: BadgeCheck },
+      active: { bg: 'bg-feedback-success-subtle', text: 'text-feedback-success', icon: CheckCircle },
+      suspended: { bg: 'bg-feedback-error-subtle', text: 'text-feedback-error', icon: Ban },
+      terminated: { bg: 'bg-feedback-error-subtle', text: 'text-feedback-error', icon: XCircle },
+      draft: { bg: 'bg-bg-base', text: 'text-text-secondary', icon: FileText },
+      paid: { bg: 'bg-feedback-success-subtle', text: 'text-feedback-success', icon: CheckCircle },
+      void: { bg: 'bg-feedback-error-subtle', text: 'text-feedback-error', icon: XCircle },
+      accrued: { bg: 'bg-feedback-warning-subtle', text: 'text-feedback-warning', icon: Clock },
+    };
+    const c = cfg[s] || { bg: 'bg-bg-base', text: 'text-text-secondary', icon: AlertCircle };
+    const Icon = c.icon;
+    return (
+      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${c.bg} ${c.text}`}>
+        <Icon className="w-3 h-3" />
+        {s}
+      </span>
+    );
+  };
+
   return (
-    <main className="p-6">
-      <div>
-        <h1 className="text-xl font-semibold">شبکه فروش (نمایندگی/کارگزاری)</h1>
-        <p className="mt-1 text-sm text-neutral-600">مدیریت lifecycle، قرارداد کمیسیون، دفتر کل کارمزد و KPI</p>
+    <main className="p-6 max-w-7xl mx-auto" dir="rtl">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
+            <Network className="h-5 w-5" />
+          </div>
+          <div>
+            <h1 className="text-xl font-semibold">شبکه فروش (نمایندگی/کارگزاری)</h1>
+            <p className="mt-1 text-sm text-text-muted">مدیریت lifecycle، قرارداد کمیسیون، دفتر کل کارمزد و KPI</p>
+          </div>
+        </div>
       </div>
 
       {!canViewPartners ? (
-        <div className="mt-6 rounded-2xl border p-4 text-sm text-neutral-700">دسترسی ندارید.</div>
+        <Card className="mt-6 p-4 text-sm text-text-secondary text-center">دسترسی ندارید.</Card>
       ) : null}
 
       {error ? (
-        <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
+        <div className="mt-4 rounded-xl border border-feedback-error/30 bg-feedback-error-subtle p-3 text-sm text-feedback-error flex items-start gap-2">
+          <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
           {error.message}
           {error.correlationId ? <div className="mt-1 text-xs">correlationId: {error.correlationId}</div> : null}
         </div>
       ) : null}
 
       <div className="mt-6 flex flex-wrap gap-2">
-        <button className={`rounded-xl border px-3 py-2 text-sm ${tab === 'partners' ? 'bg-neutral-900 text-white' : 'hover:bg-neutral-50'}`} onClick={() => setTab('partners')}>
-          Partners
-        </button>
-        <button className={`rounded-xl border px-3 py-2 text-sm ${tab === 'contracts' ? 'bg-neutral-900 text-white' : 'hover:bg-neutral-50'}`} onClick={() => setTab('contracts')} disabled={!canViewContracts}>
-          Contracts
-        </button>
-        <button className={`rounded-xl border px-3 py-2 text-sm ${tab === 'ledger' ? 'bg-neutral-900 text-white' : 'hover:bg-neutral-50'}`} onClick={() => setTab('ledger')} disabled={!canViewLedger}>
-          Ledger
-        </button>
-        <button className={`rounded-xl border px-3 py-2 text-sm ${tab === 'kpi' ? 'bg-neutral-900 text-white' : 'hover:bg-neutral-50'}`} onClick={() => setTab('kpi')} disabled={!canViewKpi}>
-          KPI Daily
-        </button>
+        <Button variant={tab === 'partners' ? 'primary' : 'secondary'} size="sm" onClick={() => setTab('partners')}>
+          <Users className="h-4 w-4 ml-1" />
+          نمایندگی‌ها
+        </Button>
+        <Button variant={tab === 'contracts' ? 'primary' : 'secondary'} size="sm" onClick={() => setTab('contracts')} disabled={!canViewContracts}>
+          <FileText className="h-4 w-4 ml-1" />
+          قراردادها
+        </Button>
+        <Button variant={tab === 'ledger' ? 'primary' : 'secondary'} size="sm" onClick={() => setTab('ledger')} disabled={!canViewLedger}>
+          <BookOpen className="h-4 w-4 ml-1" />
+          دفتر کل
+        </Button>
+        <Button variant={tab === 'kpi' ? 'primary' : 'secondary'} size="sm" onClick={() => setTab('kpi')} disabled={!canViewKpi}>
+          <BarChart3 className="h-4 w-4 ml-1" />
+          شاخص‌های روزانه
+        </Button>
       </div>
 
       {tab === 'partners' ? (
         <section className="mt-6 grid gap-6 lg:grid-cols-2">
-          <div className="rounded-2xl border p-4">
+          <Card className="p-4">
             <div className="text-sm font-semibold">فیلتر</div>
             <div className="mt-3 grid gap-3">
               <label className="grid gap-1 text-sm">
-                <span className="text-xs text-neutral-600">نوع</span>
-                <select className="rounded-xl border px-3 py-2" value={partnerKind} onChange={(e) => setPartnerKind(e.target.value)}>
+                <span className="text-xs text-text-muted">نوع</span>
+                <select className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={partnerKind} onChange={(e) => setPartnerKind(e.target.value)}>
                   <option value="">همه</option>
                   <option value="agency">نمایندگی</option>
                   <option value="brokerage">کارگزاری</option>
                 </select>
               </label>
               <label className="grid gap-1 text-sm">
-                <span className="text-xs text-neutral-600">وضعیت</span>
-                <select className="rounded-xl border px-3 py-2" value={partnerStatus} onChange={(e) => setPartnerStatus(e.target.value)}>
+                <span className="text-xs text-text-muted">وضعیت</span>
+                <select className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={partnerStatus} onChange={(e) => setPartnerStatus(e.target.value)}>
                   <option value="">همه</option>
-                  <option value="pending">pending</option>
-                  <option value="verified">verified</option>
-                  <option value="active">active</option>
-                  <option value="suspended">suspended</option>
-                  <option value="terminated">terminated</option>
+                  <option value="pending">در انتظار</option>
+                  <option value="verified">تأییدشده</option>
+                  <option value="active">فعال</option>
+                  <option value="suspended">معلق</option>
+                  <option value="terminated">خاتمه‌یافته</option>
                 </select>
               </label>
             </div>
-          </div>
+          </Card>
 
-          <div className="rounded-2xl border p-4">
+          <Card className="p-4">
             <div className="text-sm font-semibold">ایجاد/ویرایش Partner</div>
             <div className="mt-3 grid gap-3">
               <label className="grid gap-1 text-sm">
-                <span className="text-xs text-neutral-600">orgUnitId</span>
-                <input className="rounded-xl border px-3 py-2" value={orgUnitId} onChange={(e) => setOrgUnitId(e.target.value)} disabled={!canManagePartners} />
+                <span className="text-xs text-text-muted">orgUnitId</span>
+                <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={orgUnitId} onChange={(e) => setOrgUnitId(e.target.value)} disabled={!canManagePartners} />
               </label>
               <label className="grid gap-1 text-sm">
-                <span className="text-xs text-neutral-600">نام</span>
-                <input className="rounded-xl border px-3 py-2" value={displayName} onChange={(e) => setDisplayName(e.target.value)} disabled={!canManagePartners} />
+                <span className="text-xs text-text-muted">نام</span>
+                <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={displayName} onChange={(e) => setDisplayName(e.target.value)} disabled={!canManagePartners} />
               </label>
               <label className="grid gap-1 text-sm">
-                <span className="text-xs text-neutral-600">نوع</span>
-                <select className="rounded-xl border px-3 py-2" value={kind} onChange={(e) => setKind(e.target.value as any)} disabled={!canManagePartners}>
+                <span className="text-xs text-text-muted">نوع</span>
+                <select className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={kind} onChange={(e) => setKind(e.target.value as any)} disabled={!canManagePartners}>
                   <option value="agency">نمایندگی</option>
                   <option value="brokerage">کارگزاری</option>
                 </select>
               </label>
-              <button
-                type="button"
-                className="rounded-xl bg-neutral-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+              <Button
                 disabled={!canManagePartners || !orgUnitId || !displayName}
                 onClick={createOrUpdatePartner}
               >
+                <Plus className="h-4 w-4 ml-1" />
                 ثبت
-              </button>
+              </Button>
             </div>
-          </div>
+          </Card>
 
-          <div className="rounded-2xl border p-4 lg:col-span-2">
+          <Card className="p-4 lg:col-span-2">
             <div className="flex items-center justify-between">
               <div className="text-sm font-semibold">لیست Partners</div>
-              <div className="text-xs text-neutral-600">total: {partnersTotal}</div>
+              <div className="text-xs text-text-muted">total: {partnersTotal}</div>
             </div>
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              <button className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50" disabled={partnersOffset === 0} onClick={() => setPartnersOffset(Math.max(0, partnersOffset - partnersLimit))}>
+              <Button variant="ghost" size="sm" disabled={partnersOffset === 0} onClick={() => setPartnersOffset(Math.max(0, partnersOffset - partnersLimit))}>
                 قبلی
-              </button>
-              <button className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50" disabled={partnersOffset + partnersLimit >= partnersTotal} onClick={() => setPartnersOffset(partnersOffset + partnersLimit)}>
+              </Button>
+              <Button variant="ghost" size="sm" disabled={partnersOffset + partnersLimit >= partnersTotal} onClick={() => setPartnersOffset(partnersOffset + partnersLimit)}>
                 بعدی
-              </button>
-              <select className="rounded-xl border px-3 py-2 text-sm" value={partnersLimit} onChange={(e) => { setPartnersLimit(parseInt(e.target.value, 10)); setPartnersOffset(0); }}>
+              </Button>
+              <select className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-sm text-text-primary" value={partnersLimit} onChange={(e) => { setPartnersLimit(parseInt(e.target.value, 10)); setPartnersOffset(0); }}>
                 <option value={25}>25</option>
                 <option value={50}>50</option>
                 <option value={100}>100</option>
@@ -421,115 +460,120 @@ export default function SalesNetworkPage() {
 
             <div className="mt-3 space-y-2">
               {partners.map((p) => (
-                <div key={p.partnerId} className="rounded-xl border px-3 py-2">
+                <div key={p.partnerId} className="rounded-xl border border-border-default bg-bg-base px-3 py-2">
                   <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                     <div>
-                      <div className="text-sm font-semibold">{p.displayName}</div>
-                      <div className="mt-1 text-xs text-neutral-600">{p.kind} | {p.status}</div>
-                      <div className="mt-1 text-xs text-neutral-600">orgUnitId: {p.orgUnitId}</div>
-                      {p.licenseCode ? <div className="mt-1 text-xs text-neutral-600">license: {p.licenseCode}</div> : null}
-                      {p.verifiedAt ? <div className="mt-1 text-xs text-neutral-600">verifiedAt: {p.verifiedAt}</div> : null}
+                      <div className="flex items-center gap-2">
+                        <div className="text-sm font-semibold">{p.displayName}</div>
+                        {statusBadge(p.status)}
+                      </div>
+                      <div className="mt-1 text-xs text-text-muted">{p.kind} | orgUnitId: {p.orgUnitId}</div>
+                      {p.licenseCode ? <div className="mt-1 text-xs text-text-muted">license: {p.licenseCode}</div> : null}
+                      {p.verifiedAt ? <div className="mt-1 text-xs text-text-muted">verifiedAt: {p.verifiedAt}</div> : null}
                     </div>
                     {canManagePartners ? (
                       <div className="flex flex-wrap gap-2">
-                        <button className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" onClick={() => verifyPartner(p.orgUnitId)}>
-                          Verify
-                        </button>
-                        <button className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" onClick={() => setPartnerStatusAction(p.orgUnitId, 'active')}>
-                          Set Active
-                        </button>
-                        <button className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" onClick={() => setPartnerStatusAction(p.orgUnitId, 'suspended')}>
-                          Suspend
-                        </button>
-                        <button className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" onClick={() => setPartnerStatusAction(p.orgUnitId, 'terminated')}>
-                          Terminate
-                        </button>
+                        <Button variant="ghost" size="sm" onClick={() => verifyPartner(p.orgUnitId)}>
+                          <BadgeCheck className="h-4 w-4 ml-1" />
+                          تأیید
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setPartnerStatusAction(p.orgUnitId, 'active')}>
+                          <CheckCircle className="h-4 w-4 ml-1" />
+                          فعال
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setPartnerStatusAction(p.orgUnitId, 'suspended')}>
+                          <Ban className="h-4 w-4 ml-1" />
+                          تعلیق
+                        </Button>
+                        <Button variant="danger" size="sm" onClick={() => setPartnerStatusAction(p.orgUnitId, 'terminated')}>
+                          <XCircle className="h-4 w-4 ml-1" />
+                          خاتمه
+                        </Button>
                       </div>
                     ) : null}
                   </div>
                 </div>
               ))}
-              {!partnersLoading && partners.length === 0 ? <div className="text-sm text-neutral-600">موردی وجود ندارد.</div> : null}
+              {!partnersLoading && partners.length === 0 ? <div className="text-sm text-text-muted text-center py-4">موردی وجود ندارد.</div> : null}
             </div>
-          </div>
+          </Card>
         </section>
       ) : null}
 
       {tab === 'contracts' ? (
         <section className="mt-6 grid gap-6 lg:grid-cols-2">
-          <div className="rounded-2xl border p-4">
+          <Card className="p-4">
             <div className="text-sm font-semibold">فیلتر</div>
             <div className="mt-3 grid gap-3">
               <label className="grid gap-1 text-sm">
-                <span className="text-xs text-neutral-600">orgUnitId</span>
-                <input className="rounded-xl border px-3 py-2" value={contractsOrgUnitId} onChange={(e) => setContractsOrgUnitId(e.target.value)} />
+                <span className="text-xs text-text-muted">orgUnitId</span>
+                <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={contractsOrgUnitId} onChange={(e) => setContractsOrgUnitId(e.target.value)} />
               </label>
               <label className="grid gap-1 text-sm">
-                <span className="text-xs text-neutral-600">status</span>
-                <input className="rounded-xl border px-3 py-2" value={contractsStatus} onChange={(e) => setContractsStatus(e.target.value)} />
+                <span className="text-xs text-text-muted">status</span>
+                <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={contractsStatus} onChange={(e) => setContractsStatus(e.target.value)} />
               </label>
             </div>
-          </div>
+          </Card>
 
-          <div className="rounded-2xl border p-4">
+          <Card className="p-4">
             <div className="text-sm font-semibold">ایجاد Contract</div>
             <div className="mt-3 grid gap-3">
               <label className="grid gap-1 text-sm">
-                <span className="text-xs text-neutral-600">orgUnitId</span>
-                <input className="rounded-xl border px-3 py-2" value={cOrgUnitId} onChange={(e) => setCOrgUnitId(e.target.value)} disabled={!canManageContracts} />
+                <span className="text-xs text-text-muted">orgUnitId</span>
+                <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={cOrgUnitId} onChange={(e) => setCOrgUnitId(e.target.value)} disabled={!canManageContracts} />
               </label>
               <label className="grid gap-1 text-sm">
-                <span className="text-xs text-neutral-600">lineOfBusiness (optional)</span>
-                <input className="rounded-xl border px-3 py-2" value={cLineOfBusiness} onChange={(e) => setCLineOfBusiness(e.target.value)} disabled={!canManageContracts} />
+                <span className="text-xs text-text-muted">lineOfBusiness (optional)</span>
+                <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={cLineOfBusiness} onChange={(e) => setCLineOfBusiness(e.target.value)} disabled={!canManageContracts} />
               </label>
               <label className="grid gap-1 text-sm">
-                <span className="text-xs text-neutral-600">base</span>
-                <select className="rounded-xl border px-3 py-2" value={cBase} onChange={(e) => setCBase(e.target.value as any)} disabled={!canManageContracts}>
+                <span className="text-xs text-text-muted">base</span>
+                <select className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={cBase} onChange={(e) => setCBase(e.target.value as any)} disabled={!canManageContracts}>
                   <option value="premium_gross">premium_gross</option>
                   <option value="premium_net">premium_net</option>
                 </select>
               </label>
               <label className="grid gap-1 text-sm">
-                <span className="text-xs text-neutral-600">rateBps</span>
-                <input className="rounded-xl border px-3 py-2" value={cRateBps} onChange={(e) => setCRateBps(e.target.value)} disabled={!canManageContracts} />
+                <span className="text-xs text-text-muted">rateBps</span>
+                <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={cRateBps} onChange={(e) => setCRateBps(e.target.value)} disabled={!canManageContracts} />
               </label>
               <label className="grid gap-1 text-sm">
-                <span className="text-xs text-neutral-600">fixedFeeAmount</span>
-                <input className="rounded-xl border px-3 py-2" value={cFixedFee} onChange={(e) => setCFixedFee(e.target.value)} disabled={!canManageContracts} />
+                <span className="text-xs text-text-muted">fixedFeeAmount</span>
+                <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={cFixedFee} onChange={(e) => setCFixedFee(e.target.value)} disabled={!canManageContracts} />
               </label>
               <label className="grid gap-1 text-sm">
-                <span className="text-xs text-neutral-600">effectiveFrom (ISO)</span>
-                <input className="rounded-xl border px-3 py-2" value={cEffectiveFrom} onChange={(e) => setCEffectiveFrom(e.target.value)} disabled={!canManageContracts} />
+                <span className="text-xs text-text-muted">effectiveFrom (ISO)</span>
+                <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={cEffectiveFrom} onChange={(e) => setCEffectiveFrom(e.target.value)} disabled={!canManageContracts} />
               </label>
               <label className="grid gap-1 text-sm">
-                <span className="text-xs text-neutral-600">notes</span>
-                <input className="rounded-xl border px-3 py-2" value={cNotes} onChange={(e) => setCNotes(e.target.value)} disabled={!canManageContracts} />
+                <span className="text-xs text-text-muted">notes</span>
+                <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={cNotes} onChange={(e) => setCNotes(e.target.value)} disabled={!canManageContracts} />
               </label>
-              <button
-                type="button"
-                className="rounded-xl bg-neutral-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+              <Button
                 disabled={!canManageContracts || !cOrgUnitId || !cEffectiveFrom}
                 onClick={createContract}
               >
+                <Plus className="h-4 w-4 ml-1" />
                 ایجاد
-              </button>
+              </Button>
             </div>
-          </div>
+          </Card>
 
-          <div className="rounded-2xl border p-4 lg:col-span-2">
+          <Card className="p-4 lg:col-span-2">
             <div className="flex items-center justify-between">
               <div className="text-sm font-semibold">لیست Contracts</div>
-              <div className="text-xs text-neutral-600">total: {contractsTotal}</div>
+              <div className="text-xs text-text-muted">total: {contractsTotal}</div>
             </div>
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              <button className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50" disabled={contractsOffset === 0} onClick={() => setContractsOffset(Math.max(0, contractsOffset - contractsLimit))}>
+              <Button variant="ghost" size="sm" disabled={contractsOffset === 0} onClick={() => setContractsOffset(Math.max(0, contractsOffset - contractsLimit))}>
                 قبلی
-              </button>
-              <button className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50" disabled={contractsOffset + contractsLimit >= contractsTotal} onClick={() => setContractsOffset(contractsOffset + contractsLimit)}>
+              </Button>
+              <Button variant="ghost" size="sm" disabled={contractsOffset + contractsLimit >= contractsTotal} onClick={() => setContractsOffset(contractsOffset + contractsLimit)}>
                 بعدی
-              </button>
-              <select className="rounded-xl border px-3 py-2 text-sm" value={contractsLimit} onChange={(e) => { setContractsLimit(parseInt(e.target.value, 10)); setContractsOffset(0); }}>
+              </Button>
+              <select className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-sm text-text-primary" value={contractsLimit} onChange={(e) => { setContractsLimit(parseInt(e.target.value, 10)); setContractsOffset(0); }}>
                 <option value={25}>25</option>
                 <option value={50}>50</option>
                 <option value={100}>100</option>
@@ -537,137 +581,150 @@ export default function SalesNetworkPage() {
             </div>
             <div className="mt-3 space-y-2">
               {contracts.map((c) => (
-                <div key={c.contractId} className="rounded-xl border px-3 py-2">
+                <div key={c.contractId} className="rounded-xl border border-border-default bg-bg-base px-3 py-2">
                   <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                     <div>
-                      <div className="text-sm font-semibold">{c.orgUnitId}</div>
-                      <div className="mt-1 text-xs text-neutral-600">{c.status} | base={c.base} | rateBps={c.rateBps ?? '—'} | fixed={c.fixedFeeAmount ?? '—'}</div>
-                      <div className="mt-1 text-xs text-neutral-600">effectiveFrom: {c.effectiveFrom}</div>
+                      <div className="flex items-center gap-2">
+                        <div className="text-sm font-semibold">{c.orgUnitId}</div>
+                        {statusBadge(c.status)}
+                      </div>
+                      <div className="mt-1 text-xs text-text-muted">base={c.base} | rateBps={c.rateBps ?? '—'} | fixed={c.fixedFeeAmount ?? '—'}</div>
+                      <div className="mt-1 text-xs text-text-muted">effectiveFrom: {c.effectiveFrom}</div>
                     </div>
                     {canManageContracts ? (
                       <div className="flex flex-wrap gap-2">
-                        <button className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" onClick={() => activateContract(c.contractId)}>
-                          Activate
-                        </button>
+                        <Button variant="ghost" size="sm" onClick={() => activateContract(c.contractId)}>
+                          <PlayCircle className="h-4 w-4 ml-1" />
+                          فعال‌سازی
+                        </Button>
                       </div>
                     ) : null}
                   </div>
                 </div>
               ))}
-              {!contractsLoading && contracts.length === 0 ? <div className="text-sm text-neutral-600">موردی وجود ندارد.</div> : null}
+              {!contractsLoading && contracts.length === 0 ? <div className="text-sm text-text-muted text-center py-4">موردی وجود ندارد.</div> : null}
             </div>
-          </div>
+          </Card>
         </section>
       ) : null}
 
       {tab === 'ledger' ? (
-        <section className="mt-6 rounded-2xl border p-4">
-          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-            <div className="grid gap-2 md:grid-cols-2">
-              <label className="grid gap-1 text-sm">
-                <span className="text-xs text-neutral-600">orgUnitId</span>
-                <input className="rounded-xl border px-3 py-2" value={ledgerOrgUnitId} onChange={(e) => setLedgerOrgUnitId(e.target.value)} />
-              </label>
-              <label className="grid gap-1 text-sm">
-                <span className="text-xs text-neutral-600">status</span>
-                <input className="rounded-xl border px-3 py-2" value={ledgerStatus} onChange={(e) => setLedgerStatus(e.target.value)} />
-              </label>
-            </div>
-            <div className="text-xs text-neutral-600">total: {ledgerTotal}</div>
-          </div>
-
-          <div className="mt-3 space-y-2">
-            {ledger.map((l) => (
-              <div key={l.ledgerEntryId} className="rounded-xl border px-3 py-2">
-                <div className="text-xs text-neutral-600">{l.occurredAt} | {l.eventType} | {l.status}</div>
-                <div className="mt-1 text-sm">commission: {l.commissionAmount} {l.currency}</div>
-                <div className="mt-1 text-xs text-neutral-600">orgUnitId: {l.orgUnitId}</div>
-                <div className="mt-1 text-xs text-neutral-600">policy: {l.policyNumber || l.policyId}</div>
-                {l.premiumAmount ? <div className="mt-1 text-xs text-neutral-600">premium: {l.premiumAmount}</div> : null}
-
-                {canManageLedger ? (
-                  <div className="mt-3 flex flex-col gap-2 md:flex-row md:items-center">
-                    <button className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" onClick={() => payLedger(l.ledgerEntryId)}>
-                      Mark Paid
-                    </button>
-                    <input
-                      className="rounded-xl border px-3 py-2 text-sm"
-                      placeholder="reason برای void"
-                      value={voidReasonByLedgerId[l.ledgerEntryId] || ''}
-                      onChange={(e) => setVoidReasonByLedgerId((m) => ({ ...m, [l.ledgerEntryId]: e.target.value }))}
-                    />
-                    <button className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" onClick={() => voidLedger(l.ledgerEntryId)}>
-                      Void
-                    </button>
-                  </div>
-                ) : null}
+        <section className="mt-6">
+          <Card className="p-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+              <div className="grid gap-2 md:grid-cols-2">
+                <label className="grid gap-1 text-sm">
+                  <span className="text-xs text-text-muted">orgUnitId</span>
+                  <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={ledgerOrgUnitId} onChange={(e) => setLedgerOrgUnitId(e.target.value)} />
+                </label>
+                <label className="grid gap-1 text-sm">
+                  <span className="text-xs text-text-muted">status</span>
+                  <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={ledgerStatus} onChange={(e) => setLedgerStatus(e.target.value)} />
+                </label>
               </div>
-            ))}
-            {!ledgerLoading && ledger.length === 0 ? <div className="text-sm text-neutral-600">موردی وجود ندارد.</div> : null}
-          </div>
+              <div className="text-xs text-text-muted">total: {ledgerTotal}</div>
+            </div>
 
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <button className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50" disabled={ledgerOffset === 0} onClick={() => setLedgerOffset(Math.max(0, ledgerOffset - ledgerLimit))}>
-              قبلی
-            </button>
-            <button className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50" disabled={ledgerOffset + ledgerLimit >= ledgerTotal} onClick={() => setLedgerOffset(ledgerOffset + ledgerLimit)}>
-              بعدی
-            </button>
-            <select className="rounded-xl border px-3 py-2 text-sm" value={ledgerLimit} onChange={(e) => { setLedgerLimit(parseInt(e.target.value, 10)); setLedgerOffset(0); }}>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-          </div>
+            <div className="mt-3 space-y-2">
+              {ledger.map((l) => (
+                <div key={l.ledgerEntryId} className="rounded-xl border border-border-default bg-bg-base px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <div className="text-xs text-text-muted">{l.occurredAt} | {l.eventType}</div>
+                    {statusBadge(l.status)}
+                  </div>
+                  <div className="mt-1 text-sm">commission: {l.commissionAmount} {l.currency}</div>
+                  <div className="mt-1 text-xs text-text-muted">orgUnitId: {l.orgUnitId}</div>
+                  <div className="mt-1 text-xs text-text-muted">policy: {l.policyNumber || l.policyId}</div>
+                  {l.premiumAmount ? <div className="mt-1 text-xs text-text-muted">premium: {l.premiumAmount}</div> : null}
+
+                  {canManageLedger ? (
+                    <div className="mt-3 flex flex-col gap-2 md:flex-row md:items-center">
+                      <Button variant="secondary" size="sm" onClick={() => payLedger(l.ledgerEntryId)}>
+                        <CheckCircle className="h-4 w-4 ml-1" />
+                        ثبت پرداخت
+                      </Button>
+                      <input
+                        className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-sm text-text-primary"
+                        placeholder="reason برای void"
+                        value={voidReasonByLedgerId[l.ledgerEntryId] || ''}
+                        onChange={(e) => setVoidReasonByLedgerId((m) => ({ ...m, [l.ledgerEntryId]: e.target.value }))}
+                      />
+                      <Button variant="danger" size="sm" onClick={() => voidLedger(l.ledgerEntryId)}>
+                        <XCircle className="h-4 w-4 ml-1" />
+                        باطل
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+              {!ledgerLoading && ledger.length === 0 ? <div className="text-sm text-text-muted text-center py-4">موردی وجود ندارد.</div> : null}
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <Button variant="ghost" size="sm" disabled={ledgerOffset === 0} onClick={() => setLedgerOffset(Math.max(0, ledgerOffset - ledgerLimit))}>
+                قبلی
+              </Button>
+              <Button variant="ghost" size="sm" disabled={ledgerOffset + ledgerLimit >= ledgerTotal} onClick={() => setLedgerOffset(ledgerOffset + ledgerLimit)}>
+                بعدی
+              </Button>
+              <select className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-sm text-text-primary" value={ledgerLimit} onChange={(e) => { setLedgerLimit(parseInt(e.target.value, 10)); setLedgerOffset(0); }}>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+          </Card>
         </section>
       ) : null}
 
       {tab === 'kpi' ? (
-        <section className="mt-6 rounded-2xl border p-4">
-          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-            <div className="grid gap-2 md:grid-cols-3">
-              <label className="grid gap-1 text-sm">
-                <span className="text-xs text-neutral-600">orgUnitId</span>
-                <input className="rounded-xl border px-3 py-2" value={kpiOrgUnitId} onChange={(e) => setKpiOrgUnitId(e.target.value)} />
-              </label>
-              <label className="grid gap-1 text-sm">
-                <span className="text-xs text-neutral-600">dayFrom (YYYY-MM-DD)</span>
-                <input className="rounded-xl border px-3 py-2" value={kpiDayFrom} onChange={(e) => setKpiDayFrom(e.target.value)} />
-              </label>
-              <label className="grid gap-1 text-sm">
-                <span className="text-xs text-neutral-600">dayTo (YYYY-MM-DD)</span>
-                <input className="rounded-xl border px-3 py-2" value={kpiDayTo} onChange={(e) => setKpiDayTo(e.target.value)} />
-              </label>
-            </div>
-            <div className="text-xs text-neutral-600">total: {kpiTotal}</div>
-          </div>
-
-          <div className="mt-3 space-y-2">
-            {kpis.map((k) => (
-              <div key={k.kpiId} className="rounded-xl border px-3 py-2">
-                <div className="text-sm font-semibold">{k.day}</div>
-                <div className="mt-1 text-xs text-neutral-600">orgUnitId: {k.orgUnitId}</div>
-                <div className="mt-1 text-xs text-neutral-600">policiesIssued: {k.policiesIssuedCount}</div>
-                <div className="mt-1 text-xs text-neutral-600">premiumIssued: {k.premiumIssuedAmount} {k.currency}</div>
-                <div className="mt-1 text-xs text-neutral-600">commissionAccrued: {k.commissionAccruedAmount} {k.currency}</div>
+        <section className="mt-6">
+          <Card className="p-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+              <div className="grid gap-2 md:grid-cols-3">
+                <label className="grid gap-1 text-sm">
+                  <span className="text-xs text-text-muted">orgUnitId</span>
+                  <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={kpiOrgUnitId} onChange={(e) => setKpiOrgUnitId(e.target.value)} />
+                </label>
+                <label className="grid gap-1 text-sm">
+                  <span className="text-xs text-text-muted">dayFrom (YYYY-MM-DD)</span>
+                  <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={kpiDayFrom} onChange={(e) => setKpiDayFrom(e.target.value)} />
+                </label>
+                <label className="grid gap-1 text-sm">
+                  <span className="text-xs text-text-muted">dayTo (YYYY-MM-DD)</span>
+                  <input className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-text-primary" value={kpiDayTo} onChange={(e) => setKpiDayTo(e.target.value)} />
+                </label>
               </div>
-            ))}
-            {!kpiLoading && kpis.length === 0 ? <div className="text-sm text-neutral-600">موردی وجود ندارد.</div> : null}
-          </div>
+              <div className="text-xs text-text-muted">total: {kpiTotal}</div>
+            </div>
 
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <button className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50" disabled={kpiOffset === 0} onClick={() => setKpiOffset(Math.max(0, kpiOffset - kpiLimit))}>
-              قبلی
-            </button>
-            <button className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50" disabled={kpiOffset + kpiLimit >= kpiTotal} onClick={() => setKpiOffset(kpiOffset + kpiLimit)}>
-              بعدی
-            </button>
-            <select className="rounded-xl border px-3 py-2 text-sm" value={kpiLimit} onChange={(e) => { setKpiLimit(parseInt(e.target.value, 10)); setKpiOffset(0); }}>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-          </div>
+            <div className="mt-3 space-y-2">
+              {kpis.map((k) => (
+                <div key={k.kpiId} className="rounded-xl border border-border-default bg-bg-base px-3 py-2">
+                  <div className="text-sm font-semibold">{k.day}</div>
+                  <div className="mt-1 text-xs text-text-muted">orgUnitId: {k.orgUnitId}</div>
+                  <div className="mt-1 text-xs text-text-muted">policiesIssued: {k.policiesIssuedCount}</div>
+                  <div className="mt-1 text-xs text-text-muted">premiumIssued: {k.premiumIssuedAmount} {k.currency}</div>
+                  <div className="mt-1 text-xs text-text-muted">commissionAccrued: {k.commissionAccruedAmount} {k.currency}</div>
+                </div>
+              ))}
+              {!kpiLoading && kpis.length === 0 ? <div className="text-sm text-text-muted text-center py-4">موردی وجود ندارد.</div> : null}
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <Button variant="ghost" size="sm" disabled={kpiOffset === 0} onClick={() => setKpiOffset(Math.max(0, kpiOffset - kpiLimit))}>
+                قبلی
+              </Button>
+              <Button variant="ghost" size="sm" disabled={kpiOffset + kpiLimit >= kpiTotal} onClick={() => setKpiOffset(kpiOffset + kpiLimit)}>
+                بعدی
+              </Button>
+              <select className="rounded-xl border border-border-default bg-bg-raised px-3 py-2 text-sm text-text-primary" value={kpiLimit} onChange={(e) => { setKpiLimit(parseInt(e.target.value, 10)); setKpiOffset(0); }}>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+          </Card>
         </section>
       ) : null}
     </main>

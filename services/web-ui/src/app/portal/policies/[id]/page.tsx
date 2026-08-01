@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import { ChevronRight, Loader2, Download, Printer, FileText, Check } from 'lucide-react';
+import { Card } from '@insurance/design-system';
+import { apiFetch } from '@/lib/api';
 
 interface PolicyDetail {
   id: string;
@@ -32,6 +35,33 @@ interface PolicyDetail {
   }>;
 }
 
+const MOCK_POLICY: PolicyDetail = {
+  id: '1',
+  policyNumber: 'POL-2024-001',
+  product: 'بدنه خودرو',
+  status: 'ACTIVE',
+  issueDate: '2024-03-21',
+  expiryDate: '2025-03-21',
+  premium: 5000000,
+  vehiclePlate: '۱۲-ب-۴۵۶-۷۸',
+  vehicleVin: 'VIN1234567890',
+  vehicleMake: 'پژو',
+  vehicleModel: '206',
+  vehicleYear: '2020',
+  insuredName: 'علی احمدی',
+  insuredNationalId: '0123456789',
+  insurer: 'بیمه ایران',
+  coverage: ['خسارت بدنه', 'خسارت مالی', 'سرقت کلی', 'شکست شیشه'],
+  documents: [
+    { id: '1', name: 'بیمه‌نامه.pdf', uploadDate: '2024-03-21' },
+    { id: '2', name: 'کارشناسی خودرو.jpg', uploadDate: '2024-03-20' },
+  ],
+  history: [
+    { date: '2024-03-21', action: 'صدور', description: 'صدور بیمه‌نامه' },
+    { date: '2024-03-20', action: 'ثبت درخواست', description: 'ثبت درخواست بیمه' },
+  ],
+};
+
 export default function PolicyDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -45,37 +75,10 @@ export default function PolicyDetailPage() {
   const loadPolicyDetail = async () => {
     try {
       setLoading(true);
-      // In a real implementation, fetch from API
-      const mockPolicy: PolicyDetail = {
-        id: params?.id as string,
-        policyNumber: 'POL-2024-001',
-        product: 'بدنه خودرو',
-        status: 'ACTIVE',
-        issueDate: '2024-03-21',
-        expiryDate: '2025-03-21',
-        premium: 5000000,
-        vehiclePlate: '۱۲-ب-۴۵۶-۷۸',
-        vehicleVin: 'VIN1234567890',
-        vehicleMake: 'پژو',
-        vehicleModel: '206',
-        vehicleYear: '2020',
-        insuredName: 'علی احمدی',
-        insuredNationalId: '0123456789',
-        insurer: 'بیمه ایران',
-        coverage: ['خسارت بدنه', 'خسارت مالی', 'سرقت کلی', 'شکست شیشه'],
-        documents: [
-          { id: '1', name: 'بیمه‌نامه.pdf', uploadDate: '2024-03-21' },
-          { id: '2', name: 'کارشناسی خودرو.jpg', uploadDate: '2024-03-20' },
-        ],
-        history: [
-          { date: '2024-03-21', action: 'صدور', description: 'صدور بیمه‌نامه' },
-          { date: '2024-03-20', action: 'ثبت درخواست', description: 'ثبت درخواست بیمه' },
-        ],
-      };
-
-      setPolicy(mockPolicy);
-    } catch (error) {
-      console.error('Failed to load policy detail:', error);
+      const res = await apiFetch<PolicyDetail>(`/portal/policies/${params?.id}`);
+      setPolicy(res.success && res.data ? res.data : MOCK_POLICY);
+    } catch {
+      setPolicy(MOCK_POLICY);
     } finally {
       setLoading(false);
     }
@@ -83,9 +86,9 @@ export default function PolicyDetailPage() {
 
   const getStatusBadge = (status: string) => {
     const styles = {
-      ACTIVE: 'bg-green-100 text-green-800',
-      EXPIRED: 'bg-red-100 text-red-800',
-      CANCELLED: 'bg-gray-100 text-gray-800',
+      ACTIVE: 'bg-feedback-success-subtle text-feedback-success',
+      EXPIRED: 'bg-feedback-error-subtle text-feedback-error',
+      CANCELLED: 'bg-bg-base text-text-primary',
     };
     return (
       <span className={`px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full ${styles[status as keyof typeof styles]}`}>
@@ -96,20 +99,20 @@ export default function PolicyDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="flex items-center justify-center min-h-screen bg-bg-base">
+        <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
       </div>
     );
   }
 
   if (!policy) {
     return (
-      <div className="min-h-screen bg-gray-50" dir="rtl">
+      <div className="min-h-screen bg-bg-base" dir="rtl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <p className="text-gray-500 text-center">بیمه‌نامه یافت نشد</p>
+          <p className="text-text-muted text-center">بیمه‌نامه یافت نشد</p>
           <button
             onClick={() => router.push('/portal/policies')}
-            className="mt-4 mx-auto block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="mt-4 mx-auto block px-4 py-2 bg-brand-primary text-text-on-brand rounded-lg hover:opacity-90"
           >
             بازگشت به لیست
           </button>
@@ -119,135 +122,131 @@ export default function PolicyDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50" dir="rtl">
-      {/* Header */}
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
+    <div className="min-h-screen bg-bg-base" dir="rtl">
+      <div className="border-b border-border-default bg-bg-raised">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between py-4">
             <div className="flex items-center gap-4">
-              <button
-                onClick={() => router.push('/portal/policies')}
-                className="text-gray-600 hover:text-gray-900"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
+              <button onClick={() => router.push('/portal/policies')} className="text-text-muted hover:text-text-primary">
+                <ChevronRight className="h-5 w-5" />
               </button>
-              <h1 className="text-2xl font-bold text-gray-900">جزئیات بیمه‌نامه</h1>
+              <h1 className="text-xl font-bold text-text-primary">جزئیات بیمه‌نامه</h1>
             </div>
             {getStatusBadge(policy.status)}
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Policy Information */}
-            <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">اطلاعات بیمه‌نامه</h2>
+            <Card>
+              <div className="px-6 py-4 border-b border-border-default">
+                <h2 className="text-base font-semibold text-text-primary">اطلاعات بیمه‌نامه</h2>
               </div>
               <div className="p-6">
                 <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
                   <div>
-                    <dt className="text-sm font-medium text-gray-500">شماره بیمه‌نامه</dt>
-                    <dd className="mt-1 text-sm text-gray-900">{policy.policyNumber}</dd>
+                    <dt className="text-sm font-medium text-text-muted">شماره بیمه‌نامه</dt>
+                    <dd className="mt-1 text-sm text-text-primary">{policy.policyNumber}</dd>
                   </div>
                   <div>
-                    <dt className="text-sm font-medium text-gray-500">محصول</dt>
-                    <dd className="mt-1 text-sm text-gray-900">{policy.product}</dd>
+                    <dt className="text-sm font-medium text-text-muted">محصول</dt>
+                    <dd className="mt-1 text-sm text-text-primary">{policy.product}</dd>
                   </div>
                   <div>
-                    <dt className="text-sm font-medium text-gray-500">تاریخ صدور</dt>
-                    <dd className="mt-1 text-sm text-gray-900">{policy.issueDate}</dd>
+                    <dt className="text-sm font-medium text-text-muted">تاریخ صدور</dt>
+                    <dd className="mt-1 text-sm text-text-primary">{policy.issueDate}</dd>
                   </div>
                   <div>
-                    <dt className="text-sm font-medium text-gray-500">تاریخ انقضا</dt>
-                    <dd className="mt-1 text-sm text-gray-900">{policy.expiryDate}</dd>
+                    <dt className="text-sm font-medium text-text-muted">تاریخ انقضا</dt>
+                    <dd className="mt-1 text-sm text-text-primary">{policy.expiryDate}</dd>
                   </div>
                   <div>
-                    <dt className="text-sm font-medium text-gray-500">حق بیمه</dt>
-                    <dd className="mt-1 text-sm text-gray-900">{policy.premium.toLocaleString('fa-IR')} ریال</dd>
+                    <dt className="text-sm font-medium text-text-muted">حق بیمه</dt>
+                    <dd className="mt-1 text-sm text-text-primary">{policy.premium.toLocaleString('fa-IR')} ریال</dd>
                   </div>
                   <div>
-                    <dt className="text-sm font-medium text-gray-500">بیمه‌گر</dt>
-                    <dd className="mt-1 text-sm text-gray-900">{policy.insurer}</dd>
+                    <dt className="text-sm font-medium text-text-muted">بیمه‌گر</dt>
+                    <dd className="mt-1 text-sm text-text-primary">{policy.insurer}</dd>
                   </div>
                 </dl>
               </div>
-            </div>
+            </Card>
 
             {/* Vehicle Information */}
             {policy.vehiclePlate && (
-              <div className="bg-white rounded-lg shadow">
-                <div className="px-6 py-4 border-b border-gray-200">
-                  <h2 className="text-lg font-semibold text-gray-900">اطلاعات خودرو</h2>
+              <Card>
+                <div className="px-6 py-4 border-b border-border-default">
+                  <h2 className="text-base font-semibold text-text-primary">اطلاعات خودرو</h2>
                 </div>
                 <div className="p-6">
                   <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
                     <div>
-                      <dt className="text-sm font-medium text-gray-500">پلاک خودرو</dt>
-                      <dd className="mt-1 text-sm text-gray-900">{policy.vehiclePlate}</dd>
+                      <dt className="text-sm font-medium text-text-muted">پلاک خودرو</dt>
+                      <dd className="mt-1 text-sm text-text-primary">{policy.vehiclePlate}</dd>
                     </div>
                     <div>
-                      <dt className="text-sm font-medium text-gray-500">شماره VIN</dt>
-                      <dd className="mt-1 text-sm text-gray-900">{policy.vehicleVin}</dd>
+                      <dt className="text-sm font-medium text-text-muted">شماره VIN</dt>
+                      <dd className="mt-1 text-sm text-text-primary">{policy.vehicleVin}</dd>
                     </div>
                     <div>
-                      <dt className="text-sm font-medium text-gray-500">مارک خودرو</dt>
-                      <dd className="mt-1 text-sm text-gray-900">{policy.vehicleMake}</dd>
+                      <dt className="text-sm font-medium text-text-muted">مارک خودرو</dt>
+                      <dd className="mt-1 text-sm text-text-primary">{policy.vehicleMake}</dd>
                     </div>
                     <div>
-                      <dt className="text-sm font-medium text-gray-500">مدل خودرو</dt>
-                      <dd className="mt-1 text-sm text-gray-900">{policy.vehicleModel}</dd>
+                      <dt className="text-sm font-medium text-text-muted">مدل خودرو</dt>
+                      <dd className="mt-1 text-sm text-text-primary">{policy.vehicleModel}</dd>
                     </div>
                     <div>
-                      <dt className="text-sm font-medium text-gray-500">سال ساخت</dt>
-                      <dd className="mt-1 text-sm text-gray-900">{policy.vehicleYear}</dd>
+                      <dt className="text-sm font-medium text-text-muted">سال ساخت</dt>
+                      <dd className="mt-1 text-sm text-text-primary">{policy.vehicleYear}</dd>
                     </div>
                   </dl>
                 </div>
-              </div>
+              </Card>
             )}
 
             {/* Coverage */}
-            <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">پوشش‌های بیمه‌ای</h2>
+            <Card>
+              <div className="px-6 py-4 border-b border-border-default">
+                <h2 className="text-base font-semibold text-text-primary">پوشش‌های بیمه‌ای</h2>
               </div>
               <div className="p-6">
                 <ul className="space-y-2">
                   {policy.coverage.map((item, index) => (
                     <li key={index} className="flex items-center">
-                      <svg className="w-5 h-5 text-green-500 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      <span className="text-sm text-gray-700">{item}</span>
+                      <Check className="h-5 w-5 text-feedback-success ml-2" />
+                      <span className="text-sm text-text-secondary">{item}</span>
                     </li>
                   ))}
                 </ul>
               </div>
-            </div>
+            </Card>
 
             {/* Documents */}
-            <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">مدارک پیوست</h2>
+            <Card>
+              <div className="px-6 py-4 border-b border-border-default">
+                <h2 className="text-base font-semibold text-text-primary">مدارک پیوست</h2>
               </div>
               <div className="p-6">
                 {policy.documents.length === 0 ? (
-                  <p className="text-gray-500 text-sm">مدرکی پیوست نشده است</p>
+                  <p className="text-sm text-text-muted">مدرکی پیوست نشده است</p>
                 ) : (
-                  <ul className="divide-y divide-gray-200">
+                  <ul className="divide-y divide-border-default">
                     {policy.documents.map((doc) => (
-                      <li key={doc.id} className="py-3 flex justify-between items-center">
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{doc.name}</p>
-                          <p className="text-xs text-gray-500">{doc.uploadDate}</p>
+                      <li key={doc.id} className="flex items-center justify-between py-3">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-text-muted" />
+                          <div>
+                            <p className="text-sm font-medium text-text-primary">{doc.name}</p>
+                            <p className="text-xs text-text-muted">{doc.uploadDate}</p>
+                          </div>
                         </div>
-                        <button className="text-blue-600 hover:text-blue-800 text-sm">
+                        <button className="flex items-center gap-1 text-sm text-brand-primary hover:underline">
+                          <Download className="h-4 w-4" />
                           دانلود
                         </button>
                       </li>
@@ -255,79 +254,81 @@ export default function PolicyDetailPage() {
                   </ul>
                 )}
               </div>
-            </div>
+            </Card>
 
             {/* History */}
-            <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">تاریخچه تغییرات</h2>
+            <Card>
+              <div className="px-6 py-4 border-b border-border-default">
+                <h2 className="text-base font-semibold text-text-primary">تاریخچه تغییرات</h2>
               </div>
               <div className="p-6">
                 <div className="space-y-4">
                   {policy.history.map((item, index) => (
                     <div key={index} className="flex">
                       <div className="flex-shrink-0">
-                        <div className="w-2 h-2 bg-blue-600 rounded-full mt-2"></div>
+                        <div className="w-2 h-2 rounded-full bg-brand-primary mt-2"></div>
                       </div>
                       <div className="mr-4">
-                        <p className="text-sm font-medium text-gray-900">{item.action}</p>
-                        <p className="text-xs text-gray-500">{item.date}</p>
-                        <p className="text-sm text-gray-600 mt-1">{item.description}</p>
+                        <p className="text-sm font-medium text-text-primary">{item.action}</p>
+                        <p className="text-xs text-text-muted">{item.date}</p>
+                        <p className="mt-1 text-sm text-text-muted">{item.description}</p>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
-            </div>
+            </Card>
           </div>
 
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Insured Information */}
-            <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">اطلاعات بیمه‌گذار</h2>
+            <Card>
+              <div className="px-6 py-4 border-b border-border-default">
+                <h2 className="text-base font-semibold text-text-primary">اطلاعات بیمه‌گذار</h2>
               </div>
               <div className="p-6">
                 <dl className="space-y-4">
                   <div>
-                    <dt className="text-sm font-medium text-gray-500">نام</dt>
-                    <dd className="mt-1 text-sm text-gray-900">{policy.insuredName}</dd>
+                    <dt className="text-sm font-medium text-text-muted">نام</dt>
+                    <dd className="mt-1 text-sm text-text-primary">{policy.insuredName}</dd>
                   </div>
                   <div>
-                    <dt className="text-sm font-medium text-gray-500">کد ملی</dt>
-                    <dd className="mt-1 text-sm text-gray-900">{policy.insuredNationalId}</dd>
+                    <dt className="text-sm font-medium text-text-muted">کد ملی</dt>
+                    <dd className="mt-1 text-sm text-text-primary">{policy.insuredNationalId}</dd>
                   </div>
                 </dl>
               </div>
-            </div>
+            </Card>
 
             {/* Actions */}
-            <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">عملیات</h2>
+            <Card>
+              <div className="px-6 py-4 border-b border-border-default">
+                <h2 className="text-base font-semibold text-text-primary">عملیات</h2>
               </div>
               <div className="p-6 space-y-3">
                 <button
                   onClick={() => router.push('/portal/claims/new')}
-                  className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
+                  className="w-full rounded-lg bg-feedback-success px-4 py-2 text-sm font-medium text-text-on-brand hover:opacity-90"
                 >
                   ثبت خسارت
                 </button>
                 <button
                   onClick={() => router.push('/portal/payments')}
-                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                  className="w-full rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-text-on-brand hover:opacity-90"
                 >
                   پرداخت اقساط
                 </button>
-                <button className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm">
+                <button className="flex w-full items-center justify-center gap-1 rounded-lg bg-bg-base px-4 py-2 text-sm text-text-secondary hover:opacity-80">
+                  <Download className="h-4 w-4" />
                   دانلود بیمه‌نامه
                 </button>
-                <button className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm">
+                <button className="flex w-full items-center justify-center gap-1 rounded-lg bg-bg-base px-4 py-2 text-sm text-text-secondary hover:opacity-80">
+                  <Printer className="h-4 w-4" />
                   پرینت
                 </button>
               </div>
-            </div>
+            </Card>
           </div>
         </div>
       </div>

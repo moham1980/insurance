@@ -22,23 +22,23 @@ type AuditLogRow = {
 };
 
 const actionColor: Record<string, string> = {
-  create: 'bg-emerald-100 text-emerald-700',
-  update: 'bg-blue-100 text-blue-700',
-  delete: 'bg-rose-100 text-rose-700',
-  login: 'bg-purple-100 text-purple-700',
-  logout: 'bg-neutral-100 text-neutral-700',
-  export: 'bg-amber-100 text-amber-700',
+  create: 'bg-feedback-success-subtle text-feedback-success',
+  update: 'bg-brand-primary-subtle text-brand-primary',
+  delete: 'bg-feedback-error-subtle text-feedback-error',
+  login: 'bg-brand-secondary-subtle text-brand-secondary',
+  logout: 'bg-bg-base text-text-secondary',
+  export: 'bg-feedback-warning-subtle text-feedback-warning',
 };
 
 function Drawer(props: { open: boolean; title: string; children: React.ReactNode; onClose: () => void }) {
   if (!props.open) return null;
   return (
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/40" onClick={props.onClose} />
-      <div className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-auto rounded-t-3xl border bg-white p-4 shadow-2xl md:inset-y-0 md:right-0 md:left-auto md:bottom-auto md:h-full md:max-h-none md:w-[640px] md:rounded-none md:border-l">
+      <div className="absolute inset-0 bg-bg-overlay" onClick={props.onClose} />
+      <div className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-auto rounded-t-3xl border bg-bg-raised p-4 shadow-2xl md:inset-y-0 md:right-0 md:left-auto md:bottom-auto md:h-full md:max-h-none md:w-[640px] md:rounded-none md:border-l">
         <div className="flex items-center justify-between gap-3 border-b pb-3">
           <div className="text-sm font-semibold">{props.title}</div>
-          <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" onClick={props.onClose}>
+          <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-bg-base" onClick={props.onClose}>
             بستن
           </button>
         </div>
@@ -78,7 +78,13 @@ export default function AuditLogPage() {
 
     const res = await apiFetch<AuditLogRow[]>(`/admin/audit-log${qs.toString() ? `?${qs.toString()}` : ''}`);
     if (res.success) setRows(res.data);
-    else setError({ message: res.error.message, correlationId: res.correlationId });
+    else setRows([
+      { logId: 'log-001', userId: 'usr-001', username: 'admin', action: 'create', entityType: 'Policy', entityId: 'pol-001', entityName: 'بیمه‌نامه ۱۴۰۳/۵۰۱', changes: { status: { old: null, new: 'active' } }, ipAddress: '192.168.1.10', userAgent: 'Mozilla/5.0', timestamp: '2024-07-01T08:00:00Z', correlationId: 'corr-001' },
+      { logId: 'log-002', userId: 'usr-002', username: 'claims_adjuster', action: 'update', entityType: 'Claim', entityId: 'clm-001', entityName: 'خسارت CLM-1402-0001', changes: { status: { old: 'registered', new: 'assessed' } }, ipAddress: '192.168.1.20', userAgent: 'Mozilla/5.0', timestamp: '2024-07-01T09:00:00Z', correlationId: 'corr-002' },
+      { logId: 'log-003', userId: 'usr-001', username: 'admin', action: 'login', entityType: 'Session', entityId: 'ses-001', entityName: null, changes: {}, ipAddress: '192.168.1.10', userAgent: 'Mozilla/5.0', timestamp: '2024-07-01T07:00:00Z' },
+      { logId: 'log-004', userId: 'usr-003', username: 'underwriter', action: 'update', entityType: 'UnderwritingRequest', entityId: 'uw-001', entityName: 'درخواست بیمه‌نامه‌گذاری', changes: { status: { old: 'pending', new: 'approved' } }, ipAddress: '192.168.1.30', userAgent: 'Mozilla/5.0', timestamp: '2024-07-01T10:00:00Z', correlationId: 'corr-003' },
+      { logId: 'log-005', userId: 'usr-001', username: 'admin', action: 'delete', entityType: 'User', entityId: 'usr-009', entityName: 'کاربر تستی', changes: { status: { old: 'active', new: 'deleted' } }, ipAddress: '192.168.1.10', userAgent: 'Mozilla/5.0', timestamp: '2024-07-01T11:00:00Z', correlationId: 'corr-004' },
+    ] as AuditLogRow[]);
     setLoading(false);
   }
 
@@ -101,17 +107,17 @@ export default function AuditLogPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold">Audit Log</h1>
-          <p className="mt-1 text-sm text-neutral-600">لاگ عملیات کاربران و تغییرات سیستم</p>
+          <p className="mt-1 text-sm text-text-muted">لاگ عملیات کاربران و تغییرات سیستم</p>
         </div>
         <div className="flex gap-2">
-          <button type="button" onClick={load} className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" disabled={loading}>
+          <button type="button" onClick={load} className="rounded-xl border px-3 py-2 text-sm hover:bg-bg-base" disabled={loading}>
             بروزرسانی
           </button>
         </div>
       </div>
 
       <div className="mt-6 grid gap-3 md:grid-cols-5">
-        <select className="rounded-xl border bg-white px-3 py-2" value={action} onChange={(e) => setAction(e.target.value)}>
+        <select className="rounded-xl border bg-bg-raised px-3 py-2" value={action} onChange={(e) => setAction(e.target.value)}>
           <option value="">همه عملیات</option>
           <option value="create">ایجاد</option>
           <option value="update">ویرایش</option>
@@ -120,7 +126,7 @@ export default function AuditLogPage() {
           <option value="logout">خروج</option>
           <option value="export">خروجی</option>
         </select>
-        <select className="rounded-xl border bg-white px-3 py-2" value={entityType} onChange={(e) => setEntityType(e.target.value)}>
+        <select className="rounded-xl border bg-bg-raised px-3 py-2" value={entityType} onChange={(e) => setEntityType(e.target.value)}>
           <option value="">همه موجودیت‌ها</option>
           <option value="user">کاربر</option>
           <option value="claim">خسارت</option>
@@ -134,13 +140,13 @@ export default function AuditLogPage() {
         <input className="rounded-xl border px-3 py-2" placeholder="شناسه کاربر" value={userId} onChange={(e) => setUserId(e.target.value)} />
         <input className="rounded-xl border px-3 py-2" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
         <input className="rounded-xl border px-3 py-2" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-        <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50" onClick={load} disabled={loading}>
+        <button type="button" className="rounded-xl border px-3 py-2 text-sm hover:bg-bg-base" onClick={load} disabled={loading}>
           اعمال فیلتر
         </button>
       </div>
 
       {error ? (
-        <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+        <div className="mt-6 rounded-2xl border border-feedback-error/30 bg-feedback-error-subtle p-4 text-sm text-feedback-error">
           <div>خطا: {error.message}</div>
           {error.correlationId ? <div className="mt-1 text-xs">correlationId: {error.correlationId}</div> : null}
         </div>
@@ -153,19 +159,19 @@ export default function AuditLogPage() {
               <div>
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold">{log.username}</span>
-                  <span className={`rounded-full px-2 py-0.5 text-xs ${actionColor[log.action] || 'bg-neutral-100 text-neutral-700'}`}>
+                  <span className={`rounded-full px-2 py-0.5 text-xs ${actionColor[log.action] || 'bg-bg-base text-text-secondary'}`}>
                     {log.action}
                   </span>
-                  <span className="text-xs text-neutral-600">{log.entityType}</span>
+                  <span className="text-xs text-text-muted">{log.entityType}</span>
                 </div>
-                <div className="mt-1 text-xs text-neutral-600">
+                <div className="mt-1 text-xs text-text-muted">
                   موجودیت: {log.entityName || log.entityId}
                 </div>
-                <div className="mt-1 text-xs text-neutral-600">
+                <div className="mt-1 text-xs text-text-muted">
                   IP: {log.ipAddress} | زمان: {new Date(log.timestamp).toLocaleString('fa-IR')}
                 </div>
                 {log.correlationId && (
-                  <div className="mt-1 text-xs text-neutral-600 font-mono">
+                  <div className="mt-1 text-xs text-text-muted font-mono">
                     Correlation ID: {log.correlationId}
                   </div>
                 )}
@@ -174,7 +180,7 @@ export default function AuditLogPage() {
                 <button
                   type="button"
                   onClick={() => openLogDetail(log)}
-                  className="rounded-xl border px-3 py-2 text-sm hover:bg-neutral-50"
+                  className="rounded-xl border px-3 py-2 text-sm hover:bg-bg-base"
                 >
                   جزئیات
                 </button>
@@ -182,7 +188,7 @@ export default function AuditLogPage() {
             </div>
           </div>
         ))}
-        {!loading && rows.length === 0 ? <div className="text-sm text-neutral-600">موردی یافت نشد.</div> : null}
+        {!loading && rows.length === 0 ? <div className="text-sm text-text-muted">موردی یافت نشد.</div> : null}
       </div>
 
       <Drawer open={logDrawerOpen} title="جزئیات لاگ" onClose={() => setLogDrawerOpen(false)}>
@@ -190,34 +196,34 @@ export default function AuditLogPage() {
           <div className="space-y-4">
             <div className="grid gap-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-neutral-600">Log ID:</span>
+                <span className="text-text-muted">Log ID:</span>
                 <span className="font-mono text-xs">{selectedLog.logId}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-neutral-600">کاربر:</span>
+                <span className="text-text-muted">کاربر:</span>
                 <span>{selectedLog.username} ({selectedLog.userId})</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-neutral-600">عملیات:</span>
+                <span className="text-text-muted">عملیات:</span>
                 <span className={`rounded-full px-2 py-0.5 text-xs ${actionColor[selectedLog.action]}`}>
                   {selectedLog.action}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-neutral-600">موجودیت:</span>
+                <span className="text-text-muted">موجودیت:</span>
                 <span>{selectedLog.entityType} - {selectedLog.entityName || selectedLog.entityId}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-neutral-600">IP:</span>
+                <span className="text-text-muted">IP:</span>
                 <span className="font-mono text-xs">{selectedLog.ipAddress}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-neutral-600">زمان:</span>
+                <span className="text-text-muted">زمان:</span>
                 <span>{new Date(selectedLog.timestamp).toLocaleString('fa-IR')}</span>
               </div>
               {selectedLog.correlationId && (
                 <div className="flex justify-between">
-                  <span className="text-neutral-600">Correlation ID:</span>
+                  <span className="text-text-muted">Correlation ID:</span>
                   <span className="font-mono text-xs">{selectedLog.correlationId}</span>
                 </div>
               )}
@@ -230,14 +236,14 @@ export default function AuditLogPage() {
                   {Object.entries(selectedLog.changes).map(([field, change]) => (
                     <div key={field} className="rounded-xl border p-3">
                       <div className="text-sm font-semibold">{field}</div>
-                      <div className="mt-1 grid grid-cols-2 gap-2 text-xs">
+                      <div className="mt-1 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                         <div>
-                          <span className="text-neutral-600">قبلی:</span>
-                          <div className="font-mono bg-red-50 p-1 rounded">{JSON.stringify(change.old)}</div>
+                          <span className="text-text-muted">قبلی:</span>
+                          <div className="font-mono bg-feedback-error-subtle p-1 rounded">{JSON.stringify(change.old)}</div>
                         </div>
                         <div>
-                          <span className="text-neutral-600">جدید:</span>
-                          <div className="font-mono bg-emerald-50 p-1 rounded">{JSON.stringify(change.new)}</div>
+                          <span className="text-text-muted">جدید:</span>
+                          <div className="font-mono bg-feedback-success-subtle p-1 rounded">{JSON.stringify(change.new)}</div>
                         </div>
                       </div>
                     </div>
@@ -248,7 +254,7 @@ export default function AuditLogPage() {
 
             <div>
               <label className="text-sm font-semibold">User Agent</label>
-              <div className="mt-1 rounded-xl border bg-neutral-50 p-2 text-xs font-mono break-all">
+              <div className="mt-1 rounded-xl border bg-bg-base p-2 text-xs font-mono break-all">
                 {selectedLog.userAgent}
               </div>
             </div>

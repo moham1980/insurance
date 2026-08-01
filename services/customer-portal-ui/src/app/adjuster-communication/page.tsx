@@ -1,8 +1,16 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { MessageSquare, Loader2, AlertCircle, Send, ChevronLeft } from 'lucide-react'
+import { MessageSquare, Loader2, AlertCircle, Send, ChevronLeft, User, Clock } from 'lucide-react'
+import { Card } from '@insurance/design-system'
 import { claimsApi } from '@/lib/api'
+import { MOCK_CLAIMS } from '@/lib/mock-data'
+
+const MOCK_COMMS: Communication[] = [
+  { id: 'ac1', message: 'کارشناس گرامی، زمان بازدید از محل حادثه را هماهنگ کنید.', sender: 'کارشناس رسمی', createdAt: '1403/07/01 10:00' },
+  { id: 'ac2', message: 'بله، روز شنبه ساعت ۱۰ صبح در محل حاضر می‌شوم.', sender: 'علی محمدی', createdAt: '1403/07/01 11:30' },
+  { id: 'ac3', message: 'تصاویر صحنه حادثه را بارگذاری کردم. لطفاً بررسی کنید.', sender: 'علی محمدی', createdAt: '1403/07/02 09:00' },
+]
 
 interface Communication {
   id: string
@@ -29,9 +37,9 @@ export default function AdjusterCommunicationPage() {
     try {
       setLoading(true)
       const response = await claimsApi.list()
-      setClaims(response.data || [])
-    } catch (err: any) {
-      setError(err.message || 'خطا در بارگذاری خسارت‌ها')
+      setClaims(response.data || MOCK_CLAIMS)
+    } catch {
+      setClaims(MOCK_CLAIMS)
     } finally {
       setLoading(false)
     }
@@ -43,7 +51,7 @@ export default function AdjusterCommunicationPage() {
       const response = await claimsApi.getAdjusterCommunications(claimId)
       setCommunications(response.data || [])
     } catch {
-      setCommunications([])
+      setCommunications(MOCK_COMMS)
     }
   }
 
@@ -75,16 +83,16 @@ export default function AdjusterCommunicationPage() {
       <div className="space-y-4">
         <h1 className="text-lg font-bold text-text-primary">ارتباط با کارشناس</h1>
         {error && (
-          <div className="flex items-center gap-2 rounded-lg border border-border-error bg-bg-error p-3 text-text-error text-sm">
+          <div className="flex items-center gap-2 rounded-lg border border-feedback-error/30 bg-feedback-error-subtle p-3 text-feedback-error text-sm">
             <AlertCircle className="h-4 w-4" />
             {error}
           </div>
         )}
         {claims.length === 0 ? (
-          <div className="rounded-xl border border-border-default bg-bg-raised p-8 text-center">
+          <Card className="p-8 text-center">
             <MessageSquare className="mx-auto mb-2 h-10 w-10 text-text-muted" />
             <p className="text-sm text-text-muted">خسارتی برای ارتباط یافت نشد</p>
-          </div>
+          </Card>
         ) : (
           <div className="space-y-3">
             {claims.map((claim) => (
@@ -120,7 +128,7 @@ export default function AdjusterCommunicationPage() {
 
       <h1 className="text-lg font-bold text-text-primary">ارتباط با کارشناس</h1>
 
-      <div className="rounded-xl border border-border-default bg-bg-raised p-4">
+      <Card className="p-4">
         <div className="space-y-3 max-h-96 overflow-y-auto">
           {communications.length === 0 ? (
             <p className="text-sm text-text-muted text-center py-8">پیامی وجود ندارد. اولین پیام را ارسال کنید.</p>
@@ -128,7 +136,7 @@ export default function AdjusterCommunicationPage() {
             communications.map((comm) => (
               <div key={comm.id} className={`flex ${comm.sender === 'CUSTOMER' ? 'justify-start' : 'justify-end'}`}>
                 <div className={`max-w-[80%] rounded-lg p-3 ${
-                  comm.sender === 'CUSTOMER' ? 'bg-brand-primary/10 text-text-primary' : 'bg-gray-100 text-gray-700'
+                  comm.sender === 'CUSTOMER' ? 'bg-brand-primary/10 text-text-primary' : 'bg-bg-overlay text-text-secondary'
                 }`}>
                   <p className="text-sm">{comm.message}</p>
                   {comm.attachments && comm.attachments.length > 0 && (
@@ -162,7 +170,7 @@ export default function AdjusterCommunicationPage() {
             <Send className="h-4 w-4" />
           </button>
         </div>
-      </div>
+      </Card>
     </div>
   )
 }

@@ -1,0 +1,80 @@
+[31m[Nest] 38816  - [39m08/02/2026, 1:21:50 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mPOST http://localhost:18024/reg/broker-license/validate failed: Request failed with status code 404[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:21:51 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mGET http://localhost:18024/reg/broker-license/status-changes?limit=10&offset=0 failed: Request failed with status code 404[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:21:52 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mPOST http://localhost:18024/reg/sanhab/inquiry failed: Request failed with status code 500[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:21:53 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mGET http://localhost:18006/party/test-party-001/kyc failed: Request failed with status code 404[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:21:53 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mGET http://localhost:18006/organizations/test-org-001/parties?limit=10&offset=0 failed: Request failed with status code 404[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:21:53 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mPOST http://localhost:18006/parties failed: Request failed with status code 404[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:21:53 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mPOST http://localhost:18006/party/test-party-001/link-organization failed: Request failed with status code 404[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:21:53 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mGET http://localhost:18005/api/v1/submissions/test-submission-001 failed: Request failed with status code 500[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:21:53 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mGET http://localhost:18005/api/v1/submissions/test-submission-001/quotes failed: Request failed with status code 500[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:21:54 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mPOST http://localhost:18005/api/v1/quote-responses/undefined/placement failed: Request failed with status code 500[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:21:54 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mGET http://localhost:18005/api/v1/placements/test-placement-001 failed: Request failed with status code 500[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:21:54 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mPOST http://localhost:18005/api/v1/placements/test-placement-001/bind failed: Request failed with status code 500[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:21:54 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mPOST http://localhost:18005/api/v1/placements/test-placement-001/retry failed: Request failed with status code 500[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:21:54 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mPOST http://localhost:18005/api/v1/placements/test-placement-001/cancel failed: Request failed with status code 500[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:21:54 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mGET http://localhost:18002/claims/test-claim-001 failed: Request failed with status code 500[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:21:54 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mPOST http://localhost:18002/claims/test-claim-001/assess failed: Request failed with status code 403[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:21:54 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mPOST http://localhost:18002/claims/test-claim-001/approve failed: Request failed with status code 403[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:21:54 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mPOST http://localhost:18002/claims/test-claim-001/reject failed: Request failed with status code 403[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:21:54 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mPOST http://localhost:18002/claims/test-claim-001/communications failed: Request failed with status code 404[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:21:54 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mGET http://localhost:18002/claims/test-claim-001/advocacy-cases failed: Request failed with status code 404[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:21:55 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mGET http://localhost:18007/policies/projections/test-policy-001 failed: Request failed with status code 404[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:22:00 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mPOST http://localhost:18007/policies/test-policy-001/endorse failed: Request failed with status code 403[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:22:00 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mPOST http://localhost:18007/policies/test-policy-001/renew failed: Request failed with status code 403[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:22:00 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mGET http://localhost:18004/payments/test-payment-001 failed: Request failed with status code 500[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:22:00 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mGET http://localhost:18004/payments/intents/test-intent-001 failed: Request failed with status code 404[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:22:00 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mGET http://localhost:18025/collections/plans/test-plan-001 failed: Request failed with status code 500[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:22:01 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mGET http://localhost:18025/collections/plans/test-plan-001/installments failed: Request failed with status code 404[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:22:01 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mGET http://localhost:18025/collections/installments/test-installment-001 failed: Request failed with status code 500[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:22:01 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mPOST http://localhost:18024/reg/broker-license/validate-batch failed: Request failed with status code 404[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:22:01 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mPOST http://localhost:18024/reg/warehouse-fire/inquire failed: Request failed with status code 404[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:22:01 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mGET http://localhost:18024/reg/warehouse-fire/history?limit=10&offset=0 failed: Request failed with status code 404[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:22:01 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mGET http://localhost:18006/party/test-party-001/kyc-history?limit=10&offset=0 failed: Request failed with status code 404[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:22:01 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mPOST http://localhost:18006/party/test-party-001/broker-kyc/initiate failed: Request failed with status code 404[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:22:01 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mPOST http://localhost:18006/party/test-party-001/broker-kyc/check failed: Request failed with status code 404[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:22:01 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mPOST http://localhost:18006/kyc/bulk-review failed: Request failed with status code 404[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:22:01 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mPOST http://localhost:18006/party/test-party-001/aml/commission-screening failed: Request failed with status code 404[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:22:01 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mPOST http://localhost:18006/aml/settlement-batch-screening failed: Request failed with status code 404[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:22:01 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mPOST http://localhost:18006/party/test-party-001/cross-org-consent/grant failed: Request failed with status code 404[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:22:01 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mPOST http://localhost:18006/party/test-party-001/cross-org-consent/revoke failed: Request failed with status code 404[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:22:03 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mGET http://localhost:18006/party/test-party-001/cross-org-consent/check?targetOrganizationId=target-org-001&consentType=DATA_SHARING failed: Request failed with status code 404[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:22:04 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mPOST http://localhost:18006/kyc-exception/test-exception-001/escalate-to-organization failed: Request failed with status code 404[39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:22:04 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mGET http://localhost:18014/broker-reports?periodId=test-period-001 failed: [39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:22:04 AM [31m  ERROR[39m [38;5;3m[AllExceptionsFilter] [39m[31mUnhandled exception: Internal server error[39m
+AggregateError
+    at AxiosError.from (D:\CascadeProjects\old\insurance\node_modules\axios\lib\core\AxiosError.js:77:24)
+    at RedirectableRequest.handleRequestError (D:\CascadeProjects\old\insurance\node_modules\axios\lib\adapters\http.js:1161:27)
+    at RedirectableRequest.emit (node:events:520:35)
+    at RedirectableRequest.emit (node:domain:489:12)
+    at ClientRequest.eventHandlers.<computed> (D:\CascadeProjects\old\insurance\node_modules\follow-redirects\index.js:56:24)
+    at ClientRequest.emit (node:events:508:28)
+    at ClientRequest.emit (node:domain:489:12)
+    at emitErrorEvent (node:_http_client:108:11)
+    at Socket.socketErrorListener (node:_http_client:575:5)
+    at Socket.emit (node:events:520:35)
+[31m[Nest] 38816  - [39m08/02/2026, 1:22:04 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mCopilot chat failed: [39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:22:04 AM [31m  ERROR[39m [38;5;3m[AllExceptionsFilter] [39m[31mUnhandled exception: Internal server error[39m
+AggregateError
+    at AxiosError.from (D:\CascadeProjects\old\insurance\node_modules\axios\lib\core\AxiosError.js:77:24)
+    at RedirectableRequest.handleRequestError (D:\CascadeProjects\old\insurance\node_modules\axios\lib\adapters\http.js:1161:27)
+    at RedirectableRequest.emit (node:events:520:35)
+    at RedirectableRequest.emit (node:domain:489:12)
+    at ClientRequest.eventHandlers.<computed> (D:\CascadeProjects\old\insurance\node_modules\follow-redirects\index.js:56:24)
+    at ClientRequest.emit (node:events:508:28)
+    at ClientRequest.emit (node:domain:489:12)
+    at emitErrorEvent (node:_http_client:108:11)
+    at Socket.socketErrorListener (node:_http_client:575:5)
+    at Socket.emit (node:events:520:35)
+[31m[Nest] 38816  - [39m08/02/2026, 1:22:05 AM [31m  ERROR[39m [38;5;3m[BrokerBffService] [39m[31mGET http://localhost:18014/broker-reports?periodId=undefined failed: [39m
+[31m[Nest] 38816  - [39m08/02/2026, 1:22:05 AM [31m  ERROR[39m [38;5;3m[AllExceptionsFilter] [39m[31mUnhandled exception: Internal server error[39m
+AggregateError
+    at AxiosError.from (D:\CascadeProjects\old\insurance\node_modules\axios\lib\core\AxiosError.js:77:24)
+    at RedirectableRequest.handleRequestError (D:\CascadeProjects\old\insurance\node_modules\axios\lib\adapters\http.js:1161:27)
+    at RedirectableRequest.emit (node:events:520:35)
+    at RedirectableRequest.emit (node:domain:489:12)
+    at ClientRequest.eventHandlers.<computed> (D:\CascadeProjects\old\insurance\node_modules\follow-redirects\index.js:56:24)
+    at ClientRequest.emit (node:events:508:28)
+    at ClientRequest.emit (node:domain:489:12)
+    at emitErrorEvent (node:_http_client:108:11)
+    at Socket.socketErrorListener (node:_http_client:575:5)
+    at Socket.emit (node:events:520:35)

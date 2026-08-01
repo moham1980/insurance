@@ -6,19 +6,23 @@
   "type": "module",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
+      "types": "./src/index.ts",
+      "development": "./src/index.ts",
       "default": "./dist/index.js"
     },
     "./cn": {
-      "types": "./dist/cn.d.ts",
+      "types": "./src/cn.ts",
+      "development": "./src/cn.ts",
       "default": "./dist/cn.js"
     },
     "./format": {
-      "types": "./dist/format.d.ts",
+      "types": "./src/format.ts",
+      "development": "./src/format.ts",
       "default": "./dist/format.js"
     },
     "./hooks": {
-      "types": "./dist/hooks/index.d.ts",
+      "types": "./src/hooks/index.ts",
+      "development": "./src/hooks/index.ts",
       "default": "./dist/hooks/index.js"
     }
   },

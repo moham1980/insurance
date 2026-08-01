@@ -16,13 +16,15 @@ import { HealthController } from './health.controller';
 import { AppDataSource } from './data-source';
 import { BankPaymentProvider } from './psp/bank-payment.provider';
 import { IranPspProvider } from './psp/iran-psp.provider';
+import { MockPspProvider } from './psp/mock-psp.provider';
 import { PSP_PROVIDER } from './psp/psp.provider.token';
 
 function createPspProvider() {
-  const name = process.env.PSP_PROVIDER || '';
+  const name = process.env.PSP_PROVIDER || 'mock';
   if (name === 'bank') return new BankPaymentProvider();
   if (name === 'iran-psp') return new IranPspProvider();
-  return undefined;
+  if (name === 'mock') return new MockPspProvider();
+  return new MockPspProvider();
 }
 
 @Module({
@@ -41,6 +43,7 @@ function createPspProvider() {
     TenantGuard,
     BankPaymentProvider,
     IranPspProvider,
+    MockPspProvider,
     { provide: PSP_PROVIDER, useFactory: createPspProvider },
     { provide: APP_INTERCEPTOR, useClass: PiiMaskingInterceptor },
   ],

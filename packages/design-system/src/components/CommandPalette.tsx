@@ -1,3 +1,4 @@
+'use client';
 import * as React from 'react';
 import { cn } from '@insurance/ui-utils';
 import { Search, FileText, User, Calculator, BarChart3, LogOut, Settings } from 'lucide-react';

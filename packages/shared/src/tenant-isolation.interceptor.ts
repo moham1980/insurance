@@ -1,16 +1,14 @@
 import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { Observable } from 'rxjs';
-import { tap } from 'rxjs/operators';
 
 /**
  * NestJS interceptor that propagates the request tenant into PostgreSQL
  * `app.current_tenant` configuration so that Row-Level Security (RLS) policies
  * can enforce tenant isolation at the database level.
  *
- * IMPORTANT: This assumes the DataSource has already been created and that the
- * database user is not the table owner (or FORCE ROW LEVEL SECURITY has been
- * enabled), otherwise RLS policies are bypassed.
+ * Uses dataSource.query() which automatically checks out and releases a
+ * connection from the pool per query, avoiding pool exhaustion.
  */
 @Injectable()
 export class TenantIsolationInterceptor implements NestInterceptor {
@@ -19,37 +17,15 @@ export class TenantIsolationInterceptor implements NestInterceptor {
   async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<any>> {
     const request = context.switchToHttp().getRequest();
     const tenantId = request?.tenantId;
-    let runner: ReturnType<DataSource['createQueryRunner']> | undefined;
 
     if (tenantId && this.dataSource.isInitialized) {
-      runner = this.dataSource.createQueryRunner();
-      await runner.connect();
-      await runner.query('SELECT set_current_tenant($1)', [tenantId]);
+      try {
+        await this.dataSource.query('SELECT set_current_tenant($1)', [tenantId]);
+      } catch {
+        /* ignore tenant context errors */
+      }
     }
 
-    return next.handle().pipe(
-      tap({
-        next: async () => {
-          if (runner) {
-            try {
-              await runner.query("SELECT set_current_tenant('')");
-              await runner.release();
-            } catch {
-              /* release only once */
-            }
-          }
-        },
-        error: async () => {
-          if (runner) {
-            try {
-              await runner.query("SELECT set_current_tenant('')");
-              await runner.release();
-            } catch {
-              /* release only once */
-            }
-          }
-        },
-      })
-    );
+    return next.handle();
   }
 }

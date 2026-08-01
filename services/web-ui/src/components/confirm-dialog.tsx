@@ -27,15 +27,15 @@ export function ConfirmDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40" onClick={onCancel} />
-      <div className="relative w-full max-w-md rounded-2xl border bg-white p-6 shadow-2xl">
-        <h3 className="text-lg font-semibold">{title}</h3>
-        <p className="mt-2 text-sm text-neutral-600">{message}</p>
+      <div className="absolute inset-0 bg-bg-overlay" onClick={onCancel} />
+      <div className="relative w-full max-w-md rounded-2xl border border-border-default bg-bg-raised p-6 shadow-2xl">
+        <h3 className="text-lg font-semibold text-text-primary">{title}</h3>
+        <p className="mt-2 text-sm text-text-secondary">{message}</p>
         <div className="mt-6 flex justify-end gap-3">
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-xl border px-4 py-2 text-sm hover:bg-neutral-50"
+            className="rounded-xl border border-border-default px-4 py-2 text-sm text-text-secondary hover:bg-bg-base"
           >
             {cancelText}
           </button>
@@ -44,8 +44,8 @@ export function ConfirmDialog({
             onClick={onConfirm}
             className={`rounded-xl px-4 py-2 text-sm ${
               danger
-                ? 'bg-rose-600 text-white hover:bg-rose-700'
-                : 'bg-neutral-900 text-white hover:bg-neutral-800'
+                ? 'bg-feedback-error text-text-on-brand hover:opacity-90'
+                : 'bg-brand-primary text-text-on-brand hover:opacity-90'
             }`}
           >
             {confirmText}

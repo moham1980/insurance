@@ -113,6 +113,7 @@ import { WorkflowEngineClient } from './clients/workflow-engine.client';
     UnderwritingServiceClient,
     FraudServiceClient,
     SalesNetworkServiceClient,
+    WorkflowEngineClient,
   ],
 })
 export class AppModule {}

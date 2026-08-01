@@ -1,14 +1,32 @@
+@import '@insurance/design-system/themes/light.css';
+@import '@insurance/design-system/themes/dark.css';
+@import '@insurance/design-system/themes/high-contrast.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --brand-primary: #0066CC;
-  --brand-primary-dark: #0052A3;
-}
-
 body {
   font-family: 'Vazirmatn', 'Segoe UI', Tahoma, sans-serif;
-  background: #f8fafc;
-  color: #1e293b;
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
 }
+
+.dark body {
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+}
+
+.dark .bg-white { background-color: var(--color-bg-raised) !important; }
+.dark .bg-slate-50 { background-color: var(--color-bg-subtle) !important; }
+.dark .bg-slate-100 { background-color: var(--color-surface-2) !important; }
+.dark .text-slate-900 { color: var(--color-text-primary) !important; }
+.dark .text-slate-800 { color: var(--color-text-primary) !important; }
+.dark .text-slate-700 { color: var(--color-text-secondary) !important; }
+.dark .text-slate-600 { color: var(--color-text-secondary) !important; }
+.dark .text-slate-500 { color: var(--color-text-muted) !important; }
+.dark .text-slate-400 { color: var(--color-text-muted) !important; }
+.dark .border-slate-200 { border-color: var(--color-border-default) !important; }
+.dark .border-slate-100 { border-color: var(--color-border-subtle) !important; }
+.dark .divide-slate-200 > * + * { border-color: var(--color-border-default) !important; }
+.dark .divide-slate-100 > * + * { border-color: var(--color-border-subtle) !important; }
