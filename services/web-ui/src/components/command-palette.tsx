@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Search, Command, ArrowLeft } from 'lucide-react';
+import { Card } from '@insurance/design-system';
 
 export interface CmdItem {
   id: string;
@@ -68,7 +69,7 @@ export function CommandPalette({ items }: { items: CmdItem[] }) {
   return (
     <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh]" dir="rtl">
       <div className="absolute inset-0 bg-bg-overlay backdrop-blur-sm" onClick={close} />
-      <div className="relative w-full max-w-lg rounded-2xl border border-border-default bg-bg-raised shadow-2xl">
+      <Card className="relative w-full max-w-lg shadow-2xl">
         <div className="flex items-center gap-3 border-b border-border-default px-4 py-3">
           <Search className="h-5 w-5 text-text-muted" />
           <input
@@ -114,7 +115,7 @@ export function CommandPalette({ items }: { items: CmdItem[] }) {
             })
           )}
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

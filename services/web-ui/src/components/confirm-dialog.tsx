@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Card } from '@insurance/design-system';
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -28,7 +29,7 @@ export function ConfirmDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-bg-overlay" onClick={onCancel} />
-      <div className="relative w-full max-w-md rounded-2xl border border-border-default bg-bg-raised p-6 shadow-2xl">
+      <Card className="relative w-full max-w-md p-6 shadow-2xl">
         <h3 className="text-lg font-semibold text-text-primary">{title}</h3>
         <p className="mt-2 text-sm text-text-secondary">{message}</p>
         <div className="mt-6 flex justify-end gap-3">
@@ -51,7 +52,7 @@ export function ConfirmDialog({
             {confirmText}
           </button>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

@@ -48,7 +48,7 @@ export function AgentClaimsPage() {
       </div>
 
       {/* Split View */}
-      <div className="flex gap-4 rounded-xl border border-border-default bg-bg-raised overflow-hidden" style={{ minHeight: '500px' }}>
+      <Card className="flex gap-4 overflow-hidden" style={{ minHeight: '500px' }}>
         {/* Left: List */}
         <div className="flex w-1/2 flex-col border-l border-border-default">
           <div className="border-b border-border-default p-3 space-y-2">
@@ -118,33 +118,33 @@ export function AgentClaimsPage() {
                 <StatusBadge status={selected.status} />
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="rounded-lg border border-border-default bg-bg-raised p-3">
+                <Card className="p-3">
                   <p className="text-xs text-text-muted">مشتری</p>
                   <p className="text-sm font-medium text-text-primary">{selected.customerName}</p>
-                </div>
-                <div className="rounded-lg border border-border-default bg-bg-raised p-3">
+                </Card>
+                <Card className="p-3">
                   <p className="text-xs text-text-muted">بیمه‌نامه</p>
                   <p className="text-sm font-medium text-text-primary">{selected.policyNumber}</p>
-                </div>
-                <div className="rounded-lg border border-border-default bg-bg-raised p-3">
+                </Card>
+                <Card className="p-3">
                   <p className="text-xs text-text-muted">نوع خسارت</p>
                   <p className="text-sm font-medium text-text-primary">{selected.claimType}</p>
-                </div>
-                <div className="rounded-lg border border-border-default bg-bg-raised p-3">
+                </Card>
+                <Card className="p-3">
                   <p className="text-xs text-text-muted">مبلغ</p>
                   <p className="text-sm font-bold text-text-primary">{formatToman(selected.amount)}</p>
-                </div>
-                <div className="rounded-lg border border-border-default bg-bg-raised p-3">
+                </Card>
+                <Card className="p-3">
                   <p className="text-xs text-text-muted">تاریخ</p>
                   <p className="text-sm text-text-primary">{selected.date}</p>
-                </div>
-                <div className="rounded-lg border border-border-default bg-bg-raised p-3">
+                </Card>
+                <Card className="p-3">
                   <p className="text-xs text-text-muted">شرح</p>
                   <p className="text-sm text-text-secondary">{selected.description || '—'}</p>
-                </div>
+                </Card>
               </div>
               {/* Timeline */}
-              <div className="rounded-lg border border-border-default bg-bg-raised p-4">
+              <Card className="p-4">
                 <h3 className="mb-3 text-sm font-semibold text-text-primary">مراحل پیگیری</h3>
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-xs">
@@ -162,7 +162,7 @@ export function AgentClaimsPage() {
                     <span className="text-text-muted">بررسی و پرداخت</span>
                   </div>
                 </div>
-              </div>
+              </Card>
               <div className="flex gap-2">
                 <Button>پیگیری با بیمه‌گر</Button>
                 <Button variant="secondary">ارسال به کارشناس</Button>
@@ -170,7 +170,7 @@ export function AgentClaimsPage() {
             </div>
           )}
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

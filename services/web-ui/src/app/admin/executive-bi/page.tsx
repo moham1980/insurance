@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { TrendingUp } from 'lucide-react';
 import { apiFetch, getAuthUser } from '@/lib/api';
 import { enterprisePermissionsForRoles, hasEnterprisePermission } from '@/lib/enterprise-rbac';
 
@@ -343,9 +344,7 @@ export default function ExecutiveBIDashboardPage() {
             )}
           </div>
           <div className={`w-12 h-12 rounded-full ${colorClasses.bg} flex items-center justify-center`}>
-            <svg className={`w-6 h-6 ${colorClasses.text}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-            </svg>
+            <TrendingUp className={`w-6 h-6 ${colorClasses.text}`} />
           </div>
         </div>
       </div>

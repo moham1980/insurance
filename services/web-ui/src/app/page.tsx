@@ -1,5 +1,6 @@
 import { OverviewCards } from '@/components/overview-cards';
 import { FileText, ShieldAlert, Scale, TrendingUp, Users, Building2, Gavel, Wallet, BarChart3, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import { Card } from '@insurance/design-system';
 
 const stats = [
   { label: 'سازمان‌های فعال', value: '۱۲', icon: Building2, bg: 'bg-brand-primary-subtle', textColor: 'text-brand-primary' },
@@ -83,7 +84,7 @@ export default function Page() {
 
           <div>
             <h2 className="mb-3 text-lg font-semibold text-text-primary">فعالیت‌های اخیر</h2>
-            <div className="rounded-2xl border border-border-default bg-bg-raised p-4">
+            <Card className="p-4">
               <div className="space-y-3">
                 {recentActivities.map((activity, idx) => (
                   <div key={idx} className="flex items-start gap-3 pb-3 last:pb-0 border-b last:border-b-0 border-border-subtle">
@@ -99,7 +100,7 @@ export default function Page() {
                   </div>
                 ))}
               </div>
-            </div>
+            </Card>
           </div>
         </div>
 

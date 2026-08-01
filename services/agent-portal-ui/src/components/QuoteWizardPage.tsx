@@ -3,6 +3,7 @@ import {
   Sparkles, ChevronLeft, ChevronRight, Check, User, Car, Home,
   Heart, Shield, Brain, TrendingUp, Calculator, FileText,
 } from 'lucide-react';
+import { Card } from '@insurance/design-system';
 
 type Step = 0 | 1 | 2 | 3 | 4;
 
@@ -62,7 +63,7 @@ export function QuoteWizardPage({ onClose }: { onClose: () => void }) {
       </div>
 
       {/* Stepper */}
-      <div className="flex items-center justify-between rounded-xl border border-border-default bg-bg-raised p-4">
+      <Card className="flex items-center justify-between p-4">
         {steps.map((label, i) => {
           const Icon = stepIcons[i];
           const isActive = step === i;
@@ -85,10 +86,10 @@ export function QuoteWizardPage({ onClose }: { onClose: () => void }) {
             </React.Fragment>
           );
         })}
-      </div>
+      </Card>
 
       {/* Step Content */}
-      <div className="rounded-xl border border-border-default bg-bg-raised p-6">
+      <Card className="p-6">
         {step === 0 && (
           <div className="space-y-4">
             <h2 className="text-lg font-semibold text-text-primary">انتخاب نوع بیمه</h2>
@@ -252,7 +253,7 @@ export function QuoteWizardPage({ onClose }: { onClose: () => void }) {
             </div>
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Navigation */}
       {step < 3 && (

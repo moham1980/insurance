@@ -413,7 +413,6 @@ export default function UnderwritingWorkstation() {
                   >
                     {submitting ? 'در حال ثبت...' : 'ثبت تصمیم'}
                   </button>
-                </div>
               </Card>
               )}
 

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { FileText, Search, Filter, Download } from 'lucide-react';
-import { Loading, ErrorBanner, EmptyState, StatusBadge, PageHeader, Table, TableRow, TableCell, Button } from './ui';
+import { Loading, ErrorBanner, EmptyState, StatusBadge, PageHeader, Table, TableRow, TableCell, Button, Card } from './ui';
 import { mockPolicies, formatToman } from '../lib/mock-data';
 import { agentPortalAPI } from '../lib/api';
 
@@ -67,10 +67,10 @@ export function AgentPoliciesPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-xl border border-border-default bg-bg-raised p-3">
+        <Card className="p-3">
           <p className="text-xs text-text-muted">کل</p>
           <p className="mt-1 text-lg font-bold text-text-primary">{filtered.length}</p>
-        </div>
+        </Card>
         <div className="rounded-xl border border-feedback-success/30 bg-feedback-success-subtle p-3">
           <p className="text-xs text-feedback-success">فعال</p>
           <p className="mt-1 text-lg font-bold text-feedback-success">{filtered.filter(p => p.status === 'ACTIVE').length}</p>

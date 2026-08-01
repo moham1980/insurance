@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import { getAuthUser } from '@/lib/api';
 import { enterprisePermissionsForRoles, hasEnterprisePermission } from '@/lib/enterprise-rbac';
+import { Card } from '@insurance/design-system';
 
 type ClaimsSummary = {
   total: number;
@@ -104,13 +105,13 @@ export default function ClaimsSummaryPage() {
       </div>
 
       <div className="mt-6 grid gap-4 md:grid-cols-3">
-        <div className="rounded-2xl border border-border-default bg-bg-raised p-4">
+        <Card className="p-4">
           <div className="text-sm text-text-muted">تعداد کل خسارت‌ها</div>
           <div className="mt-2 text-2xl font-semibold">{summary.total.toLocaleString('fa-IR')}</div>
-        </div>
+        </Card>
       </div>
 
-      <div className="mt-6 rounded-2xl border border-border-default bg-bg-raised p-4">
+      <Card className="mt-6 p-4">
         <h3 className="font-semibold text-sm mb-4">توزیع بر اساس وضعیت</h3>
         {summary.byStatus.length === 0 ? (
           <div className="text-sm text-text-muted">داده‌ای موجود نیست.</div>
@@ -128,7 +129,7 @@ export default function ClaimsSummaryPage() {
             ))}
           </div>
         )}
-      </div>
+      </Card>
     </main>
   );
 }

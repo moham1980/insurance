@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Card } from '@insurance/design-system';
 
 type BulkAction = {
   id: string;
@@ -47,7 +48,7 @@ export function BulkActions({ selectedCount, actions, onAction, onClear, disable
 
   return (
     <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-auto z-40">
-      <div className="rounded-2xl border border-border-default bg-bg-raised p-4 shadow-2xl">
+      <Card className="p-4 shadow-2xl">
         {confirmingAction && action ? (
           <div className="flex items-center gap-3">
             <div className="flex-1">
@@ -104,7 +105,7 @@ export function BulkActions({ selectedCount, actions, onAction, onClear, disable
             </div>
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }
