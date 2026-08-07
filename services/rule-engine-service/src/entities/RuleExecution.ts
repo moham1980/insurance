@@ -4,6 +4,7 @@ export enum ExecutionStatus {
   SUCCESS = 'success',
   FAILED = 'failed',
   SKIPPED = 'skipped',
+  PARTIAL_SUCCESS = 'partial_success',
 }
 
 @Entity('rule_executions')

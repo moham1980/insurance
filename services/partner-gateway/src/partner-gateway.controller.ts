@@ -5,6 +5,9 @@ import { CertificateService } from './certificate.service';
 import { ReplayProtectionService } from './replay-protection.service';
 import { TokenExchangeProxyService } from './token-exchange-proxy.service';
 import { FederationSignatureGuard } from './federation-signature.guard';
+import { PartnerRateLimitGuard } from './partner-rate-limit.guard';
+import { JwtAuthGuard } from './jwt-auth.guard';
+import { AdminGuard } from './admin.guard';
 
 @Controller('partner-gateway')
 export class PartnerGatewayController {
@@ -22,6 +25,7 @@ export class PartnerGatewayController {
   }
 
   @Post('partners')
+  @UseGuards(JwtAuthGuard, AdminGuard)
   async registerPartner(@Body() body: CreatePartnerDto, @Headers() headers: Record<string, any>) {
     const correlationId = this.getCorrelationId(headers);
     const partner = await this.partnerService.registerPartner(body);
@@ -29,6 +33,7 @@ export class PartnerGatewayController {
   }
 
   @Get('partners')
+  @UseGuards(JwtAuthGuard, AdminGuard)
   async listPartners(@Headers() headers: Record<string, any>) {
     const correlationId = this.getCorrelationId(headers);
     const tenantId = headers['x-tenant-id'] || headers['X-Tenant-Id'];
@@ -38,6 +43,7 @@ export class PartnerGatewayController {
   }
 
   @Get('partners/:partnerId')
+  @UseGuards(JwtAuthGuard, AdminGuard)
   async getPartner(@Param('partnerId') partnerId: string, @Headers() headers: Record<string, any>) {
     const correlationId = this.getCorrelationId(headers);
     const partner = await this.partnerService.getPartner(partnerId);
@@ -45,6 +51,7 @@ export class PartnerGatewayController {
   }
 
   @Put('partners/:partnerId')
+  @UseGuards(JwtAuthGuard, AdminGuard)
   async updatePartner(
     @Param('partnerId') partnerId: string,
     @Body() body: Partial<CreatePartnerDto>,
@@ -56,6 +63,7 @@ export class PartnerGatewayController {
   }
 
   @Post('partners/:partnerId/revoke')
+  @UseGuards(JwtAuthGuard, AdminGuard)
   async revokePartner(
     @Param('partnerId') partnerId: string,
     @Body() body: { reason: string },
@@ -67,6 +75,7 @@ export class PartnerGatewayController {
   }
 
   @Post('partners/:partnerId/suspend')
+  @UseGuards(JwtAuthGuard, AdminGuard)
   async suspendPartner(@Param('partnerId') partnerId: string, @Headers() headers: Record<string, any>) {
     const correlationId = this.getCorrelationId(headers);
     const partner = await this.partnerService.suspendPartner(partnerId);
@@ -74,6 +83,7 @@ export class PartnerGatewayController {
   }
 
   @Post('partners/:partnerId/activate')
+  @UseGuards(JwtAuthGuard, AdminGuard)
   async activatePartner(@Param('partnerId') partnerId: string, @Headers() headers: Record<string, any>) {
     const correlationId = this.getCorrelationId(headers);
     const partner = await this.partnerService.activatePartner(partnerId);
@@ -81,6 +91,7 @@ export class PartnerGatewayController {
   }
 
   @Post('partners/:partnerId/certificates')
+  @UseGuards(JwtAuthGuard, AdminGuard)
   async uploadCertificate(
     @Param('partnerId') partnerId: string,
     @Body() body: { certSubject: string; certSerial: string; publicCertPem: string; issuer: string; validFrom: string; expiresAt: string },
@@ -100,6 +111,7 @@ export class PartnerGatewayController {
   }
 
   @Get('partners/:partnerId/certificates')
+  @UseGuards(JwtAuthGuard, AdminGuard)
   async listCertificates(@Param('partnerId') partnerId: string, @Headers() headers: Record<string, any>) {
     const correlationId = this.getCorrelationId(headers);
     const certs = await this.certService.listCertificates(partnerId);
@@ -107,6 +119,7 @@ export class PartnerGatewayController {
   }
 
   @Post('partners/:partnerId/certificates/:certId/rotate')
+  @UseGuards(JwtAuthGuard, AdminGuard)
   async rotateCertificate(
     @Param('partnerId') partnerId: string,
     @Param('certId') certId: string,
@@ -127,6 +140,7 @@ export class PartnerGatewayController {
   }
 
   @Get('certificates/expiring')
+  @UseGuards(JwtAuthGuard, AdminGuard)
   async getExpiringCertificates(@Headers() headers: Record<string, any>) {
     const correlationId = this.getCorrelationId(headers);
     const daysAhead = parseInt(headers['x-days-ahead'] || '30', 10);
@@ -135,7 +149,7 @@ export class PartnerGatewayController {
   }
 
   @Post('token-exchange')
-  @UseGuards(FederationSignatureGuard)
+  @UseGuards(FederationSignatureGuard, PartnerRateLimitGuard)
   async tokenExchange(
     @Body() body: { partnerId: string; subjectToken: string; subjectTokenType: string; audience: string; scope: string; requestedTokenType?: string },
     @Headers() headers: Record<string, any>,
@@ -158,6 +172,7 @@ export class PartnerGatewayController {
   }
 
   @Post('validate-access')
+  @UseGuards(PartnerRateLimitGuard)
   async validateAccess(
     @Body() body: { certSubject: string; requestedApi: string; requestedScope: string },
     @Headers() headers: Record<string, any>,

@@ -231,6 +231,7 @@ export interface CustomerPreferences {
     post: boolean;
   };
   language: string;
+  consentPreferences: {
     marketing: boolean;
     analytics: boolean;
     thirdPartySharing: boolean;

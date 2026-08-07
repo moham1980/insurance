@@ -11,6 +11,8 @@ import { ProcessToken, TokenStatus } from './entities/process-token.entity';
 import { ProcessVariable } from './entities/process-variable.entity';
 import { ProcessHistory, HistoryEventType } from './entities/process-history.entity';
 import { ProcessTimer, TimerStatus } from './entities/process-timer.entity';
+import { AuditLog } from './entities/audit-log.entity'; // P1 #10
+import { EntityVersion } from './entities/entity-version.entity'; // P1 #10
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 
@@ -60,11 +62,70 @@ export class WorkflowEngineService implements OnModuleInit, OnModuleDestroy {
     private readonly historyRepository: Repository<ProcessHistory>,
     @InjectRepository(ProcessTimer)
     private readonly timerRepository: Repository<ProcessTimer>,
+    @InjectRepository(AuditLog)
+    private readonly auditLogRepository: Repository<AuditLog>, // P1 #10
+    @InjectRepository(EntityVersion)
+    private readonly entityVersionRepository: Repository<EntityVersion>, // P1 #10
     private readonly httpService: HttpService,
     private readonly dataSource: DataSource,
     @Inject('TIMER_POLL_INTERVAL_MS')
     private readonly timerPollIntervalMs: number,
   ) {}
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // P1 #10: Audit trail & versioning helpers
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Write an immutable audit log entry.
+   */
+  private async writeAuditLog(params: {
+    resourceType: string;
+    resourceId: string;
+    action: string;
+    actor: string;
+    tenantId?: string | null;
+    before?: Record<string, any> | null;
+    after?: Record<string, any> | null;
+  }): Promise<void> {
+    const entry = this.auditLogRepository.create({
+      resourceType: params.resourceType,
+      resourceId: params.resourceId,
+      action: params.action,
+      actor: params.actor,
+      tenantId: params.tenantId ?? null,
+      before: params.before ?? null,
+      after: params.after ?? null,
+    });
+    await this.auditLogRepository.save(entry);
+  }
+
+  /**
+   * Write an immutable entity version snapshot.
+   */
+  private async writeEntityVersion(params: {
+    resourceType: string;
+    resourceId: string;
+    snapshot: Record<string, any>;
+    actor: string;
+    tenantId?: string | null;
+  }): Promise<void> {
+    const versions = await this.entityVersionRepository.find({
+      where: { resourceType: params.resourceType, resourceId: params.resourceId },
+      order: { version: 'DESC' },
+      take: 1,
+    });
+    const nextVersion = (versions.length > 0 ? versions[0].version : 0) + 1;
+    const entry = this.entityVersionRepository.create({
+      resourceType: params.resourceType,
+      resourceId: params.resourceId,
+      version: nextVersion,
+      snapshot: params.snapshot,
+      actor: params.actor,
+      tenantId: params.tenantId ?? null,
+    });
+    await this.entityVersionRepository.save(entry);
+  }
 
   onModuleInit() {
     if (this.timerPollIntervalMs > 0) {
@@ -801,7 +862,25 @@ export class WorkflowEngineService implements OnModuleInit, OnModuleDestroy {
       effectiveTo: params.effectiveTo ? new Date(params.effectiveTo) : null,
       metadata: { ...params.metadata, createdBy: params.createdBy },
     });
-    return this.definitionRepository.save(definition);
+    const saved = await this.definitionRepository.save(definition);
+    // P1 #10: write immutable audit log and entity version
+    await this.writeAuditLog({
+      resourceType: 'process_definition',
+      resourceId: saved.id,
+      action: 'created',
+      actor: params.createdBy || 'system',
+      tenantId: saved.tenantId,
+      before: null,
+      after: { id: saved.id, key: saved.key, name: saved.name, version: saved.version, status: saved.status },
+    });
+    await this.writeEntityVersion({
+      resourceType: 'process_definition',
+      resourceId: saved.id,
+      snapshot: { id: saved.id, key: saved.key, name: saved.name, description: saved.description, graph: saved.graph, variables: saved.variables, version: saved.version, status: saved.status },
+      actor: params.createdBy || 'system',
+      tenantId: saved.tenantId,
+    });
+    return saved;
   }
 
   async listDefinitions(tenantId: string, status?: ProcessDefinitionStatus, key?: string, limit: number = 50, offset: number = 0): Promise<ProcessDefinition[]> {
@@ -824,8 +903,27 @@ export class WorkflowEngineService implements OnModuleInit, OnModuleDestroy {
 
   async updateDefinition(id: string, tenantId: string, body: Partial<ProcessDefinition>): Promise<ProcessDefinition> {
     const def = await this.getDefinition(id, tenantId);
+    const before = { ...def };
     Object.assign(def, body);
-    return this.definitionRepository.save(def);
+    const saved = await this.definitionRepository.save(def);
+    // P1 #10: write immutable audit log and entity version
+    await this.writeAuditLog({
+      resourceType: 'process_definition',
+      resourceId: saved.id,
+      action: 'updated',
+      actor: saved.updatedBy || 'system',
+      tenantId: saved.tenantId,
+      before: { id: before.id, key: before.key, name: before.name, version: before.version, status: before.status },
+      after: { id: saved.id, key: saved.key, name: saved.name, version: saved.version, status: saved.status },
+    });
+    await this.writeEntityVersion({
+      resourceType: 'process_definition',
+      resourceId: saved.id,
+      snapshot: { id: saved.id, key: saved.key, name: saved.name, description: saved.description, graph: saved.graph, variables: saved.variables, version: saved.version, status: saved.status },
+      actor: saved.updatedBy || 'system',
+      tenantId: saved.tenantId,
+    });
+    return saved;
   }
 
   async deleteDefinition(id: string, tenantId: string): Promise<void> {

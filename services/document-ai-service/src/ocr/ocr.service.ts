@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as Tesseract from 'tesseract.js';
 import * as vision from '@google-cloud/vision';
+import { logOcrCost } from '../cost-logger';
 
 export enum OcrProvider {
   TESSERACT = 'tesseract',
@@ -76,11 +77,15 @@ export class OcrService {
     const startTime = Date.now();
 
     try {
+      let result: OcrResult;
       if (provider === OcrProvider.GOOGLE_VISION && this.visionClient) {
-        return await this.extractWithGoogleVision(imageBuffer, mimeType, options);
+        result = await this.extractWithGoogleVision(imageBuffer, mimeType, options);
       } else {
-        return await this.extractWithTesseract(imageBuffer, mimeType, language, options);
+        result = await this.extractWithTesseract(imageBuffer, mimeType, language, options);
       }
+      // Cost tracking: log provider, page/image size, and estimated cost after each OCR extraction
+      logOcrCost(result, { bytes: imageBuffer.length });
+      return result;
     } catch (error) {
       this.logger.error(`OCR extraction failed with provider ${provider}`, error);
       throw error;

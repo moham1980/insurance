@@ -227,7 +227,8 @@ export const mockBrokerBrandSettings = {
 
 export const mockChannelCapabilities: string[] = [
   'dashboard', 'overview', 'offerings', 'submissions', 'quotes', 'placements',
-  'commissions', 'customers', 'claims', 'subAgents', 'partners', 'brandSettings',
+  'commissions', 'settlements', 'customers', 'claims', 'subAgents', 'partners',
+  'documents', 'brandSettings',
 ];
 
 export const mockBrokerCapabilities: string[] = [

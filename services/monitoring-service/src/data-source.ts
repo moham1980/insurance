@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 import { ConsumedEvent } from '@insurance/shared';
-import { Metric, SLO, Alert } from './entities/MonitoringEntities';
+import { Metric, SLO, Alert, AlertSilence, DashboardConfig } from './entities/MonitoringEntities';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -11,6 +11,6 @@ export const AppDataSource = new DataSource({
   password: process.env.DB_PASSWORD || 'postgres',
   database: process.env.DB_DATABASE || process.env.DB_NAME || 'postgres',
   schema: process.env.DB_SCHEMA || 'monitoring',
-  entities: [Metric, SLO, Alert, ConsumedEvent],
+  entities: [Metric, SLO, Alert, AlertSilence, DashboardConfig, ConsumedEvent],
   migrations: [__dirname + '/migrations/*.{js,ts}'],
 });

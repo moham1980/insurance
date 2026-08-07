@@ -16,8 +16,10 @@ interface PartnerRateLimitConfig {
 export class RateLimitService {
   private readonly logger = new Logger(RateLimitService.name);
   private readonly limitMap = new Map<string, RateLimitEntry>();
+  private readonly minuteLimitMap = new Map<string, RateLimitEntry>();
   private readonly configMap = new Map<string, PartnerRateLimitConfig>();
   private readonly WINDOW_MS = 1000;
+  private readonly MINUTE_WINDOW_MS = 60_000;
 
   configurePartner(partnerId: string, rps: number, burst: number = 0): void {
     this.configMap.set(partnerId, { partnerId, rps, burst: burst || rps });
@@ -71,6 +73,39 @@ export class RateLimitService {
     };
   }
 
+  /**
+   * Per-minute rate limit check. Used by endpoints such as token-exchange and
+   * validate-access that should be capped at a small number of requests per
+   * minute per partner (e.g. 10/min). The key is a composite of partnerId and
+   * endpoint so that limits are tracked independently per endpoint.
+   */
+  checkRateLimitPerMinute(key: string, maxPerMinute: number): void {
+    const now = Date.now();
+    let entry = this.minuteLimitMap.get(key);
+
+    if (!entry) {
+      entry = { count: 0, windowStart: now, lastRequest: now };
+      this.minuteLimitMap.set(key, entry);
+    }
+
+    if (now - entry.windowStart > this.MINUTE_WINDOW_MS) {
+      entry.count = 0;
+      entry.windowStart = now;
+    }
+
+    entry.count++;
+    entry.lastRequest = now;
+
+    if (entry.count > maxPerMinute) {
+      this.logger.warn(
+        `Rate limit exceeded for ${key}: ${entry.count} requests in 60s window (limit: ${maxPerMinute})`,
+      );
+      throw new ForbiddenException(
+        `Rate limit exceeded for ${key}: ${entry.count}/${maxPerMinute} requests per minute`,
+      );
+    }
+  }
+
   resetPartner(partnerId: string): void {
     this.limitMap.delete(partnerId);
   }
@@ -80,6 +115,11 @@ export class RateLimitService {
     for (const [partnerId, entry] of this.limitMap.entries()) {
       if (now - entry.lastRequest > maxAgeMs) {
         this.limitMap.delete(partnerId);
+      }
+    }
+    for (const [key, entry] of this.minuteLimitMap.entries()) {
+      if (now - entry.lastRequest > maxAgeMs) {
+        this.minuteLimitMap.delete(key);
       }
     }
   }

@@ -36,6 +36,8 @@ export class AlertingService {
   private rules: Map<string, AlertRule> = new Map();
   private alerts: Alert[] = [];
   private cooldowns: Map<string, Date> = new Map();
+  // P2 #8: in-memory alert silences for maintenance windows
+  private silences: Map<string, Date> = new Map(); // key: ruleId, value: silenceUntil
 
   constructor(private readonly configService: ConfigService) {
     this.initializeChannels();
@@ -175,6 +177,17 @@ export class AlertingService {
     const rule = this.rules.get(ruleId);
     if (!rule || !rule.enabled) {
       return false;
+    }
+
+    // P2 #8: check if the alert is silenced for a maintenance window
+    const silenceUntil = this.silences.get(ruleId);
+    if (silenceUntil && Date.now() < silenceUntil.getTime()) {
+      this.logger.log(`Alert ${ruleId} is silenced until ${silenceUntil.toISOString()}`);
+      return false;
+    }
+    // Clean up expired silence entries
+    if (silenceUntil && Date.now() >= silenceUntil.getTime()) {
+      this.silences.delete(ruleId);
     }
 
     // Check cooldown
@@ -489,5 +502,37 @@ export class AlertingService {
       healthy: enabledChannels.length > 0,
       channels: enabledChannels,
     };
+  }
+
+  // P2 #8: Alert silencing for maintenance windows
+
+  /**
+   * Silence an alert rule until the given time.
+   */
+  silenceAlert(ruleId: string, silenceUntil: Date, reason?: string): void {
+    this.silences.set(ruleId, silenceUntil);
+    this.logger.log(`Alert ${ruleId} silenced until ${silenceUntil.toISOString()}. Reason: ${reason || 'n/a'}`);
+  }
+
+  /**
+   * Remove the silence for an alert rule.
+   */
+  unsilenceAlert(ruleId: string): void {
+    this.silences.delete(ruleId);
+    this.logger.log(`Alert ${ruleId} unsilenced`);
+  }
+
+  /**
+   * Get all active silences.
+   */
+  getActiveSilences(): Array<{ ruleId: string; silenceUntil: Date }> {
+    const now = Date.now();
+    const active: Array<{ ruleId: string; silenceUntil: Date }> = [];
+    for (const [ruleId, silenceUntil] of this.silences.entries()) {
+      if (silenceUntil.getTime() > now) {
+        active.push({ ruleId, silenceUntil });
+      }
+    }
+    return active;
   }
 }

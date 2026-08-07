@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { createConnection } from 'typeorm';
 import { Init1700000001300 } from './migrations/1700000001300-init';
+import { AddTenantIdToModelCards1700000001301 } from './migrations/1700000001301-add-tenant-id-to-model-cards';
 
 async function migrate() {
   const connection = await createConnection({
@@ -16,13 +17,19 @@ async function migrate() {
   });
 
   const queryRunner = connection.createQueryRunner();
-  const migration = new Init1700000001300();
+  const migrations = [
+    new Init1700000001300(),
+    new AddTenantIdToModelCards1700000001301(),
+  ];
 
   try {
     await queryRunner.connect();
-    console.log('Running migration up...');
-    await migration.up(queryRunner);
-    console.log('Migration completed successfully');
+    for (const migration of migrations) {
+      console.log(`Running migration ${migration.name} up...`);
+      await migration.up(queryRunner);
+      console.log(`Migration ${migration.name} completed successfully`);
+    }
+    console.log('All migrations completed successfully');
   } catch (error) {
     console.error('Migration failed:', error);
     process.exit(1);

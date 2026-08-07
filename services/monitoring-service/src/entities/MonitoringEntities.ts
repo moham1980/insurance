@@ -102,3 +102,60 @@ export class Alert {
   @Column({ name: 'created_at', type: 'timestamptz', default: () => 'NOW()' })
   createdAt!: Date;
 }
+
+// P2 #8: AlertSilence entity for silencing alerts during maintenance windows.
+@Entity('alert_silences')
+@Index(['tenantId', 'alertName'])
+@Index(['silenceUntil'])
+export class AlertSilence {
+  @PrimaryGeneratedColumn('uuid', { name: 'silence_id' })
+  silenceId!: string;
+
+  @Column({ name: 'tenant_id', type: 'uuid', nullable: true })
+  tenantId!: string | null;
+
+  @Column({ name: 'alert_name', type: 'text' })
+  alertName!: string;
+
+  @Column({ name: 'silence_until', type: 'timestamptz' })
+  silenceUntil!: Date;
+
+  @Column({ name: 'created_by', type: 'text' })
+  createdBy!: string;
+
+  @Column({ name: 'reason', type: 'text', nullable: true })
+  reason!: string | null;
+
+  @Column({ name: 'created_at', type: 'timestamptz', default: () => 'NOW()' })
+  createdAt!: Date;
+}
+
+// P2 #5: DashboardConfig entity for customizable dashboards (tenant-scoped and user-scoped)
+@Entity('dashboard_configs')
+@Index(['tenantId', 'userId'])
+@Index(['tenantId', 'name'])
+export class DashboardConfig {
+  @PrimaryGeneratedColumn('uuid', { name: 'dashboard_id' })
+  dashboardId!: string;
+
+  @Column({ name: 'tenant_id', type: 'uuid' })
+  tenantId!: string;
+
+  @Column({ name: 'user_id', type: 'text' })
+  userId!: string;
+
+  @Column({ name: 'name', type: 'text' })
+  name!: string;
+
+  @Column({ name: 'widgets', type: 'jsonb', nullable: true })
+  widgets!: Array<{ type: string; title: string; config: Record<string, any>; position: { x: number; y: number; w: number; h: number } }> | null;
+
+  @Column({ name: 'layout', type: 'jsonb', nullable: true })
+  layout!: Record<string, any> | null;
+
+  @Column({ name: 'created_at', type: 'timestamptz', default: () => 'NOW()' })
+  createdAt!: Date;
+
+  @Column({ name: 'updated_at', type: 'timestamptz', default: () => 'NOW()' })
+  updatedAt!: Date;
+}

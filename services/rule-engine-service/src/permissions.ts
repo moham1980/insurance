@@ -6,6 +6,10 @@ export type PermissionKey =
   | 'rule_engine:rules:delete'
   | 'rule_engine:rules:activate'
   | 'rule_engine:rules:deactivate'
+  // P1 #5 (SoD): submit and approve are separate permissions.
+  // A user with :submit cannot self-approve; a different user with :approve must review.
+  | 'rule_engine:rules:submit'
+  | 'rule_engine:rules:approve'
   | 'rule_engine:evaluate'
   | 'rule_engine:templates:create'
   | 'rule_engine:templates:view'
@@ -23,6 +27,8 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     'rule_engine:rules:delete',
     'rule_engine:rules:activate',
     'rule_engine:rules:deactivate',
+    'rule_engine:rules:submit',
+    'rule_engine:rules:approve',
     'rule_engine:evaluate',
     'rule_engine:templates:create',
     'rule_engine:templates:view',
@@ -34,6 +40,7 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
   head_office_ops: [
     'rule_engine:rules:view',
     'rule_engine:rules:list',
+    'rule_engine:rules:approve',
     'rule_engine:evaluate',
     'rule_engine:templates:view',
     'rule_engine:templates:list',
@@ -46,6 +53,7 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     'rule_engine:rules:view',
     'rule_engine:rules:list',
     'rule_engine:rules:update',
+    'rule_engine:rules:submit',
     'rule_engine:rules:activate',
     'rule_engine:rules:deactivate',
     'rule_engine:evaluate',

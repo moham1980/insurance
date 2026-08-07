@@ -69,6 +69,85 @@ export class RuleEngineController {
     };
   }
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // P1 #5 (SoD): Submit / Approve / Reject endpoints
+  // State machine: DRAFT → PENDING_APPROVAL → APPROVED/REJECTED
+  // The submitter cannot be the approver (Segregation of Duties).
+  // ──────────────────────────────────────────────────────────────────────────
+
+  @Put('rules/:id/submit')
+  @RequirePermissions('rule_engine:rules:submit')
+  async submitRuleForApproval(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Headers() headers: Record<string, any>,
+  ) {
+    const correlationId = headers['x-correlation-id'] || `re-${Date.now()}`;
+    const tenantId = this.tenantIdFrom(req);
+    const actor = req?.user?.userId || req?.user?.sub;
+    if (!actor) {
+      throw new UnauthorizedException({
+        success: false,
+        error: { code: 'UNAUTHORIZED', message: 'Authenticated user identity is required' },
+      });
+    }
+    const result = await this.service.submitRuleForApproval(tenantId, id, actor);
+    return {
+      success: true,
+      data: result,
+      correlationId,
+    };
+  }
+
+  @Put('rules/:id/approve')
+  @RequirePermissions('rule_engine:rules:approve')
+  async approveRule(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Headers() headers: Record<string, any>,
+  ) {
+    const correlationId = headers['x-correlation-id'] || `re-${Date.now()}`;
+    const tenantId = this.tenantIdFrom(req);
+    const actor = req?.user?.userId || req?.user?.sub;
+    if (!actor) {
+      throw new UnauthorizedException({
+        success: false,
+        error: { code: 'UNAUTHORIZED', message: 'Authenticated user identity is required' },
+      });
+    }
+    const result = await this.service.approveRule(tenantId, id, actor);
+    return {
+      success: true,
+      data: result,
+      correlationId,
+    };
+  }
+
+  @Put('rules/:id/reject')
+  @RequirePermissions('rule_engine:rules:approve')
+  async rejectRule(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Headers() headers: Record<string, any>,
+    @Body() body: { reason?: string },
+  ) {
+    const correlationId = headers['x-correlation-id'] || `re-${Date.now()}`;
+    const tenantId = this.tenantIdFrom(req);
+    const actor = req?.user?.userId || req?.user?.sub;
+    if (!actor) {
+      throw new UnauthorizedException({
+        success: false,
+        error: { code: 'UNAUTHORIZED', message: 'Authenticated user identity is required' },
+      });
+    }
+    const result = await this.service.rejectRule(tenantId, id, actor, body?.reason);
+    return {
+      success: true,
+      data: result,
+      correlationId,
+    };
+  }
+
   @Put('rules/:id/deactivate')
   @RequirePermissions('rule_engine:rules:deactivate')
   async deactivateRule(

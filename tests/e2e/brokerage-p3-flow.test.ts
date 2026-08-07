@@ -5,7 +5,7 @@ import { DockerComposeHelper } from '../helpers/docker-compose';
 import { DbHelper } from '../helpers/db-helper';
 import { v4 as uuidv4 } from 'uuid';
 
-const tenantId = 'test-tenant-p3';
+const tenantId = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
 const adminToken = JwtFactory.createAdminToken(tenantId);
 const apiClient = createGatewayClient(adminToken);
 apiClient.setTenantId(tenantId);
@@ -41,8 +41,9 @@ describe('E2E: P3 Brokerage Commission / Ledger / Settlement', () => {
     });
 
     expect(response.success).toBe(true);
-    expect(response.data.splits.length).toBe(1);
-    expect(response.data.splits[0].amount).toBe(100_000);
+    expect(response.data.splits.length).toBe(2);
+    const totalAmount = response.data.splits.reduce((sum: bigint, s: any) => sum + BigInt(String(s.amount)), BigInt(0));
+    expect(totalAmount.toString()).toBe('100000');
   });
 
   test('T-E2E-BR-02: Post policy issuance creates balanced journal entry', async () => {

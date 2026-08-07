@@ -17,7 +17,7 @@ export class ReStatement {
   treatyId!: string;
 
   @Column({ name: 'statement_type', type: 'text' })
-  statementType!: 'bordereau' | 'settlement';
+  statementType!: 'bordereau' | 'settlement' | 'period_close';
 
   @Column({ name: 'status', type: 'text', default: 'draft' })
   status!: ReStatementStatus;

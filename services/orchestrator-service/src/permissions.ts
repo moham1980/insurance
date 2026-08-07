@@ -12,6 +12,10 @@ export type PermissionKey =
   | 'work_items:create_suspicious_case'
   | 'work_items:sla_view'
   | 'work_items:sla_manage'
+  // P1 #5 (SoD): submit and approve are separate permissions.
+  // A user with :submit cannot self-approve; a different user with :approve must review.
+  | 'work_items:submit'
+  | 'work_items:approve'
   | 'dlq:list'
   | 'dlq:stats'
   | 'dlq:resolve';
@@ -31,6 +35,8 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     'work_items:create_suspicious_case',
     'work_items:sla_view',
     'work_items:sla_manage',
+    'work_items:submit',
+    'work_items:approve',
     'dlq:list',
     'dlq:stats',
     'dlq:resolve',
@@ -47,16 +53,18 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     'work_items:create_suspicious_case',
     'work_items:sla_view',
     'work_items:sla_manage',
+    'work_items:submit',
+    'work_items:approve',
     'dlq:list',
     'dlq:stats',
     'dlq:resolve',
   ],
-  claims_handler: ['orchestrations:saga_start', 'orchestrations:saga_view', 'work_items:list', 'work_items:view', 'work_items:complete'],
-  finance_ops: ['orchestrations:saga_view', 'work_items:list', 'work_items:view', 'work_items:complete'],
-  fraud_analyst: ['orchestrations:saga_view', 'work_items:list', 'work_items:view', 'work_items:complete', 'work_items:create_suspicious_case'],
-  risk_manager: ['orchestrations:saga_view', 'work_items:list', 'work_items:view', 'work_items:create_underwriting', 'work_items:create_suspicious_case'],
-  legal_ops: ['orchestrations:saga_view', 'work_items:list', 'work_items:view', 'work_items:complete', 'work_items:create_suspicious_case'],
-  branch_manager: ['work_items:list', 'work_items:view', 'work_items:assign', 'work_items:complete'],
+  claims_handler: ['orchestrations:saga_start', 'orchestrations:saga_view', 'work_items:list', 'work_items:view', 'work_items:complete', 'work_items:submit'],
+  finance_ops: ['orchestrations:saga_view', 'work_items:list', 'work_items:view', 'work_items:complete', 'work_items:approve'],
+  fraud_analyst: ['orchestrations:saga_view', 'work_items:list', 'work_items:view', 'work_items:complete', 'work_items:create_suspicious_case', 'work_items:submit'],
+  risk_manager: ['orchestrations:saga_view', 'work_items:list', 'work_items:view', 'work_items:create_underwriting', 'work_items:create_suspicious_case', 'work_items:submit'],
+  legal_ops: ['orchestrations:saga_view', 'work_items:list', 'work_items:view', 'work_items:complete', 'work_items:create_suspicious_case', 'work_items:submit'],
+  branch_manager: ['work_items:list', 'work_items:view', 'work_items:assign', 'work_items:complete', 'work_items:approve'],
   auditor: ['orchestrations:saga_view', 'work_items:list', 'work_items:view', 'dlq:list', 'dlq:stats'],
 };
 

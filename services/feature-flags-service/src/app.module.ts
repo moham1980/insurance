@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { FeatureFlag } from './entities/FeatureFlag';
 import { AiToggle } from './entities/AiToggle';
+import { AuditLog } from './entities/AuditLog'; // P1 #10
+import { EntityVersion } from './entities/EntityVersion'; // P1 #10
 import { AiTogglesController } from './ai-toggles.controller';
 import { FeatureFlagsController } from './feature-flags.controller';
 import { FeatureFlagsService } from './feature-flags.service';
@@ -21,10 +23,10 @@ import { OutboxEvent } from '@insurance/shared';
       password: process.env.DB_PASSWORD || 'postgres',
       database: process.env.DB_DATABASE || 'postgres',
       schema: process.env.DB_SCHEMA || 'feature_flags',
-      entities: [FeatureFlag, AiToggle],
+      entities: [FeatureFlag, AiToggle, AuditLog, EntityVersion, OutboxEvent],
       synchronize: process.env.NODE_ENV !== 'production' && process.env.DB_SYNC === 'true',
     }),
-    TypeOrmModule.forFeature([FeatureFlag, AiToggle]),
+    TypeOrmModule.forFeature([FeatureFlag, AiToggle, AuditLog, EntityVersion, OutboxEvent]),
   ],
   controllers: [FeatureFlagsController, AiTogglesController, HealthController],
   providers: [TenantGuard, AbacGuard, FeatureFlagsService, PermissionsGuard],

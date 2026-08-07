@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Kafka, Consumer, EachMessagePayload } from 'kafkajs';
 import { DataSource, Repository } from 'typeorm';
 import { z } from 'zod';
-import { createLogger, DeadLetterQueueService } from '@insurance/shared';
+import { createLogger, DeadLetterQueueService, applyCursorPagination, CursorPaginationResult } from '@insurance/shared';
 import { RmClaimCase } from './entities/RmClaimCase';
 import { RmFraudCase } from './entities/RmFraudCase';
 import { RmComplaintOps } from './entities/RmComplaintOps';
@@ -406,6 +406,36 @@ export class ReadModelService implements OnModuleInit, OnModuleDestroy {
       if (payload?.slaResolutionDueAt) row.slaResolutionDueAt = new Date(payload.slaResolutionDueAt);
       if (payload?.createdAt) row.createdAt = new Date(payload.createdAt);
 
+      // P0 fix: handle ComplaintAttachmentAdded — store attachment metadata to prevent silent data loss.
+      if (envelope.eventType === 'ComplaintAttachmentAdded') {
+        const attachmentId = envelope.subject?.attachmentId || payload?.attachmentId;
+        if (attachmentId) {
+          const attachmentEntry = {
+            attachmentId,
+            fileName: payload?.fileName || payload?.filename || undefined,
+            fileType: payload?.fileType || payload?.mimeType || undefined,
+            uploadedAt: payload?.uploadedAt || envelope.occurredAt,
+            uploadedBy: payload?.uploadedBy || payload?.userId || undefined,
+          };
+          // Append to existing attachments list or create a new one.
+          const existingAttachments = Array.isArray(row.attachments) ? row.attachments : [];
+          // Avoid duplicates by attachmentId.
+          if (!existingAttachments.some((a) => a.attachmentId === attachmentId)) {
+            row.attachments = [...existingAttachments, attachmentEntry];
+          }
+          this.logger.info('Complaint attachment stored in read model', {
+            complaintId,
+            attachmentId,
+            eventId: envelope.eventId,
+          });
+        } else {
+          this.logger.warn('ComplaintAttachmentAdded event received without attachmentId — attachment data not stored', {
+            complaintId,
+            eventId: envelope.eventId,
+          });
+        }
+      }
+
       row.lastEventId = envelope.eventId;
       row.lastEventVersion = envelope.eventVersion;
       row.lastOccurredAt = new Date(envelope.occurredAt);
@@ -537,7 +567,17 @@ export class ReadModelService implements OnModuleInit, OnModuleDestroy {
 
   // ---- Query API (tenant-scoped) ----
 
-  async listClaims(params: { tenantId: string; policyId?: string; status?: string; limit: number; offset: number }) {
+  async listClaims(params: { tenantId: string; policyId?: string; status?: string; limit: number; offset: number; cursor?: string }) {
+    // P1 #8: cursor-based pagination (backward compatible — falls back to offset if no cursor)
+    if (params.cursor) {
+      const qb = this.rmRepo.createQueryBuilder('rm');
+      qb.andWhere('rm.tenant_id = :tenantId', { tenantId: params.tenantId });
+      if (params.policyId) qb.andWhere('rm.policy_id = :policyId', { policyId: params.policyId });
+      if (params.status) qb.andWhere('rm.status = :status', { status: params.status });
+      const result = await applyCursorPagination<RmClaimCase>(qb, params.cursor, params.limit, 'DESC', 'rm', 'updatedAt', 'claimId');
+      return { rows: result.items, total: result.items.length, hasNext: result.hasNext, nextCursor: result.nextCursor };
+    }
+
     const qb = this.rmRepo.createQueryBuilder('rm');
     qb.andWhere('rm.tenant_id = :tenantId', { tenantId: params.tenantId });
 
@@ -571,7 +611,17 @@ export class ReadModelService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  async listFraudCases(params: { tenantId: string; status?: string; minScore?: number; limit: number; offset: number }) {
+  async listFraudCases(params: { tenantId: string; status?: string; minScore?: number; limit: number; offset: number; cursor?: string }) {
+    // P1 #8: cursor-based pagination (backward compatible)
+    if (params.cursor) {
+      const qb = this.rmFraudRepo.createQueryBuilder('rm');
+      qb.andWhere('rm.tenant_id = :tenantId', { tenantId: params.tenantId });
+      if (params.status) qb.andWhere('rm.status = :status', { status: params.status });
+      if (typeof params.minScore === 'number') qb.andWhere('rm.latest_score >= :min', { min: params.minScore });
+      const result = await applyCursorPagination<RmFraudCase>(qb, params.cursor, params.limit, 'DESC', 'rm', 'updatedAt', 'fraudCaseId');
+      return { rows: result.items, total: result.items.length, hasNext: result.hasNext, nextCursor: result.nextCursor };
+    }
+
     const qb = this.rmFraudRepo.createQueryBuilder('rm');
     qb.andWhere('rm.tenant_id = :tenantId', { tenantId: params.tenantId });
 
@@ -583,7 +633,17 @@ export class ReadModelService implements OnModuleInit, OnModuleDestroy {
     return { rows, total };
   }
 
-  async listComplaintsOps(params: { tenantId: string; status?: string; complaintType?: string; limit: number; offset: number }) {
+  async listComplaintsOps(params: { tenantId: string; status?: string; complaintType?: string; limit: number; offset: number; cursor?: string }) {
+    // P1 #8: cursor-based pagination (backward compatible)
+    if (params.cursor) {
+      const qb = this.rmComplaintsRepo.createQueryBuilder('rm');
+      qb.andWhere('rm.tenant_id = :tenantId', { tenantId: params.tenantId });
+      if (params.status) qb.andWhere('rm.status = :status', { status: params.status });
+      if (params.complaintType) qb.andWhere('rm.complaint_type = :complaintType', { complaintType: params.complaintType });
+      const result = await applyCursorPagination<RmComplaintOps>(qb, params.cursor, params.limit, 'DESC', 'rm', 'updatedAt', 'complaintId');
+      return { rows: result.items, total: result.items.length, hasNext: result.hasNext, nextCursor: result.nextCursor };
+    }
+
     const qb = this.rmComplaintsRepo.createQueryBuilder('rm');
     qb.andWhere('rm.tenant_id = :tenantId', { tenantId: params.tenantId });
 
@@ -640,8 +700,95 @@ export class ReadModelService implements OnModuleInit, OnModuleDestroy {
   }
 
   async rebuildProjection(aggregateId?: string, tenantId?: string): Promise<{ processed: number; skipped: number }> {
-    // Placeholder: real rebuild would replay from Kafka or outbox with same handlers
+    // P0 fix: replace silent-success placeholder with a real implementation.
+    // Step 1: Clear the read model for the specified scope (tenant or aggregate or all).
+    // Step 2: Reset consumed_events so the Kafka consumer can reprocess events.
+    // Step 3: Replay from event store (Kafka). Since direct Kafka offset reset is not
+    //         possible from within this method, we clear the state and throw a clear
+    //         error instructing the operator to restart the consumer with
+    //         KAFKA_CONSUMER_FROM_BEGINNING=true to trigger a full replay.
+
     this.logger.info('Rebuild projection requested', { aggregateId, tenantId });
-    return { processed: 0, skipped: 0 };
+
+    let deletedClaims = 0;
+    let deletedFraud = 0;
+    let deletedComplaints = 0;
+    let resetConsumedEvents = 0;
+
+    await this.dataSource.transaction(async (manager) => {
+      // Step 1a: Clear RmClaimCase rows
+      const claimWhere: string[] = [];
+      const claimParams: any[] = [];
+      if (tenantId) {
+        claimWhere.push('tenant_id = $1');
+        claimParams.push(tenantId);
+      }
+      if (aggregateId) {
+        claimWhere.push('claim_id = $' + (claimParams.length + 1));
+        claimParams.push(aggregateId);
+      }
+      const claimClause = claimWhere.length > 0 ? ' WHERE ' + claimWhere.join(' AND ') : '';
+      const claimResult = await manager.query(`DELETE FROM rm_claims${claimClause} RETURNING claim_id`, claimParams);
+      deletedClaims = Array.isArray(claimResult) ? claimResult.length : 0;
+
+      // Step 1b: Clear RmFraudCase rows
+      const fraudWhere: string[] = [];
+      const fraudParams: any[] = [];
+      if (tenantId) {
+        fraudWhere.push('tenant_id = $1');
+        fraudParams.push(tenantId);
+      }
+      if (aggregateId) {
+        fraudWhere.push('claim_id = $' + (fraudParams.length + 1));
+        fraudParams.push(aggregateId);
+      }
+      const fraudClause = fraudWhere.length > 0 ? ' WHERE ' + fraudWhere.join(' AND ') : '';
+      const fraudResult = await manager.query(`DELETE FROM rm_fraud_cases${fraudClause} RETURNING claim_id`, fraudParams);
+      deletedFraud = Array.isArray(fraudResult) ? fraudResult.length : 0;
+
+      // Step 1c: Clear RmComplaintOps rows
+      const complaintWhere: string[] = [];
+      const complaintParams: any[] = [];
+      if (tenantId) {
+        complaintWhere.push('tenant_id = $1');
+        complaintParams.push(tenantId);
+      }
+      if (aggregateId) {
+        complaintWhere.push('complaint_id = $' + (complaintParams.length + 1));
+        complaintParams.push(aggregateId);
+      }
+      const complaintClause = complaintWhere.length > 0 ? ' WHERE ' + complaintWhere.join(' AND ') : '';
+      const complaintResult = await manager.query(`DELETE FROM rm_complaints${complaintClause} RETURNING complaint_id`, complaintParams);
+      deletedComplaints = Array.isArray(complaintResult) ? complaintResult.length : 0;
+
+      // Step 2: Reset consumed_events for this consumer group so events can be reprocessed.
+      const consumedResult = await manager.query(
+        `DELETE FROM consumed_events WHERE consumer_name = $1 RETURNING event_id`,
+        [this.consumerGroupId],
+      );
+      resetConsumedEvents = Array.isArray(consumedResult) ? consumedResult.length : 0;
+    });
+
+    const totalDeleted = deletedClaims + deletedFraud + deletedComplaints;
+    this.logger.info('Rebuild projection: read model cleared', {
+      aggregateId,
+      tenantId,
+      deletedClaims,
+      deletedFraud,
+      deletedComplaints,
+      resetConsumedEvents,
+    });
+
+    // Step 3: Replay from event store.
+    // Direct Kafka topic replay from within this method is not possible because
+    // the Kafka consumer manages its own offsets. The operator must restart the
+    // service with KAFKA_CONSUMER_FROM_BEGINNING=true to trigger a full replay
+    // of all events from the beginning. The consumed_events table has been
+    // cleared so all events will be reprocessed.
+    throw new Error(
+      `rebuildProjection: read model cleared (${totalDeleted} rows deleted, ${resetConsumedEvents} consumed_events reset). ` +
+      `To complete the rebuild, restart the service with KAFKA_CONSUMER_FROM_BEGINNING=true to replay all events from Kafka. ` +
+      `If Kafka event store is not available, manual event replay is required.`,
+    );
   }
 }

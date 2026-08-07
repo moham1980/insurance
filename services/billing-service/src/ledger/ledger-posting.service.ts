@@ -76,6 +76,8 @@ export class LedgerPostingService {
       entry.description = params.description;
       entry.lines = [];
 
+      await entryRepo.save(entry);
+
       for (const line of params.lines) {
         let account = await accountRepo.findOne({
           where: {
@@ -114,8 +116,6 @@ export class LedgerPostingService {
         await lineRepo.save(journalLine);
         entry.lines.push(journalLine);
       }
-
-      await entryRepo.save(entry);
 
       await outbox.publish({
         topic: 'insurance.billing.journal.posted',
@@ -170,6 +170,8 @@ export class LedgerPostingService {
       reversal.reversalOfJournalEntryId = original.journalEntryId;
       reversal.lines = [];
 
+      await entryRepo.save(reversal);
+
       for (const line of original.lines) {
         const reversedLine = new BrokerageJournalLine();
         reversedLine.journalLineId = uuidv4();
@@ -185,8 +187,6 @@ export class LedgerPostingService {
         await lineRepo.save(reversedLine);
         reversal.lines.push(reversedLine);
       }
-
-      await entryRepo.save(reversal);
 
       original.status = 'reversed';
       await entryRepo.save(original);

@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { HttpModule } from '@nestjs/axios';
 import { CustomerController } from './customer/customer.controller';
 import { CustomerBffService } from './customer/customer-bff.service';
+import { CacheService } from './cache.service';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -11,6 +12,6 @@ import { HealthController } from './health.controller';
     HttpModule.register({ timeout: parseInt(process.env.DOWNSTREAM_TIMEOUT_MS || '10000', 10) }),
   ],
   controllers: [CustomerController, HealthController],
-  providers: [CustomerBffService],
+  providers: [CustomerBffService, CacheService],
 })
 export class AppModule {}

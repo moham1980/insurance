@@ -1,6 +1,10 @@
-import { Controller, Get, Headers, Param, Query, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Headers, Param, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { CatalogService } from './catalog.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
+
+// Cache-Control header value for relatively static catalog responses.
+// Sourced from env so operators can tune without code changes.
+const CATALOG_CACHE_CONTROL = process.env.CATALOG_CACHE_CONTROL || 'public, max-age=60';
 
 function toUser(req: any, headers: Record<string, any>) {
   const user = req?.user || {};
@@ -25,19 +29,21 @@ export class CatalogController {
   constructor(private readonly catalogService: CatalogService) {}
 
   @Get('/products')
-  async listProducts(@Req() req: any, @Headers() headers: Record<string, any>, @Query() query: any) {
+  async listProducts(@Req() req: any, @Headers() headers: Record<string, any>, @Query() query: any, @Res({ passthrough: true }) res: any) {
     const correlationId = getCorrelationId(headers);
     const user = toUser(req, headers);
-    const data = await this.catalogService.listProducts(user, query);
+    const data = await this.catalogService.listProducts(user, query, correlationId);
+    res.header('Cache-Control', CATALOG_CACHE_CONTROL);
     return { success: true, data, correlationId };
   }
 
   @Get('/products/:productId')
-  async getProduct(@Req() req: any, @Headers() headers: Record<string, any>, @Param('productId') productId: string) {
+  async getProduct(@Req() req: any, @Headers() headers: Record<string, any>, @Param('productId') productId: string, @Res({ passthrough: true }) res: any) {
     const correlationId = getCorrelationId(headers);
     const user = toUser(req, headers);
-    const data = await this.catalogService.getProduct(user, productId);
+    const data = await this.catalogService.getProduct(user, productId, correlationId);
     if (!data) return { success: false, error: { code: 'NOT_FOUND', message: 'Product not found' }, correlationId };
+    res.header('Cache-Control', CATALOG_CACHE_CONTROL);
     return { success: true, data, correlationId };
   }
 
@@ -50,7 +56,7 @@ export class CatalogController {
   ) {
     const correlationId = getCorrelationId(headers);
     const user = toUser(req, headers);
-    const data = await this.catalogService.listDistributorVisibleProducts(user, distributorOrganizationId, query);
+    const data = await this.catalogService.listDistributorVisibleProducts(user, distributorOrganizationId, query, correlationId);
     return { success: true, data, correlationId };
   }
 
@@ -58,7 +64,7 @@ export class CatalogController {
   async listBrokerOfferings(@Req() req: any, @Headers() headers: Record<string, any>, @Query() query: any) {
     const correlationId = getCorrelationId(headers);
     const user = toUser(req, headers);
-    const data = await this.catalogService.listBrokerOfferings(user, query);
+    const data = await this.catalogService.listBrokerOfferings(user, query, correlationId);
     return { success: true, data, correlationId };
   }
 
@@ -67,11 +73,13 @@ export class CatalogController {
     @Req() req: any,
     @Headers() headers: Record<string, any>,
     @Param('offeringId') offeringId: string,
+    @Res({ passthrough: true }) res: any,
   ) {
     const correlationId = getCorrelationId(headers);
     const user = toUser(req, headers);
-    const data = await this.catalogService.getOfferingComparisonHint(user, offeringId);
+    const data = await this.catalogService.getOfferingComparisonHint(user, offeringId, correlationId);
     if (!data) return { success: false, error: { code: 'NOT_FOUND', message: 'Offering not found' }, correlationId };
+    res.header('Cache-Control', CATALOG_CACHE_CONTROL);
     return { success: true, data, correlationId };
   }
 
@@ -79,7 +87,7 @@ export class CatalogController {
   async listCustomerOfferings(@Req() req: any, @Headers() headers: Record<string, any>, @Query() query: any) {
     const correlationId = getCorrelationId(headers);
     const user = toUser(req, headers);
-    const data = await this.catalogService.listCustomerOfferings(user, query);
+    const data = await this.catalogService.listCustomerOfferings(user, query, correlationId);
     return { success: true, data, correlationId };
   }
 
@@ -92,7 +100,7 @@ export class CatalogController {
   ) {
     const correlationId = getCorrelationId(headers);
     const user = toUser(req, headers);
-    const data = await this.catalogService.getAgreementEligibility(user, agreementId, lineOfBusiness);
+    const data = await this.catalogService.getAgreementEligibility(user, agreementId, lineOfBusiness, correlationId);
     return { success: true, data, correlationId };
   }
 }

@@ -27,6 +27,7 @@ export class HealthController {
   }
 
   @Get(['/health/deep', '/gateway/health/deep'])
+  @UseGuards(AdminGuard)
   async deepHealth() {
     const checks: any = {
       status: 'ok',

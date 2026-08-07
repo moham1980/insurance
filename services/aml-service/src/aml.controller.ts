@@ -9,10 +9,15 @@ import type { AmlRuleStatus } from './entities/AmlRule';
 import type { AmlAlertStatus } from './entities/AmlAlert';
 import { AbacGuard } from './abac.guard';
 import { TenantGuard } from './tenant.guard';
+import { BulkRateLimitGuard } from './bulk-rate-limit.guard'; // P2 #1: bulk rate limiting
+import { AsyncJobService } from './async-job.service'; // P2 #2: async processing
 
 @Controller()
 export class AmlController {
-  constructor(private readonly amlService: AmlService) {}
+  constructor(
+    private readonly amlService: AmlService,
+    private readonly asyncJobService: AsyncJobService,
+  ) {}
 
   private getCorrelationId(headers: Record<string, any>): string {
     const cid = headers['x-correlation-id'] || headers['X-Correlation-Id'];
@@ -696,5 +701,157 @@ export class AmlController {
       });
       return { success: false, error: { code: 'INTERNAL_ERROR', message: err.message || 'Failed to generate official AML report' }, correlationId };
     }
+  }
+
+  // P2 #2: Async report generation — create a job and return jobId immediately
+  @Post('/aml/reports/official/async')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('aml:manage')
+  async generateOfficialReportAsync(
+    @Req() req: any,
+    @Headers() headers: Record<string, any>,
+    @Body() body: any
+  ) {
+    const correlationId = this.getCorrelationId(headers);
+    const tenantId = req?.user?.tenantId as string | undefined;
+    const actor = req?.user as any;
+
+    if (!body?.reportType || !body?.startDate || !body?.endDate) {
+      return {
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'reportType, startDate, and endDate are required' },
+        correlationId,
+      };
+    }
+
+    const validReportTypes = ['suspicious_activity', 'currency_transaction', 'annual_summary'];
+    if (!validReportTypes.includes(body.reportType)) {
+      return {
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: `reportType must be one of: ${validReportTypes.join(', ')}` },
+        correlationId,
+      };
+    }
+
+    const startDate = new Date(body.startDate);
+    const endDate = new Date(body.endDate);
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return {
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'startDate and endDate must be valid dates' },
+        correlationId,
+      };
+    }
+
+    const job = this.asyncJobService.createJob();
+    this.asyncJobService.runJob(job.jobId, async () => {
+      return this.amlService.generateOfficialReport({
+        reportType: body.reportType,
+        startDate,
+        endDate,
+        generatedBy: actor?.userId,
+      });
+    }).catch((err) => {
+      auditLogger.error('aml.reports.official.async.error', err as Error, {
+        correlationId,
+        tenantId,
+        actorUserId: actor?.userId,
+        action: 'aml:manage',
+        jobId: job.jobId,
+      });
+    });
+
+    auditLogger.info('aml.reports.official.async.created', {
+      correlationId,
+      tenantId,
+      actorUserId: actor?.userId,
+      action: 'aml:manage',
+      jobId: job.jobId,
+      reportType: body.reportType,
+    });
+
+    return { success: true, data: { jobId: job.jobId, status: job.status }, correlationId };
+  }
+
+  // P2 #2: Get async job status
+  @Get('/aml/jobs/:jobId')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('aml:view')
+  async getJob(@Headers() headers: Record<string, any>, @Param('jobId') jobId: string) {
+    const correlationId = this.getCorrelationId(headers);
+    const job = this.asyncJobService.getJob(jobId);
+    if (!job) {
+      return { success: false, error: { code: 'NOT_FOUND', message: 'Job not found' }, correlationId };
+    }
+    return { success: true, data: job, correlationId };
+  }
+
+  // P2 #1: Bulk AML screening — evaluate multiple transactions in a single request
+  @Post('/aml/transactions/evaluate/bulk')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard, BulkRateLimitGuard)
+  @RequirePermissions('aml:alerts:create')
+  async bulkEvaluateTransactions(
+    @Req() req: any,
+    @Headers() headers: Record<string, any>,
+    @Body() body: any
+  ) {
+    const correlationId = this.getCorrelationId(headers);
+    const tenantId = req?.user?.tenantId as string | undefined;
+    const actor = req?.user as any;
+
+    const items = Array.isArray(body?.items) ? body.items : [];
+    if (items.length === 0) {
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'items array is required' }, correlationId };
+    }
+    if (items.length > 100) {
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'Maximum 100 items per bulk request' }, correlationId };
+    }
+
+    auditLogger.info('aml.transactions.evaluate.bulk.request', {
+      correlationId,
+      tenantId,
+      actorUserId: actor?.userId,
+      action: 'aml:alerts:create',
+      itemCount: items.length,
+    });
+
+    const results: Array<{ success: boolean; data?: any; error?: any }> = [];
+    let succeeded = 0;
+    let failed = 0;
+
+    for (const item of items) {
+      try {
+        if (!item?.partyId || !item?.partyName || !item?.transactionType || typeof item?.amount !== 'number') {
+          results.push({ success: false, error: { code: 'VALIDATION_ERROR', message: 'partyId, partyName, transactionType, amount are required' } });
+          failed++;
+          continue;
+        }
+        const result = await this.amlService.evaluateTransaction({
+          partyId: item.partyId,
+          partyName: item.partyName,
+          transactionType: item.transactionType,
+          amount: item.amount,
+          currency: item.currency || 'IRR',
+          referenceType: item.referenceType,
+          referenceId: item.referenceId,
+          metadata: item.metadata,
+        });
+        results.push({ success: true, data: result });
+        succeeded++;
+      } catch (e: any) {
+        const err = e instanceof Error ? e : new Error(String(e));
+        results.push({ success: false, error: { code: 'INTERNAL_ERROR', message: err.message } });
+        failed++;
+      }
+    }
+
+    return {
+      success: true,
+      data: {
+        results,
+        summary: { total: items.length, succeeded, failed },
+      },
+      correlationId,
+    };
   }
 }

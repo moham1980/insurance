@@ -1,14 +1,17 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Document } from './entities/Document';
-import { OutboxEvent, ConsumedEvent, DeadLetterEvent } from '@insurance/shared';
+import { OutboxEvent, ConsumedEvent, DeadLetterEvent, IdempotencyInterceptor } from '@insurance/shared';
 import { DocumentsController } from './documents.controller';
 import { DocumentsService } from './documents.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { PermissionsGuard } from './permissions.guard';
 import { HealthController } from './health.controller';
 import { DocumentClaimEventsConsumer } from './document-claim-events.consumer';
+import { RetentionScheduler } from './retention.scheduler';
 import { TenantGuard } from './tenant.guard';
+import { BulkRateLimitGuard } from './bulk-rate-limit.guard'; // P2 #1: bulk rate limiting
+import { AsyncJobService } from './async-job.service'; // P2 #2: async processing
 
 @Module({
   imports: [
@@ -26,6 +29,6 @@ import { TenantGuard } from './tenant.guard';
     TypeOrmModule.forFeature([Document, OutboxEvent, ConsumedEvent, DeadLetterEvent]),
   ],
   controllers: [DocumentsController, HealthController],
-  providers: [TenantGuard, DocumentsService, DocumentClaimEventsConsumer, JwtAuthGuard, PermissionsGuard],
+  providers: [TenantGuard, DocumentsService, DocumentClaimEventsConsumer, RetentionScheduler, JwtAuthGuard, PermissionsGuard, IdempotencyInterceptor, BulkRateLimitGuard, AsyncJobService],
 })
 export class AppModule {}

@@ -21,7 +21,12 @@ export class Document {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ unique: true })
+  // Tenant isolation: ensures documents are scoped to a single tenant.
+  // System/service accounts may leave this null for cross-tenant operations.
+  @Column({ nullable: true })
+  tenantId: string;
+
+  @Column()
   externalId: string;
 
   @Column()

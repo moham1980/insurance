@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Headers, Param, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Post, Put, Query, Req, Res, UseGuards } from '@nestjs/common';
+import { Idempotent } from '@insurance/shared';
 import fs from 'fs';
 import path from 'path';
 import { pipeline } from 'stream/promises';
@@ -9,10 +10,15 @@ import { PermissionsGuard } from './permissions.guard';
 import { RequirePermissions } from './permissions.decorator';
 import { auditLogger } from './audit.logger';
 import { TenantGuard } from './tenant.guard';
+import { BulkRateLimitGuard } from './bulk-rate-limit.guard'; // P2 #1: bulk rate limiting
+import { AsyncJobService } from './async-job.service'; // P2 #2: async processing
 
 @Controller()
 export class DocumentsController {
-  constructor(private readonly documentsService: DocumentsService) {}
+  constructor(
+    private readonly documentsService: DocumentsService,
+    private readonly asyncJobService: AsyncJobService,
+  ) {}
 
   private getCorrelationId(headers: Record<string, any>): string {
     const cid = headers['x-correlation-id'] || headers['X-Correlation-Id'];
@@ -391,9 +397,17 @@ export class DocumentsController {
     return { success: true, data: result, correlationId };
   }
 
+  // ── Boundary: simple (mimeType-based) classification ───────────────
+  // This endpoint performs a lightweight, mimeType-based classification only.
+  // It does NOT invoke AI/OCR. For advanced AI/OCR-based document
+  // classification, use document-ai-service
+  // (POST /document-ai/documents/:documentId/classify). The two classify
+  // endpoints are intentionally distinct: document-service = simple/fast,
+  // document-ai-service = advanced/AI. (P1 #3)
   @Post('/documents/:documentId/classify')
   @UseGuards(JwtAuthGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('documents:view')
+  @Idempotent({ ttl: 86400 })
   async classify(@Headers() headers: Record<string, any>, @Req() req: any, @Param('documentId') documentId: string) {
     const correlationId = this.getCorrelationId(headers);
     const tenantId = req.tenantId as string | undefined;
@@ -407,6 +421,7 @@ export class DocumentsController {
   @Post('/documents/:documentId/extract')
   @UseGuards(JwtAuthGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('documents:upload')
+  @Idempotent({ ttl: 86400 })
   async extract(@Headers() headers: Record<string, any>, @Req() req: any, @Param('documentId') documentId: string) {
     const correlationId = this.getCorrelationId(headers);
     const tenantId = req.tenantId as string | undefined;
@@ -415,6 +430,57 @@ export class DocumentsController {
     }
     const doc = await this.documentsService.startExtraction(documentId, tenantId, correlationId);
     return { success: true, data: this.sanitizeDocument(doc, req), correlationId };
+  }
+
+  // P2 #2: Async extract — create a job and return jobId immediately
+  @Post('/documents/:documentId/extract/async')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, TenantGuard)
+  @RequirePermissions('documents:upload')
+  async extractAsync(@Headers() headers: Record<string, any>, @Req() req: any, @Param('documentId') documentId: string) {
+    const correlationId = this.getCorrelationId(headers);
+    const tenantId = req.tenantId as string | undefined;
+    if (!tenantId) {
+      return { success: false, error: { code: 'TENANT_REQUIRED', message: 'tenantId is required' }, correlationId };
+    }
+    const job = this.asyncJobService.createJob();
+    this.asyncJobService.runJob(job.jobId, async () => {
+      return this.documentsService.startExtraction(documentId, tenantId, correlationId);
+    }).catch((err) => {
+      auditLogger.error('documents.extract.async.failed', err as Error, { correlationId, tenantId, documentId, jobId: job.jobId });
+    });
+    return { success: true, data: { jobId: job.jobId, status: job.status }, correlationId };
+  }
+
+  // P2 #2: Async classify — create a job and return jobId immediately
+  @Post('/documents/:documentId/classify/async')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, TenantGuard)
+  @RequirePermissions('documents:view')
+  async classifyAsync(@Headers() headers: Record<string, any>, @Req() req: any, @Param('documentId') documentId: string) {
+    const correlationId = this.getCorrelationId(headers);
+    const tenantId = req.tenantId as string | undefined;
+    if (!tenantId) {
+      return { success: false, error: { code: 'TENANT_REQUIRED', message: 'tenantId is required' }, correlationId };
+    }
+    const job = this.asyncJobService.createJob();
+    this.asyncJobService.runJob(job.jobId, async () => {
+      return this.documentsService.classifyDocument(documentId, tenantId);
+    }).catch((err) => {
+      auditLogger.error('documents.classify.async.failed', err as Error, { correlationId, tenantId, documentId, jobId: job.jobId });
+    });
+    return { success: true, data: { jobId: job.jobId, status: job.status }, correlationId };
+  }
+
+  // P2 #2: Get job status
+  @Get('/jobs/:jobId')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, TenantGuard)
+  @RequirePermissions('documents:view')
+  async getJob(@Headers() headers: Record<string, any>, @Param('jobId') jobId: string) {
+    const correlationId = this.getCorrelationId(headers);
+    const job = this.asyncJobService.getJob(jobId);
+    if (!job) {
+      return { success: false, error: { code: 'NOT_FOUND', message: 'Job not found' }, correlationId };
+    }
+    return { success: true, data: job, correlationId };
   }
 
   // Reinsurance invoice artifact endpoints
@@ -623,5 +689,151 @@ export class DocumentsController {
     const docs = await this.documentsService.getReconciliationArtifacts(reconciliationId, tenantId);
 
     return { success: true, data: docs.map((doc) => this.sanitizeDocument(doc, req)), correlationId };
+  }
+
+  // ── P2 #7: Retention policy and legal hold ───────────────────────────
+
+  @Put('/documents/:documentId/legal-hold')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, TenantGuard)
+  @RequirePermissions('documents:admin')
+  async setLegalHold(@Headers() headers: Record<string, any>, @Req() req: any, @Param('documentId') documentId: string, @Body() body: { legalHold: boolean }) {
+    const correlationId = this.getCorrelationId(headers);
+    const tenantId = req.tenantId as string | undefined;
+    const actor = req.user?.userId || req.user?.sub;
+    if (!tenantId) {
+      return { success: false, error: { code: 'TENANT_REQUIRED', message: 'tenantId is required' }, correlationId };
+    }
+    if (typeof body?.legalHold !== 'boolean') {
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'legalHold (boolean) is required' }, correlationId };
+    }
+    auditLogger.info('documents.legal_hold.set', { correlationId, tenantId, actor, action: 'documents:admin', documentId, legalHold: body.legalHold });
+    const doc = await this.documentsService.setLegalHold(documentId, tenantId, body.legalHold);
+    return { success: true, data: this.sanitizeDocument(doc, req), correlationId };
+  }
+
+  @Put('/documents/:documentId/retention')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, TenantGuard)
+  @RequirePermissions('documents:admin')
+  async setRetention(@Headers() headers: Record<string, any>, @Req() req: any, @Param('documentId') documentId: string, @Body() body: { retentionUntil?: string | null }) {
+    const correlationId = this.getCorrelationId(headers);
+    const tenantId = req.tenantId as string | undefined;
+    const actor = req.user?.userId || req.user?.sub;
+    if (!tenantId) {
+      return { success: false, error: { code: 'TENANT_REQUIRED', message: 'tenantId is required' }, correlationId };
+    }
+    auditLogger.info('documents.retention.set', { correlationId, tenantId, actor, action: 'documents:admin', documentId, retentionUntil: body?.retentionUntil });
+    const retentionUntil = body?.retentionUntil ? new Date(body.retentionUntil) : null;
+    const doc = await this.documentsService.setRetentionUntil(documentId, tenantId, retentionUntil);
+    return { success: true, data: this.sanitizeDocument(doc, req), correlationId };
+  }
+
+  @Post('/documents/retention/apply')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, TenantGuard)
+  @RequirePermissions('documents:admin')
+  async applyRetentionPolicy(@Headers() headers: Record<string, any>, @Req() req: any) {
+    const correlationId = this.getCorrelationId(headers);
+    const tenantId = req.tenantId as string | undefined;
+    const actor = req.user?.userId || req.user?.sub;
+    auditLogger.info('documents.retention.apply', { correlationId, tenantId, actor, action: 'documents:admin' });
+    const result = await this.documentsService.applyRetentionPolicy();
+    return { success: true, data: result, correlationId };
+  }
+
+  // P2 #1: Bulk classify — classify multiple documents in a single request
+  @Post('/documents/classify/bulk')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, TenantGuard, BulkRateLimitGuard)
+  @RequirePermissions('documents:view')
+  async bulkClassify(@Headers() headers: Record<string, any>, @Req() req: any, @Body() body: { items: Array<{ documentId: string }> }) {
+    const correlationId = this.getCorrelationId(headers);
+    const tenantId = req.tenantId as string | undefined;
+    if (!tenantId) {
+      return { success: false, error: { code: 'TENANT_REQUIRED', message: 'tenantId is required' }, correlationId };
+    }
+    const items = Array.isArray(body?.items) ? body.items : [];
+    if (items.length === 0) {
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'items array is required' }, correlationId };
+    }
+    if (items.length > 100) {
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'Maximum 100 items per bulk request' }, correlationId };
+    }
+
+    const results: Array<{ success: boolean; data?: any; error?: any }> = [];
+    let succeeded = 0;
+    let failed = 0;
+
+    for (const item of items) {
+      try {
+        if (!item?.documentId) {
+          results.push({ success: false, error: { code: 'VALIDATION_ERROR', message: 'documentId is required' } });
+          failed++;
+          continue;
+        }
+        const result = await this.documentsService.classifyDocument(item.documentId, tenantId);
+        results.push({ success: true, data: result });
+        succeeded++;
+      } catch (e: any) {
+        const err = e instanceof Error ? e : new Error(String(e));
+        results.push({ success: false, error: { code: err.message.includes('not found') ? 'NOT_FOUND' : 'INTERNAL_ERROR', message: err.message } });
+        failed++;
+      }
+    }
+
+    return {
+      success: true,
+      data: {
+        results,
+        summary: { total: items.length, succeeded, failed },
+      },
+      correlationId,
+    };
+  }
+
+  // P2 #1: Bulk extract — start extraction for multiple documents in a single request
+  @Post('/documents/extract/bulk')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, TenantGuard, BulkRateLimitGuard)
+  @RequirePermissions('documents:upload')
+  async bulkExtract(@Headers() headers: Record<string, any>, @Req() req: any, @Body() body: { items: Array<{ documentId: string }> }) {
+    const correlationId = this.getCorrelationId(headers);
+    const tenantId = req.tenantId as string | undefined;
+    if (!tenantId) {
+      return { success: false, error: { code: 'TENANT_REQUIRED', message: 'tenantId is required' }, correlationId };
+    }
+    const items = Array.isArray(body?.items) ? body.items : [];
+    if (items.length === 0) {
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'items array is required' }, correlationId };
+    }
+    if (items.length > 100) {
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'Maximum 100 items per bulk request' }, correlationId };
+    }
+
+    const results: Array<{ success: boolean; data?: any; error?: any }> = [];
+    let succeeded = 0;
+    let failed = 0;
+
+    for (const item of items) {
+      try {
+        if (!item?.documentId) {
+          results.push({ success: false, error: { code: 'VALIDATION_ERROR', message: 'documentId is required' } });
+          failed++;
+          continue;
+        }
+        const doc = await this.documentsService.startExtraction(item.documentId, tenantId, correlationId);
+        results.push({ success: true, data: this.sanitizeDocument(doc, req) });
+        succeeded++;
+      } catch (e: any) {
+        const err = e instanceof Error ? e : new Error(String(e));
+        results.push({ success: false, error: { code: err.message.includes('not found') ? 'NOT_FOUND' : 'INTERNAL_ERROR', message: err.message } });
+        failed++;
+      }
+    }
+
+    return {
+      success: true,
+      data: {
+        results,
+        summary: { total: items.length, succeeded, failed },
+      },
+      correlationId,
+    };
   }
 }

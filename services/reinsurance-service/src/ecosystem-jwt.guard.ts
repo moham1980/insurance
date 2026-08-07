@@ -24,7 +24,11 @@ export class EcosystemJwtGuard implements CanActivate {
   private readonly audience: string;
 
   constructor() {
-    this.jwtSecret = process.env.JWT_SECRET || 'default-secret-change-in-production';
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      throw new Error('JWT_SECRET environment variable is required — refusing to start with insecure default');
+    }
+    this.jwtSecret = jwtSecret;
     this.issuer = process.env.IAM_ISSUER || 'http://localhost:8080';
     this.audience = process.env.JWT_AUDIENCES || 'insurance-platform';
     const jwksUri = process.env.JWKS_URI || `${this.issuer}/.well-known/jwks.json`;

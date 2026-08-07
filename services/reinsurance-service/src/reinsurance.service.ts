@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
@@ -11,6 +11,8 @@ import { ReClaimRecovery, type ReClaimRecoveryStatus } from './entities/ReClaimR
 import { ReTicket, type ReTicketStatus } from './entities/ReTicket';
 import { ReTicketMessage } from './entities/ReTicketMessage';
 import { ReTicketAttachment } from './entities/ReTicketAttachment';
+import { AuditLog } from './entities/AuditLog'; // P1 #10
+import { EntityVersion } from './entities/EntityVersion'; // P1 #10
 
 function clampInt(v: any, def: number, min: number, max: number): number {
   const n = parseInt(String(v ?? def), 10);
@@ -31,8 +33,65 @@ export class ReinsuranceService {
     @InjectRepository(ReClaimRecovery) private readonly recoveriesRepo: Repository<ReClaimRecovery>,
     @InjectRepository(ReTicket) private readonly ticketsRepo: Repository<ReTicket>,
     @InjectRepository(ReTicketMessage) private readonly ticketMessagesRepo: Repository<ReTicketMessage>,
-    @InjectRepository(ReTicketAttachment) private readonly ticketAttachmentsRepo: Repository<ReTicketAttachment>
+    @InjectRepository(ReTicketAttachment) private readonly ticketAttachmentsRepo: Repository<ReTicketAttachment>,
+    @InjectRepository(AuditLog) private readonly auditLogRepo: Repository<AuditLog>, // P1 #10
+    @InjectRepository(EntityVersion) private readonly entityVersionRepo: Repository<EntityVersion>, // P1 #10
   ) {}
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // P1 #10: Audit trail & versioning helpers
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Write an immutable audit log entry.
+   */
+  private async writeAuditLog(params: {
+    resourceType: string;
+    resourceId: string;
+    action: string;
+    actor: string;
+    tenantId?: string | null;
+    before?: Record<string, any> | null;
+    after?: Record<string, any> | null;
+  }): Promise<void> {
+    const entry = this.auditLogRepo.create({
+      resourceType: params.resourceType,
+      resourceId: params.resourceId,
+      action: params.action,
+      actor: params.actor,
+      tenantId: params.tenantId ?? null,
+      before: params.before ?? null,
+      after: params.after ?? null,
+    });
+    await this.auditLogRepo.save(entry);
+  }
+
+  /**
+   * Write an immutable entity version snapshot.
+   */
+  private async writeEntityVersion(params: {
+    resourceType: string;
+    resourceId: string;
+    snapshot: Record<string, any>;
+    actor: string;
+    tenantId?: string | null;
+  }): Promise<void> {
+    const versions = await this.entityVersionRepo.find({
+      where: { resourceType: params.resourceType, resourceId: params.resourceId },
+      order: { version: 'DESC' },
+      take: 1,
+    });
+    const nextVersion = (versions.length > 0 ? versions[0].version : 0) + 1;
+    const entry = this.entityVersionRepo.create({
+      resourceType: params.resourceType,
+      resourceId: params.resourceId,
+      version: nextVersion,
+      snapshot: params.snapshot,
+      actor: params.actor,
+      tenantId: params.tenantId ?? null,
+    });
+    await this.entityVersionRepo.save(entry);
+  }
 
   private n(v: any): number {
     const x = typeof v === 'number' ? v : v !== null && v !== undefined ? parseFloat(String(v)) : NaN;
@@ -263,6 +322,23 @@ export class ReinsuranceService {
     });
 
     await this.treatiesRepo.save(t);
+    // P1 #10: write immutable audit log and entity version
+    await this.writeAuditLog({
+      resourceType: 're_treaty',
+      resourceId: t.treatyId,
+      action: 'created',
+      actor: params.createdBy || 'system',
+      tenantId: t.tenantId,
+      before: null,
+      after: { treatyId: t.treatyId, treatyNumber: t.treatyNumber, reinsurerName: t.reinsurerName, treatyType: t.treatyType, status: t.status },
+    });
+    await this.writeEntityVersion({
+      resourceType: 're_treaty',
+      resourceId: t.treatyId,
+      snapshot: { treatyId: t.treatyId, treatyNumber: t.treatyNumber, reinsurerName: t.reinsurerName, treatyType: t.treatyType, status: t.status, retentionRate: t.retentionRate, cessionRate: t.cessionRate, effectiveFrom: t.effectiveFrom, effectiveTo: t.effectiveTo, currency: t.currency, terms: t.terms, config: t.config },
+      actor: params.createdBy || 'system',
+      tenantId: t.tenantId,
+    });
     return t;
   }
 
@@ -349,6 +425,91 @@ export class ReinsuranceService {
     const t = await this.getTreaty(tenantId, treatyId);
     if (!t) throw new NotFoundException({ success: false, error: { code: 'NOT_FOUND', message: 'Treaty not found' } });
     t.status = 'closed';
+    t.updatedAt = new Date();
+    await this.treatiesRepo.save(t);
+    return t;
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // P1 #5 (SoD): Approval state machine — DRAFT → PENDING_APPROVAL → APPROVED/REJECTED
+  // The submitter cannot be the approver (Segregation of Duties).
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Submit a treaty for approval.
+   * Transitions: draft → pending_approval
+   */
+  async submitTreatyForApproval(tenantId: string, treatyId: string, submittedBy: string): Promise<ReTreaty> {
+    const t = await this.getTreaty(tenantId, treatyId);
+    if (!t) throw new NotFoundException({ success: false, error: { code: 'NOT_FOUND', message: 'Treaty not found' } });
+    if (t.status !== 'draft') {
+      throw new BadRequestException({ success: false, error: { code: 'INVALID_STATE', message: `Treaty must be in 'draft' status to submit for approval. Current: ${t.status}` } });
+    }
+    t.status = 'pending_approval';
+    t.submittedBy = submittedBy;
+    t.updatedAt = new Date();
+    await this.treatiesRepo.save(t);
+    return t;
+  }
+
+  /**
+   * Approve a treaty that was submitted for approval.
+   * Transitions: pending_approval → approved
+   * SoD check: the approver must NOT be the same user as the submitter.
+   */
+  async approveTreaty(tenantId: string, treatyId: string, approvedBy: string): Promise<ReTreaty> {
+    const t = await this.getTreaty(tenantId, treatyId);
+    if (!t) throw new NotFoundException({ success: false, error: { code: 'NOT_FOUND', message: 'Treaty not found' } });
+    if (t.status !== 'pending_approval') {
+      throw new BadRequestException({ success: false, error: { code: 'INVALID_STATE', message: `Treaty must be in 'pending_approval' status to approve. Current: ${t.status}` } });
+    }
+    // P1 #5 (SoD): submitter cannot be the approver
+    if (t.submittedBy && t.submittedBy === approvedBy) {
+      throw new ForbiddenException({ success: false, error: { code: 'SOD_VIOLATION', message: 'Segregation of Duties violation: the submitter cannot approve their own submission' } });
+    }
+    t.status = 'approved';
+    t.approvedBy = approvedBy;
+    t.submittedBy = null;
+    t.updatedAt = new Date();
+    await this.treatiesRepo.save(t);
+    return t;
+  }
+
+  /**
+   * Reject a treaty that was submitted for approval.
+   * Transitions: pending_approval → rejected
+   * SoD check: the rejector must NOT be the same user as the submitter.
+   */
+  async rejectTreaty(tenantId: string, treatyId: string, rejectedBy: string, reason?: string): Promise<ReTreaty> {
+    const t = await this.getTreaty(tenantId, treatyId);
+    if (!t) throw new NotFoundException({ success: false, error: { code: 'NOT_FOUND', message: 'Treaty not found' } });
+    if (t.status !== 'pending_approval') {
+      throw new BadRequestException({ success: false, error: { code: 'INVALID_STATE', message: `Treaty must be in 'pending_approval' status to reject. Current: ${t.status}` } });
+    }
+    // P1 #5 (SoD): submitter cannot be the rejector
+    if (t.submittedBy && t.submittedBy === rejectedBy) {
+      throw new ForbiddenException({ success: false, error: { code: 'SOD_VIOLATION', message: 'Segregation of Duties violation: the submitter cannot reject their own submission' } });
+    }
+    t.status = 'rejected';
+    t.approvedBy = rejectedBy;
+    t.submittedBy = null;
+    t.terms = { ...(t.terms || {}), rejectionReason: reason || null };
+    t.updatedAt = new Date();
+    await this.treatiesRepo.save(t);
+    return t;
+  }
+
+  /**
+   * Activate an approved treaty.
+   * Transitions: approved → active
+   */
+  async activateTreaty(tenantId: string, treatyId: string): Promise<ReTreaty> {
+    const t = await this.getTreaty(tenantId, treatyId);
+    if (!t) throw new NotFoundException({ success: false, error: { code: 'NOT_FOUND', message: 'Treaty not found' } });
+    if (t.status !== 'approved' && t.status !== 'draft') {
+      throw new BadRequestException({ success: false, error: { code: 'INVALID_STATE', message: `Treaty must be in 'approved' or 'draft' status to activate. Current: ${t.status}` } });
+    }
+    t.status = 'active';
     t.updatedAt = new Date();
     await this.treatiesRepo.save(t);
     return t;
@@ -452,7 +613,8 @@ export class ReinsuranceService {
     return true;
   }
 
-  private calculateCessionAmount(params: {
+  // P0 fix: made public so PolicyConsumer can use it for correct cession calculation.
+  calculateCessionAmount(params: {
     treaty: ReTreaty;
     sumInsured: number;
     premium: number;
@@ -1331,7 +1493,7 @@ export class ReinsuranceService {
           statementId: uuidv4(),
           tenantId,
           treatyId: params.treatyId,
-          statementType: 'period_close' as any,
+          statementType: 'period_close',
           periodStart: periodStartStr,
           periodEnd: params.periodEnd,
           totals,

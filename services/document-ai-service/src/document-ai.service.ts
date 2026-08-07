@@ -217,6 +217,10 @@ export class DocumentAiService {
     return { document: saved, redaction };
   }
 
+  // Advanced (AI/OCR-based) classification: uses OCR-extracted text and
+  // keyword scoring via ocrRedaction.classifyDocument. This is the AI/OCR
+  // counterpart to the simple mimeType-based classifyDocument in
+  // document-service. (P1 #3)
   async classifyDocument(params: {
     documentId: string;
     tenantId?: string;

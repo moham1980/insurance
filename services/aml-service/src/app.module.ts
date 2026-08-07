@@ -16,6 +16,8 @@ import { PiiMaskingMiddleware } from './pii-masking.middleware';
 
 import { AbacGuard } from './abac.guard';
 import { TenantGuard } from './tenant.guard';
+import { BulkRateLimitGuard } from './bulk-rate-limit.guard'; // P2 #1: bulk rate limiting
+import { AsyncJobService } from './async-job.service'; // P2 #2: async processing
 @Module({
   imports: [
     TypeOrmModule.forRoot({
@@ -32,7 +34,7 @@ import { TenantGuard } from './tenant.guard';
     TypeOrmModule.forFeature([AmlConsent, AmlRule, AmlAlert, AmlAlertDecision, ExternalDataSource, OutboxEvent, ConsumedEvent, DeadLetterEvent]),
   ],
   controllers: [AmlController, HealthController],
-  providers: [TenantGuard, AbacGuard, AmlService, TransactionConsumer, JwtAuthGuard, PermissionsGuard],
+  providers: [TenantGuard, AbacGuard, AmlService, TransactionConsumer, JwtAuthGuard, PermissionsGuard, BulkRateLimitGuard, AsyncJobService],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

@@ -1,5 +1,6 @@
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { PermissionsGuard } from './permissions.guard';
+import { AbacGuard } from './abac.guard';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { FraudCase } from './entities/FraudCase';
@@ -36,6 +37,6 @@ import { TenantGuard } from './tenant.guard';
     TypeOrmModule.forFeature([FraudCase, FraudScoreAudit, FraudMLModel, FraudGraphEntity, FraudGraphRelationship, FraudIrregularityAlert, FraudDocumentAttachmentAudit, OutboxEvent, ConsumedEvent, DeadLetterEvent]),
   ],
   controllers: [FraudController, HealthController],
-  providers: [TenantGuard, FraudService, FraudDocumentsConsumer, FraudClaimRegistrationConsumer, FraudMLTrainingService, FraudMLDriftDetectionService, FraudMLExplainabilityService, JwtAuthGuard, PermissionsGuard],
+  providers: [TenantGuard, FraudService, FraudDocumentsConsumer, FraudClaimRegistrationConsumer, FraudMLTrainingService, FraudMLDriftDetectionService, FraudMLExplainabilityService, JwtAuthGuard, PermissionsGuard, AbacGuard],
 })
 export class AppModule {}

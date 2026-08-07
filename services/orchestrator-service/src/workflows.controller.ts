@@ -7,6 +7,24 @@ import { auditLogger } from './audit.logger';
 import { AbacGuard } from './abac.guard';
 import { TenantGuard } from './tenant.guard';
 
+/**
+ * ──────────────────────────────────────────────────────────────────────────
+ * ARCHITECTURE BOUNDARY (P1 #2 — orchestrator-service saga vs process)
+ * ──────────────────────────────────────────────────────────────────────────
+ * This controller exposes two families of endpoints:
+ *
+ * 1. **Process endpoints** (`/workflows/processes/*`) — DEPRECATED.
+ *    These are legacy wrappers that already delegate to the saga engine
+ *    (OrchestratorService.startSaga / getSaga).  They will be REMOVED in the
+ *    next major version.  Consumers should migrate to either:
+ *      • `POST /orchestrations/sagas`  (canonical saga API), or
+ *      • `workflow-engine-service`     (generic BPMN engine).
+ *
+ * 2. **Work-item endpoints** (`/workflows/work-items/*`) — NOT deprecated.
+ *    These are the canonical human-task endpoints for saga work items and
+ *    are not duplicated by the process engine.
+ * ──────────────────────────────────────────────────────────────────────────
+ */
 @Controller()
 export class WorkflowsController {
   constructor(private readonly orchestratorService: OrchestratorService) {}
@@ -17,6 +35,12 @@ export class WorkflowsController {
     return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
 
+  /**
+   * @deprecated P1 #2 — Process engine is deprecated and will be removed in the
+   * next major version.  This endpoint already delegates to the saga engine
+   * (OrchestratorService.startSaga).  Migrate to `POST /orchestrations/sagas`
+   * or use `workflow-engine-service` for generic BPMN execution.
+   */
   @Post('/workflows/processes/:processType/start')
   @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
   @RequirePermissions('orchestrations:saga_start')
@@ -216,6 +240,12 @@ export class WorkflowsController {
     }
   }
 
+  /**
+   * @deprecated P1 #2 — Process engine is deprecated and will be removed in the
+   * next major version.  This endpoint already delegates to the saga engine
+   * (OrchestratorService.getSaga).  Migrate to `GET /orchestrations/sagas/:sagaId`
+   * or use `workflow-engine-service` for generic BPMN instance queries.
+   */
   @Get('/workflows/processes/:processInstanceId')
   @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
   @RequirePermissions('orchestrations:saga_view')

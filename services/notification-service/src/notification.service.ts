@@ -7,6 +7,8 @@ import { randomInt } from 'crypto';
 import { NotificationLog, NotificationStatus, NotificationChannel, NotificationType } from './entities/NotificationLog';
 import { EmailTemplate, EmailTemplateType } from './entities/EmailTemplate';
 import { SmsTemplate, SmsTemplateType } from './entities/SmsTemplate';
+import { AuditLog } from './entities/AuditLog'; // P1 #10
+import { EntityVersion } from './entities/EntityVersion'; // P1 #10
 import { ISmsProvider } from './sms-providers/sms-provider.interface';
 import { IEmailProvider } from './email-providers/email-provider.interface';
 import { RedisService } from './redis.service';
@@ -29,6 +31,8 @@ export class NotificationService {
   private readonly maxRetries = 3;
   private readonly retryDelayMs = 5000;
   private readonly otpTtlSeconds = 300;
+  // P2 #4: configurable fallback channel for when the primary channel fails
+  private readonly fallbackChannel = (process.env.NOTIFICATION_FALLBACK_CHANNEL || 'email') as NotificationChannel | '';
 
   constructor(
     @InjectDataSource() private readonly dataSource: DataSource,
@@ -38,6 +42,10 @@ export class NotificationService {
     private emailTemplateRepo: Repository<EmailTemplate>,
     @InjectRepository(SmsTemplate)
     private smsTemplateRepo: Repository<SmsTemplate>,
+    @InjectRepository(AuditLog)
+    private auditLogRepo: Repository<AuditLog>, // P1 #10
+    @InjectRepository(EntityVersion)
+    private entityVersionRepo: Repository<EntityVersion>, // P1 #10
     @Inject('SMS_PROVIDER') private smsProvider: ISmsProvider,
     @Inject('EMAIL_PROVIDER') private emailProvider: IEmailProvider,
     @Inject('SMS_FALLBACK_PROVIDER') private fallbackSmsProvider: ISmsProvider | undefined,
@@ -47,6 +55,61 @@ export class NotificationService {
 
   private otpKey(tenantId: string, reference: string): string {
     return `otp:${tenantId}:${reference}`;
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // P1 #10: Audit trail & versioning helpers
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Write an immutable audit log entry.
+   */
+  private async writeAuditLog(params: {
+    resourceType: string;
+    resourceId: string;
+    action: string;
+    actor: string;
+    tenantId?: string | null;
+    before?: Record<string, any> | null;
+    after?: Record<string, any> | null;
+  }): Promise<void> {
+    const entry = this.auditLogRepo.create({
+      resourceType: params.resourceType,
+      resourceId: params.resourceId,
+      action: params.action,
+      actor: params.actor,
+      tenantId: params.tenantId ?? null,
+      before: params.before ?? null,
+      after: params.after ?? null,
+    });
+    await this.auditLogRepo.save(entry);
+  }
+
+  /**
+   * Write an immutable entity version snapshot.
+   */
+  private async writeEntityVersion(params: {
+    resourceType: string;
+    resourceId: string;
+    snapshot: Record<string, any>;
+    actor: string;
+    tenantId?: string | null;
+  }): Promise<void> {
+    const versions = await this.entityVersionRepo.find({
+      where: { resourceType: params.resourceType, resourceId: params.resourceId },
+      order: { version: 'DESC' },
+      take: 1,
+    });
+    const nextVersion = (versions.length > 0 ? versions[0].version : 0) + 1;
+    const entry = this.entityVersionRepo.create({
+      resourceType: params.resourceType,
+      resourceId: params.resourceId,
+      version: nextVersion,
+      snapshot: params.snapshot,
+      actor: params.actor,
+      tenantId: params.tenantId ?? null,
+    });
+    await this.entityVersionRepo.save(entry);
   }
 
   private otpRateLimitKey(tenantId: string, recipient: string): string {
@@ -349,6 +412,76 @@ export class NotificationService {
       this.logger.log(`Auto-retrying notification ${logId} after ${delay}ms (attempt ${log.retryCount + 1}/${this.maxRetries})`);
       this.scheduleProcess(logId, delay);
     }
+
+    // P2 #4: Channel failover — if the notification failed after all retries,
+    // attempt to resend via a secondary channel (e.g. SMS → email).
+    if (log.status === NotificationStatus.FAILED) {
+      await this.attemptChannelFailover(log);
+    }
+  }
+
+  // P2 #4: Attempt to send the notification via a fallback channel when the
+  // primary channel has exhausted all retries. The fallback channel is
+  // configurable via NOTIFICATION_FALLBACK_CHANNEL (default: email).
+  private async attemptChannelFailover(originalLog: NotificationLog): Promise<void> {
+    const fallbackChannel = this.fallbackChannel;
+    if (!fallbackChannel || fallbackChannel === originalLog.channel) {
+      return; // no fallback configured or same channel
+    }
+
+    // Determine the recipient for the fallback channel.
+    // If metadata contains a fallbackRecipient, use it; otherwise skip
+    // (e.g. SMS recipient is a phone number, email needs an address).
+    const fallbackRecipient = originalLog.metadata?.fallbackRecipient;
+    if (!fallbackRecipient) {
+      this.logger.warn(
+        `Channel failover skipped for notification ${originalLog.id}: no fallbackRecipient in metadata`,
+      );
+      return;
+    }
+
+    try {
+      // Create a new notification log entry for the fallback channel
+      const fallbackLog = await this.dataSource.transaction(async (manager) => {
+        return this.createNotificationLog(manager, {
+          tenantId: originalLog.tenantId,
+          userId: originalLog.userId,
+          correlationId: originalLog.correlationId || undefined,
+          channel: fallbackChannel,
+          type: originalLog.type,
+          recipient: fallbackRecipient,
+          message: originalLog.message,
+          metadata: {
+            ...originalLog.metadata,
+            originalNotificationId: originalLog.id,
+            originalChannel: originalLog.channel,
+            channelFailover: true,
+          },
+        });
+      });
+
+      // P2 #4: audit log for the fallback attempt
+      await this.writeAuditLog({
+        resourceType: 'Notification',
+        resourceId: originalLog.id,
+        action: 'channel_failover',
+        actor: 'system',
+        tenantId: originalLog.tenantId,
+        before: { channel: originalLog.channel, status: originalLog.status, errorMessage: originalLog.errorMessage },
+        after: { fallbackChannel, fallbackNotificationId: fallbackLog.id, fallbackRecipient },
+      });
+
+      this.logger.warn(
+        `Channel failover: notification ${originalLog.id} failed on ${originalLog.channel}, retrying on ${fallbackChannel} as ${fallbackLog.id}`,
+      );
+
+      // Schedule the fallback notification for immediate processing
+      this.scheduleProcess(fallbackLog.id);
+    } catch (error: any) {
+      this.logger.error(
+        `Channel failover failed for notification ${originalLog.id}: ${error.message}`,
+      );
+    }
   }
 
   async getNotification(id: string, tenantId: string): Promise<NotificationLog | null> {
@@ -620,7 +753,25 @@ export class NotificationService {
       ...params,
       isActive: true,
     });
-    return this.emailTemplateRepo.save(template);
+    const saved = await this.emailTemplateRepo.save(template);
+    // P1 #10: write immutable audit log and entity version
+    await this.writeAuditLog({
+      resourceType: 'email_template',
+      resourceId: saved.id,
+      action: 'created',
+      actor: 'system',
+      tenantId: saved.tenantId,
+      before: null,
+      after: { id: saved.id, type: saved.type, language: saved.language, subject: saved.subject },
+    });
+    await this.writeEntityVersion({
+      resourceType: 'email_template',
+      resourceId: saved.id,
+      snapshot: { id: saved.id, type: saved.type, language: saved.language, subject: saved.subject, body: saved.body, html: saved.html, variables: saved.variables, isActive: saved.isActive },
+      actor: 'system',
+      tenantId: saved.tenantId,
+    });
+    return saved;
   }
 
   async updateEmailTemplate(id: string, tenantId: string, params: Partial<EmailTemplate>): Promise<EmailTemplate> {
@@ -630,8 +781,27 @@ export class NotificationService {
       err.code = 'NOT_FOUND';
       throw err;
     }
+    const before = { ...template };
     Object.assign(template, params);
-    return this.emailTemplateRepo.save(template);
+    const saved = await this.emailTemplateRepo.save(template);
+    // P1 #10: write immutable audit log and entity version
+    await this.writeAuditLog({
+      resourceType: 'email_template',
+      resourceId: saved.id,
+      action: 'updated',
+      actor: 'system',
+      tenantId: saved.tenantId,
+      before: { id: before.id, type: before.type, subject: before.subject, body: before.body, isActive: before.isActive },
+      after: { id: saved.id, type: saved.type, subject: saved.subject, body: saved.body, isActive: saved.isActive },
+    });
+    await this.writeEntityVersion({
+      resourceType: 'email_template',
+      resourceId: saved.id,
+      snapshot: { id: saved.id, type: saved.type, language: saved.language, subject: saved.subject, body: saved.body, html: saved.html, variables: saved.variables, isActive: saved.isActive },
+      actor: 'system',
+      tenantId: saved.tenantId,
+    });
+    return saved;
   }
 
   async getEmailTemplate(type: EmailTemplateType, language: string, tenantId: string): Promise<EmailTemplate | null> {
@@ -668,7 +838,25 @@ export class NotificationService {
       ...params,
       isActive: true,
     });
-    return this.smsTemplateRepo.save(template);
+    const saved = await this.smsTemplateRepo.save(template);
+    // P1 #10: write immutable audit log and entity version
+    await this.writeAuditLog({
+      resourceType: 'sms_template',
+      resourceId: saved.id,
+      action: 'created',
+      actor: 'system',
+      tenantId: saved.tenantId,
+      before: null,
+      after: { id: saved.id, type: saved.type, language: saved.language, message: saved.message },
+    });
+    await this.writeEntityVersion({
+      resourceType: 'sms_template',
+      resourceId: saved.id,
+      snapshot: { id: saved.id, type: saved.type, language: saved.language, message: saved.message, variables: saved.variables, isActive: saved.isActive },
+      actor: 'system',
+      tenantId: saved.tenantId,
+    });
+    return saved;
   }
 
   async updateSmsTemplate(id: string, tenantId: string, params: Partial<SmsTemplate>): Promise<SmsTemplate> {
@@ -678,8 +866,27 @@ export class NotificationService {
       err.code = 'NOT_FOUND';
       throw err;
     }
+    const before = { ...template };
     Object.assign(template, params);
-    return this.smsTemplateRepo.save(template);
+    const saved = await this.smsTemplateRepo.save(template);
+    // P1 #10: write immutable audit log and entity version
+    await this.writeAuditLog({
+      resourceType: 'sms_template',
+      resourceId: saved.id,
+      action: 'updated',
+      actor: 'system',
+      tenantId: saved.tenantId,
+      before: { id: before.id, type: before.type, message: before.message, isActive: before.isActive },
+      after: { id: saved.id, type: saved.type, message: saved.message, isActive: saved.isActive },
+    });
+    await this.writeEntityVersion({
+      resourceType: 'sms_template',
+      resourceId: saved.id,
+      snapshot: { id: saved.id, type: saved.type, language: saved.language, message: saved.message, variables: saved.variables, isActive: saved.isActive },
+      actor: 'system',
+      tenantId: saved.tenantId,
+    });
+    return saved;
   }
 
   async getSmsTemplate(type: SmsTemplateType, language: string, tenantId: string): Promise<SmsTemplate | null> {

@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
+import { DistributedCacheService } from './distributed-cache.service'; // P2 #11: distributed cache
 
 export interface CatalogContext {
   tenantId: string;
@@ -25,40 +26,31 @@ export class CatalogService {
   private productServiceUrl = process.env.PRODUCT_SERVICE_URL || 'http://localhost:18018';
   private salesNetworkServiceUrl = process.env.SALES_NETWORK_SERVICE_URL || 'http://localhost:3022';
 
-  // Simple in-memory cache with TTL for catalog responses
-  private cache = new Map<string, { data: any; expiresAt: number }>();
-  private cacheTtlMs = parseInt(process.env.CATALOG_CACHE_TTL_MS || '60000', 10);
+  // P2 #11: Use DistributedCacheService (Redis if available, in-memory fallback)
+  constructor(private readonly cacheService: DistributedCacheService) {}
 
   private getCached<T>(key: string): T | null {
-    const entry = this.cache.get(key);
-    if (entry && entry.expiresAt > Date.now()) {
-      return entry.data as T;
-    }
-    if (entry) this.cache.delete(key);
-    return null;
+    return this.cacheService.get<T>(key);
   }
 
   private setCached(key: string, data: any): void {
-    this.cache.set(key, { data, expiresAt: Date.now() + this.cacheTtlMs });
+    this.cacheService.set(key, data);
   }
 
   invalidateCache(prefix?: string): void {
-    if (!prefix) {
-      this.cache.clear();
-      return;
-    }
-    for (const key of this.cache.keys()) {
-      if (key.startsWith(prefix)) this.cache.delete(key);
-    }
+    this.cacheService.invalidate(prefix);
   }
 
-  private async get(url: string, authorization: string): Promise<any> {
+  // P2 #12: forward X-Correlation-Id header to downstream services
+  private async get(url: string, authorization: string, correlationId?: string): Promise<any> {
+    const headers: Record<string, string> = {
+      authorization,
+      'content-type': 'application/json',
+    };
+    if (correlationId) headers['x-correlation-id'] = correlationId;
     const res = await fetch(url, {
       method: 'GET',
-      headers: {
-        authorization,
-        'content-type': 'application/json',
-      },
+      headers,
     });
     if (res.status === 404) return null;
     if (!res.ok) {
@@ -68,13 +60,16 @@ export class CatalogService {
     return res.json();
   }
 
-  private async post(url: string, authorization: string, body: any): Promise<any> {
+  // P2 #12: forward X-Correlation-Id header to downstream services
+  private async post(url: string, authorization: string, body: any, correlationId?: string): Promise<any> {
+    const headers: Record<string, string> = {
+      authorization,
+      'content-type': 'application/json',
+    };
+    if (correlationId) headers['x-correlation-id'] = correlationId;
     const res = await fetch(url, {
       method: 'POST',
-      headers: {
-        authorization,
-        'content-type': 'application/json',
-      },
+      headers,
       body: JSON.stringify(body),
     });
     if (!res.ok) {
@@ -88,7 +83,7 @@ export class CatalogService {
   // Catalog queries
   // --------------------------------------------------------------------------
 
-  async listProducts(user: any, query: any): Promise<any> {
+  async listProducts(user: any, query: any, correlationId?: string): Promise<any> {
     const tenantId = requireTenant(user);
     const { limit, offset } = normalizePaging(query.limit, query.offset);
     const owner = query.ownerOrganizationId ? `&ownerOrganizationId=${encodeURIComponent(query.ownerOrganizationId)}` : '';
@@ -98,46 +93,46 @@ export class CatalogService {
     const cached = this.getCached<any>(cacheKey);
     if (cached) return cached;
     const url = `${this.productServiceUrl}/api/v1/products?tenantId=${encodeURIComponent(tenantId)}&limit=${limit}&offset=${offset}${owner}${lob}${status}`;
-    const res = await this.get(url, user.authorization);
+    const res = await this.get(url, user.authorization, correlationId);
     const data = res?.data ?? res;
     this.setCached(cacheKey, data);
     return data;
   }
 
-  async getProduct(user: any, productId: string): Promise<any> {
+  async getProduct(user: any, productId: string, correlationId?: string): Promise<any> {
     requireTenant(user);
     const cacheKey = `product:${productId}`;
     const cached = this.getCached<any>(cacheKey);
     if (cached) return cached;
     const url = `${this.productServiceUrl}/api/v1/products/${encodeURIComponent(productId)}`;
-    const res = await this.get(url, user.authorization);
+    const res = await this.get(url, user.authorization, correlationId);
     const data = res?.data ?? res;
     if (data) this.setCached(cacheKey, data);
     return data;
   }
 
-  async listDistributorVisibleProducts(user: any, distributorOrganizationId: string, query: any): Promise<any> {
+  async listDistributorVisibleProducts(user: any, distributorOrganizationId: string, query: any, correlationId?: string): Promise<any> {
     requireTenant(user);
     const { limit, offset } = normalizePaging(query.limit, query.offset);
     const version = query.productVersion ? `&productVersion=${encodeURIComponent(query.productVersion)}` : '';
     const agreement = query.agreementId ? `&agreementId=${encodeURIComponent(query.agreementId)}` : '';
     const url = `${this.productServiceUrl}/api/v1/distributors/${encodeURIComponent(distributorOrganizationId)}/visible-products?limit=${limit}&offset=${offset}${version}${agreement}`;
-    const res = await this.get(url, user.authorization);
+    const res = await this.get(url, user.authorization, correlationId);
     return res?.data ?? res;
   }
 
-  async listBrokerOfferings(user: any, query: any): Promise<any> {
+  async listBrokerOfferings(user: any, query: any, correlationId?: string): Promise<any> {
     requireTenant(user);
     const { limit, offset } = normalizePaging(query.limit, query.offset);
     const broker = query.brokerOrganizationId ? `&brokerOrganizationId=${encodeURIComponent(query.brokerOrganizationId)}` : '';
     const lob = query.lineOfBusiness ? `&lineOfBusiness=${encodeURIComponent(query.lineOfBusiness)}` : '';
     const status = query.status ? `&status=${encodeURIComponent(query.status)}` : '&status=active';
     const url = `${this.productServiceUrl}/api/v1/broker-offerings?limit=${limit}&offset=${offset}${broker}${lob}${status}`;
-    const res = await this.get(url, user.authorization);
+    const res = await this.get(url, user.authorization, correlationId);
     return res?.data ?? res;
   }
 
-  async listCustomerOfferings(user: any, query: any): Promise<any> {
+  async listCustomerOfferings(user: any, query: any, correlationId?: string): Promise<any> {
     requireTenant(user);
     const { limit, offset } = normalizePaging(query.limit, query.offset);
     const broker = query.brokerOrganizationId ? `&brokerOrganizationId=${encodeURIComponent(query.brokerOrganizationId)}` : '';
@@ -145,26 +140,26 @@ export class CatalogService {
     const currency = query.currency ? `&currency=${encodeURIComponent(query.currency)}` : '';
     const region = query.region ? `&region=${encodeURIComponent(query.region)}` : '';
     const url = `${this.productServiceUrl}/api/v1/customers/offerings?limit=${limit}&offset=${offset}${broker}${lob}${currency}${region}`;
-    const res = await this.get(url, user.authorization);
+    const res = await this.get(url, user.authorization, correlationId);
     return res?.data ?? res;
   }
 
-  async getAgreementEligibility(user: any, agreementId: string, lineOfBusiness?: string): Promise<any> {
+  async getAgreementEligibility(user: any, agreementId: string, lineOfBusiness?: string, correlationId?: string): Promise<any> {
     requireTenant(user);
     const lob = lineOfBusiness ? `?lineOfBusiness=${encodeURIComponent(lineOfBusiness)}` : '';
     const url = `${this.salesNetworkServiceUrl}/api/v1/distribution-agreements/${encodeURIComponent(agreementId)}/eligibility${lob}`;
-    const res = await this.get(url, user.authorization);
+    const res = await this.get(url, user.authorization, correlationId);
     return res?.data ?? res;
   }
 
-  async getOfferingComparisonHint(user: any, offeringId: string): Promise<any> {
+  async getOfferingComparisonHint(user: any, offeringId: string, correlationId?: string): Promise<any> {
     requireTenant(user);
     const cacheKey = `comparison-hint:${offeringId}`;
     const cached = this.getCached<any>(cacheKey);
     if (cached) return cached;
 
     const url = `${this.productServiceUrl}/api/v1/broker-offerings/${encodeURIComponent(offeringId)}`;
-    const res = await this.get(url, user.authorization);
+    const res = await this.get(url, user.authorization, correlationId);
     const offering = res?.data ?? res;
     if (!offering) return null;
 

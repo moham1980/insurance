@@ -129,6 +129,15 @@ export class PolicyConsumer implements OnModuleInit, OnModuleDestroy {
     }
 
     for (const treaty of activeTreaties.rows) {
+      // P0 fix: use calculateCessionAmount to compute the correct cession amount
+      // based on treaty type (quota_share, excess_of_loss, surplus) instead of
+      // always applying a flat cessionRate percentage.
+      const { cessionPercent, cededAmount } = this.reinsuranceService.calculateCessionAmount({
+        treaty,
+        sumInsured,
+        premium: premiumAmount,
+      });
+
       await this.reinsuranceService.createCession({
         tenantId,
         treatyId: treaty.treatyId,
@@ -139,8 +148,10 @@ export class PolicyConsumer implements OnModuleInit, OnModuleDestroy {
         cessionType: treaty.treatyType,
         retentionRate: treaty.retentionRate,
         cessionRate: treaty.cessionRate,
-        cededPremium: premiumAmount * (this.n(treaty.cessionRate) / 100),
-        cededSumInsured: sumInsured * (this.n(treaty.cessionRate) / 100),
+        cessionPercent,
+        cededAmount,
+        cededPremium: premiumAmount * (cessionPercent / 100),
+        cededSumInsured: cededAmount,
         effectiveFrom,
         effectiveTo,
         currency: currency || 'IRR',

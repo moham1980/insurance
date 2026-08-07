@@ -59,4 +59,9 @@ export class RmComplaintOps {
 
   @Column({ name: 'last_occurred_at', type: 'timestamptz', nullable: true })
   lastOccurredAt: Date | null;
+
+  // P0 fix: store attachment metadata from ComplaintAttachmentAdded events
+  // to prevent silent data loss. Each entry: { attachmentId, fileName, fileType, uploadedAt, uploadedBy }
+  @Column({ name: 'attachments', type: 'jsonb', nullable: true })
+  attachments: Array<{ attachmentId: string; fileName?: string; fileType?: string; uploadedAt?: string; uploadedBy?: string }> | null;
 }

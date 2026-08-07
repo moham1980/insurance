@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Headers, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { EcosystemJwtGuard } from './ecosystem-jwt.guard';
 import { PermissionsGuard } from './permissions.guard';
+import { AbacGuard } from './abac.guard';
 import { RequirePermissions } from './permissions.decorator';
 import { auditLogger } from './audit.logger';
 import { ReinsuranceService } from './reinsurance.service';
@@ -23,7 +24,7 @@ export class ReinsuranceController {
   }
 
   @Post('/re/treaties')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('re:treaties:create')
   async createTreaty(@Req() req: any, @Headers() headers: Record<string, any>, @Body() body: any) {
     const correlationId = this.getCorrelationId(headers);
@@ -56,7 +57,7 @@ export class ReinsuranceController {
   }
 
   @Get('/re/treaties/:treatyId')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('re:treaties:view')
   async getTreaty(@Req() req: any, @Headers() headers: Record<string, any>, @Param('treatyId') treatyId: string) {
     const correlationId = this.getCorrelationId(headers);
@@ -67,7 +68,7 @@ export class ReinsuranceController {
   }
 
   @Get('/re/treaties')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('re:treaties:list')
   async listTreaties(
     @Req() req: any,
@@ -97,7 +98,7 @@ export class ReinsuranceController {
   }
 
   @Patch('/re/treaties/:treatyId')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('re:treaties:update')
   async updateTreaty(@Req() req: any, @Headers() headers: Record<string, any>, @Param('treatyId') treatyId: string, @Body() body: any) {
     const correlationId = this.getCorrelationId(headers);
@@ -119,7 +120,7 @@ export class ReinsuranceController {
   }
 
   @Patch('/re/treaties/:treatyId/close')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('re:treaties:close')
   async closeTreaty(@Req() req: any, @Headers() headers: Record<string, any>, @Param('treatyId') treatyId: string) {
     const correlationId = this.getCorrelationId(headers);
@@ -128,8 +129,57 @@ export class ReinsuranceController {
     return { success: true, data: t, correlationId };
   }
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // P1 #5 (SoD): Submit / Approve / Reject / Activate endpoints
+  // State machine: draft → pending_approval → approved/rejected → active
+  // The submitter cannot be the approver (Segregation of Duties).
+  // ──────────────────────────────────────────────────────────────────────────
+
+  @Patch('/re/treaties/:treatyId/submit')
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
+  @RequirePermissions('re:treaties:submit')
+  async submitTreatyForApproval(@Req() req: any, @Headers() headers: Record<string, any>, @Param('treatyId') treatyId: string) {
+    const correlationId = this.getCorrelationId(headers);
+    const tenantId = req?.user?.tenantId as string | undefined;
+    const actor = req?.user?.userId as string | undefined;
+    const t = await this.reinsuranceService.submitTreatyForApproval(tenantId!, treatyId, actor || 'system');
+    return { success: true, data: t, correlationId };
+  }
+
+  @Patch('/re/treaties/:treatyId/approve')
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
+  @RequirePermissions('re:treaties:approve')
+  async approveTreaty(@Req() req: any, @Headers() headers: Record<string, any>, @Param('treatyId') treatyId: string) {
+    const correlationId = this.getCorrelationId(headers);
+    const tenantId = req?.user?.tenantId as string | undefined;
+    const actor = req?.user?.userId as string | undefined;
+    const t = await this.reinsuranceService.approveTreaty(tenantId!, treatyId, actor || 'system');
+    return { success: true, data: t, correlationId };
+  }
+
+  @Patch('/re/treaties/:treatyId/reject')
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
+  @RequirePermissions('re:treaties:approve')
+  async rejectTreaty(@Req() req: any, @Headers() headers: Record<string, any>, @Param('treatyId') treatyId: string, @Body() body: any) {
+    const correlationId = this.getCorrelationId(headers);
+    const tenantId = req?.user?.tenantId as string | undefined;
+    const actor = req?.user?.userId as string | undefined;
+    const t = await this.reinsuranceService.rejectTreaty(tenantId!, treatyId, actor || 'system', body?.reason);
+    return { success: true, data: t, correlationId };
+  }
+
+  @Patch('/re/treaties/:treatyId/activate')
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
+  @RequirePermissions('re:treaties:close')
+  async activateTreaty(@Req() req: any, @Headers() headers: Record<string, any>, @Param('treatyId') treatyId: string) {
+    const correlationId = this.getCorrelationId(headers);
+    const tenantId = req?.user?.tenantId as string | undefined;
+    const t = await this.reinsuranceService.activateTreaty(tenantId!, treatyId);
+    return { success: true, data: t, correlationId };
+  }
+
   @Post('/re/cessions/calculate-automatic')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('re:cessions:create')
   async calculateAutomaticCessions(@Req() req: any, @Headers() headers: Record<string, any>, @Body() body: any) {
     const correlationId = this.getCorrelationId(headers);
@@ -181,7 +231,7 @@ export class ReinsuranceController {
   }
 
   @Post('/re/cessions')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('re:cessions:create')
   async createCession(@Req() req: any, @Headers() headers: Record<string, any>, @Body() body: any) {
     const correlationId = this.getCorrelationId(headers);
@@ -222,7 +272,7 @@ export class ReinsuranceController {
   }
 
   @Get('/re/cessions/:cessionId')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('re:cessions:view')
   async getCession(@Req() req: any, @Headers() headers: Record<string, any>, @Param('cessionId') cessionId: string) {
     const correlationId = this.getCorrelationId(headers);
@@ -233,7 +283,7 @@ export class ReinsuranceController {
   }
 
   @Get('/re/cessions')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('re:cessions:list')
   async listCessions(
     @Req() req: any,
@@ -259,7 +309,7 @@ export class ReinsuranceController {
   }
 
   @Patch('/re/cessions/:cessionId')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('re:cessions:update')
   async updateCession(@Req() req: any, @Headers() headers: Record<string, any>, @Param('cessionId') cessionId: string, @Body() body: any) {
     const correlationId = this.getCorrelationId(headers);
@@ -281,7 +331,7 @@ export class ReinsuranceController {
   }
 
   @Patch('/re/cessions/:cessionId/approve')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('re:cessions:approve')
   async approveCession(@Req() req: any, @Headers() headers: Record<string, any>, @Param('cessionId') cessionId: string, @Body() body: any) {
     const correlationId = this.getCorrelationId(headers);
@@ -296,7 +346,7 @@ export class ReinsuranceController {
   }
 
   @Post('/re/statements')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('re:statements:create')
   async createStatement(@Req() req: any, @Headers() headers: Record<string, any>, @Body() body: any) {
     const correlationId = this.getCorrelationId(headers);
@@ -324,7 +374,7 @@ export class ReinsuranceController {
   }
 
   @Get('/re/statements/:statementId')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('re:statements:view')
   async getStatement(@Req() req: any, @Headers() headers: Record<string, any>, @Param('statementId') statementId: string) {
     const correlationId = this.getCorrelationId(headers);
@@ -335,7 +385,7 @@ export class ReinsuranceController {
   }
 
   @Get('/re/statements')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('re:statements:list')
   async listStatements(
     @Req() req: any,
@@ -361,7 +411,7 @@ export class ReinsuranceController {
   }
 
   @Patch('/re/statements/:statementId')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('re:statements:update')
   async updateStatement(@Req() req: any, @Headers() headers: Record<string, any>, @Param('statementId') statementId: string, @Body() body: any) {
     const correlationId = this.getCorrelationId(headers);
@@ -376,7 +426,7 @@ export class ReinsuranceController {
   }
 
   @Post('/re/reconciliations')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('re:reconciliations:create')
   async createReconciliation(@Req() req: any, @Headers() headers: Record<string, any>, @Body() body: any) {
     const correlationId = this.getCorrelationId(headers);
@@ -402,7 +452,7 @@ export class ReinsuranceController {
   }
 
   @Post('/re/recoveries')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('re:recoveries:create')
   async createRecovery(@Req() req: any, @Headers() headers: Record<string, any>, @Body() body: any) {
     const correlationId = this.getCorrelationId(headers);
@@ -429,7 +479,7 @@ export class ReinsuranceController {
   }
 
   @Get('/re/recoveries/:recoveryId')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('re:recoveries:view')
   async getRecovery(@Req() req: any, @Headers() headers: Record<string, any>, @Param('recoveryId') recoveryId: string) {
     const correlationId = this.getCorrelationId(headers);
@@ -440,7 +490,7 @@ export class ReinsuranceController {
   }
 
   @Get('/re/recoveries')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('re:recoveries:list')
   async listRecoveries(
     @Req() req: any,
@@ -466,7 +516,7 @@ export class ReinsuranceController {
   }
 
   @Patch('/re/recoveries/:recoveryId')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('re:recoveries:update')
   async updateRecovery(@Req() req: any, @Headers() headers: Record<string, any>, @Param('recoveryId') recoveryId: string, @Body() body: any) {
     const correlationId = this.getCorrelationId(headers);
@@ -484,7 +534,7 @@ export class ReinsuranceController {
   }
 
   @Post('/re/tickets')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('re:tickets:create')
   async createTicket(@Req() req: any, @Headers() headers: Record<string, any>, @Body() body: any) {
     const correlationId = this.getCorrelationId(headers);
@@ -504,7 +554,7 @@ export class ReinsuranceController {
   }
 
   @Get('/re/tickets/:ticketId')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('re:tickets:view')
   async getTicket(@Req() req: any, @Headers() headers: Record<string, any>, @Param('ticketId') ticketId: string) {
     const correlationId = this.getCorrelationId(headers);
@@ -517,7 +567,7 @@ export class ReinsuranceController {
   }
 
   @Get('/re/tickets')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('re:tickets:list')
   async listTickets(
     @Req() req: any,
@@ -543,7 +593,7 @@ export class ReinsuranceController {
   }
 
   @Patch('/re/tickets/:ticketId')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('re:tickets:update')
   async updateTicket(@Req() req: any, @Headers() headers: Record<string, any>, @Param('ticketId') ticketId: string, @Body() body: any) {
     const correlationId = this.getCorrelationId(headers);
@@ -558,7 +608,7 @@ export class ReinsuranceController {
   }
 
   @Patch('/re/tickets/:ticketId/assign')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('re:tickets:assign')
   async assignTicket(@Req() req: any, @Headers() headers: Record<string, any>, @Param('ticketId') ticketId: string, @Body() body: any) {
     const correlationId = this.getCorrelationId(headers);
@@ -572,7 +622,7 @@ export class ReinsuranceController {
   }
 
   @Post('/re/tickets/:ticketId/messages')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('re:tickets:add_message')
   async addTicketMessage(@Req() req: any, @Headers() headers: Record<string, any>, @Param('ticketId') ticketId: string, @Body() body: any) {
     const correlationId = this.getCorrelationId(headers);
@@ -590,7 +640,7 @@ export class ReinsuranceController {
   }
 
   @Post('/re/tickets/:ticketId/attachments')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('re:tickets:add_attachment')
   async addTicketAttachment(@Req() req: any, @Headers() headers: Record<string, any>, @Param('ticketId') ticketId: string, @Body() body: any) {
     const correlationId = this.getCorrelationId(headers);
@@ -608,7 +658,7 @@ export class ReinsuranceController {
   }
 
   @Get('/re/reconciliations/:reconciliationId')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('re:reconciliations:view')
   async getReconciliation(@Req() req: any, @Headers() headers: Record<string, any>, @Param('reconciliationId') reconciliationId: string) {
     const correlationId = this.getCorrelationId(headers);
@@ -619,7 +669,7 @@ export class ReinsuranceController {
   }
 
   @Get('/re/reconciliations')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('re:reconciliations:list')
   async listReconciliations(
     @Req() req: any,
@@ -643,7 +693,7 @@ export class ReinsuranceController {
   }
 
   @Patch('/re/reconciliations/:reconciliationId')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('re:reconciliations:update')
   async updateReconciliation(
     @Req() req: any,
@@ -664,7 +714,7 @@ export class ReinsuranceController {
   }
 
   @Get('/re/export')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('re:export')
   async exportSnapshot(
     @Req() req: any,
@@ -701,7 +751,7 @@ export class ReinsuranceController {
   }
 
   @Post('/re/periods/close')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('re:periods:close')
   async closePeriod(@Req() req: any, @Headers() headers: Record<string, any>, @Body() body: any) {
     const correlationId = this.getCorrelationId(headers);
@@ -751,7 +801,7 @@ export class ReinsuranceController {
   }
 
   @Post('/re/reconciliations/invoice/register')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('re:reconciliations:update')
   async registerExternalInvoice(
     @Req() req: any,
@@ -803,7 +853,7 @@ export class ReinsuranceController {
   }
 
   @Post('/re/reconciliations/:reconciliationId/auto-match')
-  @UseGuards(EcosystemJwtGuard, PermissionsGuard, TenantGuard)
+  @UseGuards(EcosystemJwtGuard, AbacGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('re:reconciliations:update')
   async autoMatchInvoice(
     @Req() req: any,

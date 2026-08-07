@@ -22,6 +22,8 @@ import { OcrRedactionService } from './ocr/ocr-redaction.service';
 import { DocumentPreprocessingService } from './preprocessing/preprocessing.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { PermissionsGuard } from './permissions.guard';
+import { OcrRateLimitGuard } from './ocr-rate-limit.guard';
+import { AsyncJobService } from './async-job.service'; // P2 #2: async processing
 
 import { AbacGuard } from './abac.guard';
 import { TenantGuard } from './tenant.guard';
@@ -65,6 +67,6 @@ import { TenantGuard } from './tenant.guard';
     DeepSeekModule,
   ],
   controllers: [HealthController, DocumentAiController],
-  providers: [TenantGuard, AbacGuard, DocumentAiConsumer, DocumentAiProcessor, DocumentAiJobWorker, DocumentAiEvalWorker, DocumentAiService, OcrService, OcrRedactionService, DocumentPreprocessingService, JwtAuthGuard, PermissionsGuard],
+  providers: [TenantGuard, AbacGuard, DocumentAiConsumer, DocumentAiProcessor, DocumentAiJobWorker, DocumentAiEvalWorker, DocumentAiService, OcrService, OcrRedactionService, DocumentPreprocessingService, JwtAuthGuard, PermissionsGuard, OcrRateLimitGuard, AsyncJobService],
 })
 export class AppModule {}

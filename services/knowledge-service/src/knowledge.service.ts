@@ -7,6 +7,7 @@ import { KnowledgeArticle, ArticleStatus, ArticleCategory } from './entities/Kno
 import { KnowledgeGraphEntity, EntityType } from './entities/KnowledgeGraphEntity';
 import { KnowledgeGraphRelationship, RelationshipType } from './entities/KnowledgeGraphRelationship';
 import { NextBestAction } from './entities/NextBestAction';
+import { CacheService } from './cache.service';
 
 @Injectable()
 export class KnowledgeService {
@@ -22,6 +23,7 @@ export class KnowledgeService {
     private relationshipRepo: Repository<KnowledgeGraphRelationship>,
     @InjectRepository(NextBestAction)
     private nbaRepo: Repository<NextBestAction>,
+    private readonly cache: CacheService,
   ) {}
 
   async createArticle(params: {
@@ -99,6 +101,12 @@ export class KnowledgeService {
     limit?: number;
     offset?: number;
   }): Promise<{ items: KnowledgeArticle[]; total: number }> {
+    const limit = Math.min(params.limit || 20, 100);
+    const offset = params.offset || 0;
+    const cacheKey = `articles:search:${params.tenantId}:${params.query || 'none'}:${params.category || 'all'}:${params.tags?.join(',') || 'none'}:${params.status || 'published'}:${limit}:${offset}`;
+    const cached = this.cache.get<{ items: KnowledgeArticle[]; total: number }>(cacheKey);
+    if (cached) return cached;
+
     const qb = this.articleRepo.createQueryBuilder('a')
       .where('a.tenantId = :tenantId', { tenantId: params.tenantId });
 
@@ -125,13 +133,12 @@ export class KnowledgeService {
       `, { query: this.buildTsQuery(params.query) });
     }
 
-    const limit = Math.min(params.limit || 20, 100);
-    const offset = params.offset || 0;
-
     qb.orderBy('a.updatedAt', 'DESC').take(limit).skip(offset);
 
     const [items, total] = await qb.getManyAndCount();
-    return { items, total };
+    const result = { items, total };
+    this.cache.set(cacheKey, result);
+    return result;
   }
 
   private buildTsQuery(query: string): string {
@@ -144,7 +151,12 @@ export class KnowledgeService {
   }
 
   async getArticle(id: string): Promise<KnowledgeArticle | null> {
-    return this.articleRepo.findOne({ where: { id } });
+    const cacheKey = `article:${id}`;
+    const cached = this.cache.get<KnowledgeArticle>(cacheKey);
+    if (cached) return cached;
+    const article = await this.articleRepo.findOne({ where: { id } });
+    if (article) this.cache.set(cacheKey, article);
+    return article;
   }
 
   async incrementViewCount(id: string): Promise<void> {
@@ -169,11 +181,18 @@ export class KnowledgeService {
     if (params.tags !== undefined) article.tags = params.tags;
     if (params.metadata !== undefined) article.metadata = params.metadata;
 
-    return this.articleRepo.save(article);
+    const saved = await this.articleRepo.save(article);
+    // Invalidate cache for this article and list/search caches
+    this.cache.invalidate(`article:${id}`);
+    this.cache.invalidate('articles:');
+    return saved;
   }
 
   async deleteArticle(id: string): Promise<void> {
     await this.articleRepo.delete({ id });
+    // Invalidate cache for this article and list/search caches
+    this.cache.invalidate(`article:${id}`);
+    this.cache.invalidate('articles:');
   }
 
   async listArticles(params: {
@@ -183,6 +202,12 @@ export class KnowledgeService {
     limit?: number;
     offset?: number;
   }): Promise<{ items: KnowledgeArticle[]; total: number }> {
+    const limit = Math.min(params.limit || 20, 100);
+    const offset = params.offset || 0;
+    const cacheKey = `articles:list:${params.tenantId}:${params.category || 'all'}:${params.status || 'published'}:${limit}:${offset}`;
+    const cached = this.cache.get<{ items: KnowledgeArticle[]; total: number }>(cacheKey);
+    if (cached) return cached;
+
     const qb = this.articleRepo.createQueryBuilder('a')
       .where('a.tenantId = :tenantId', { tenantId: params.tenantId });
 
@@ -193,13 +218,12 @@ export class KnowledgeService {
       qb.andWhere('a.status = :status', { status: params.status });
     }
 
-    const limit = Math.min(params.limit || 20, 100);
-    const offset = params.offset || 0;
-
     qb.orderBy('a.updatedAt', 'DESC').take(limit).skip(offset);
 
     const [items, total] = await qb.getManyAndCount();
-    return { items, total };
+    const result = { items, total };
+    this.cache.set(cacheKey, result);
+    return result;
   }
 
   // Knowledge Graph Methods

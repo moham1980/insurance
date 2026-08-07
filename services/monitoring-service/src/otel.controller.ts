@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Body, Headers } from '@nestjs/common';
+import { Controller, Get, Post, Body, Headers, UseGuards } from '@nestjs/common';
 import { OtelService } from './otel.service';
+import { JwtAuthGuard } from './jwt-auth.guard';
 
 @Controller('otel')
 export class OtelController {
@@ -15,6 +16,7 @@ export class OtelController {
   }
 
   @Post('span')
+  @UseGuards(JwtAuthGuard)
   async createSpan(@Body() body: { name: string; kind?: string; attributes?: Record<string, any> }) {
     const span = this.otelService.startSpan(
       body.name,
@@ -31,6 +33,7 @@ export class OtelController {
   }
 
   @Post('metric')
+  @UseGuards(JwtAuthGuard)
   async recordMetric(@Body() body: { name: string; value: number; type: 'counter' | 'histogram' | 'gauge'; attributes?: Record<string, any> }) {
     switch (body.type) {
       case 'counter':
@@ -50,6 +53,7 @@ export class OtelController {
   }
 
   @Post('attributes')
+  @UseGuards(JwtAuthGuard)
   async addAttributes(@Body() body: { attributes: Record<string, any> }) {
     this.otelService.addAttributes(body.attributes);
     return {
@@ -59,6 +63,7 @@ export class OtelController {
   }
 
   @Post('event')
+  @UseGuards(JwtAuthGuard)
   async addEvent(@Body() body: { name: string; attributes?: Record<string, any> }) {
     this.otelService.addEvent(body.name, body.attributes);
     return {
@@ -68,6 +73,7 @@ export class OtelController {
   }
 
   @Post('exception')
+  @UseGuards(JwtAuthGuard)
   async recordException(@Body() body: { error: string; stack?: string }) {
     const error = new Error(body.error);
     if (body.stack) {

@@ -2,3 +2,29 @@
 (node:12676) TimeoutNegativeWarning: -1785620943530 is a negative number.
 Timeout duration was set to 1.
 (Use `node --trace-warnings ...` to show where the warning was created)
+[31m[Nest] 12676  - [39m08/02/2026, 8:51:13 AM [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31minvalid input syntax for type uuid: "undefined"[39m
+QueryFailedError: invalid input syntax for type uuid: "undefined"
+    at PostgresQueryRunner.query (D:\CascadeProjects\old\insurance\node_modules\typeorm\src\driver\postgres\PostgresQueryRunner.ts:325:19)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async SelectQueryBuilder.loadRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3868:25)
+    at async SelectQueryBuilder.getRawMany (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1627:29)
+    at async SelectQueryBuilder.executeEntitiesAndRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3530:26)
+    at async SelectQueryBuilder.getRawAndEntities (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1671:29)
+    at async SelectQueryBuilder.getOne (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1698:25)
+    at async BrokerageController.getJournalEntry (D:\CascadeProjects\old\insurance\services\billing-service\src\brokerage.controller.ts:291:19)
+    at async D:\CascadeProjects\old\insurance\node_modules\@nestjs\core\router\router-execution-context.js:46:28
+    at async Object.<anonymous> (D:\CascadeProjects\old\insurance\node_modules\@nestjs\core\router\router-proxy.js:9:17)
+[31m[Nest] 12676  - [39m08/02/2026, 8:51:13 AM [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31minvalid input syntax for type uuid: "undefined"[39m
+QueryFailedError: invalid input syntax for type uuid: "undefined"
+    at PostgresQueryRunner.query (D:\CascadeProjects\old\insurance\node_modules\typeorm\src\driver\postgres\PostgresQueryRunner.ts:325:19)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async SelectQueryBuilder.loadRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3868:25)
+    at async SelectQueryBuilder.getRawMany (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1627:29)
+    at async SelectQueryBuilder.executeEntitiesAndRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3530:26)
+    at async SelectQueryBuilder.getRawAndEntities (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1671:29)
+    at async SelectQueryBuilder.getOne (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1698:25)
+    at async BrokerageController.getJournalEntry (D:\CascadeProjects\old\insurance\services\billing-service\src\brokerage.controller.ts:291:19)
+    at async D:\CascadeProjects\old\insurance\node_modules\@nestjs\core\router\router-execution-context.js:46:28
+    at async Object.<anonymous> (D:\CascadeProjects\old\insurance\node_modules\@nestjs\core\router\router-proxy.js:9:17)
+{"level":"ERROR","timestamp":"2026-08-02T05:29:58.782Z","logger":"kafkajs","message":"[Connection] Response Heartbeat(key: 12, version: 3)","broker":"localhost:9093","clientId":"billing","error":"The group is rebalancing, so a rejoin is needed","correlationId":5618,"size":10}
+{"level":"WARN","timestamp":"2026-08-02T05:29:58.995Z","logger":"kafkajs","message":"[Runner] The group is rebalancing, re-joining","groupId":"billing","memberId":"billing-33f8a12c-e7d1-4595-b0cf-60686dfd6e1e","error":"The group is rebalancing, so a rejoin is needed"}

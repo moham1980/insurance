@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
-import { OutboxPublisher } from '@insurance/shared';
+import { OutboxPublisher, applyCursorPagination } from '@insurance/shared';
 import { v4 as uuidv4 } from 'uuid';
 import { Document, DocumentStatus, DocumentType } from './entities/document.entity';
 import { DocumentChunk } from './entities/document-chunk.entity';
@@ -18,6 +18,8 @@ export interface IndexDocumentParams {
   sourceUrl?: string;
   version?: number;
   metadata?: Record<string, any>;
+  // Tenant scoping (P0 fix): set from the authenticated request by the controller.
+  tenantId?: string;
 }
 
 export interface SearchParams {
@@ -27,6 +29,8 @@ export interface SearchParams {
   language?: string;
   limit?: number;
   threshold?: number;
+  // Tenant scoping (P0 fix): set from the authenticated request by the controller.
+  tenantId?: string;
 }
 
 export interface SearchResult {
@@ -63,9 +67,10 @@ export class KnowledgeLayerService {
   async indexDocument(params: IndexDocumentParams): Promise<Document> {
     this.logger.log(`Indexing document: ${params.externalId}`);
 
-    // Check if document already exists
+    // Tenant scoping (P0 fix): dedup/upsert must be scoped to (externalId, tenantId)
+    // so that two tenants with the same externalId do not share a document.
     const existingDoc = await this.documentRepository.findOne({
-      where: { externalId: params.externalId },
+      where: { externalId: params.externalId, tenantId: params.tenantId ?? null },
     });
 
     if (existingDoc) {
@@ -81,6 +86,8 @@ export class KnowledgeLayerService {
         existingDoc.sourceUrl = params.sourceUrl || existingDoc.sourceUrl;
         existingDoc.version = params.version || existingDoc.version;
         existingDoc.metadata = params.metadata || existingDoc.metadata;
+        // Tenant scoping (P0 fix): keep tenantId in sync with the request.
+        existingDoc.tenantId = params.tenantId ?? existingDoc.tenantId;
         existingDoc.status = DocumentStatus.PENDING;
         existingDoc.updatedAt = new Date();
         
@@ -252,9 +259,16 @@ export class KnowledgeLayerService {
     const embeddingApiKey = process.env.EMBEDDING_API_KEY;
     const embeddingModel = process.env.EMBEDDING_MODEL || 'text-embedding-3-small';
     const embeddingSize = parseInt(process.env.EMBEDDING_DIMENSIONS || '1536', 10);
+    const isProduction = process.env.NODE_ENV === 'production';
 
     if (!embeddingApiUrl) {
-      this.logger.warn('EMBEDDING_API_URL not configured, falling back to mock embeddings');
+      if (isProduction) {
+        // In production, mock embeddings must never be used — they produce
+        // meaningless vectors that corrupt semantic search results.
+        this.logger.error('EMBEDDING_API_URL not configured in production; refusing to generate mock embeddings');
+        throw new Error('EMBEDDING_API_URL not configured in production — cannot generate embeddings');
+      }
+      this.logger.warn('EMBEDDING_API_URL not configured, falling back to mock embeddings (non-production only)');
       return this.generateMockEmbeddings(content, embeddingSize);
     }
 
@@ -285,7 +299,13 @@ export class KnowledgeLayerService {
 
       return embedding;
     } catch (error) {
-      this.logger.error('Failed to generate embeddings from API, falling back to mock', error);
+      if (isProduction) {
+        // In production, never fall back to mock embeddings on API failure —
+        // silently using random vectors would corrupt the search index.
+        this.logger.error('Failed to generate embeddings from API in production; refusing mock fallback', error);
+        throw new Error('Failed to generate embeddings from API in production — cannot fall back to mock');
+      }
+      this.logger.error('Failed to generate embeddings from API, falling back to mock (non-production only)', error);
       return this.generateMockEmbeddings(content, embeddingSize);
     }
   }
@@ -321,6 +341,11 @@ export class KnowledgeLayerService {
     // Build query
     const queryBuilder = this.documentRepository.createQueryBuilder('doc')
       .where('doc.status = :status', { status: DocumentStatus.INDEXED });
+
+    // Tenant scoping (P0 fix): filter by tenantId so cross-tenant search is impossible.
+    if (params.tenantId) {
+      queryBuilder.andWhere('doc.tenantId = :tenantId', { tenantId: params.tenantId });
+    }
 
     if (params.type) {
       queryBuilder.andWhere('doc.type = :type', { type: params.type });
@@ -399,23 +424,36 @@ export class KnowledgeLayerService {
     return dotProduct / (magnitudeA * magnitudeB);
   }
 
-  async getDocument(id: string): Promise<Document> {
+  async getDocument(id: string, tenantId?: string): Promise<Document> {
+    // Tenant scoping (P0 fix): filter by tenantId when provided.
+    const where: any = { id };
+    if (tenantId) where.tenantId = tenantId;
     return this.documentRepository.findOne({
-      where: { id },
+      where,
       relations: ['chunks'],
     });
   }
 
-  async getDocumentByExternalId(externalId: string): Promise<Document> {
+  async getDocumentByExternalId(externalId: string, tenantId?: string): Promise<Document> {
+    // Tenant scoping (P0 fix): filter by tenantId when provided.
+    const where: any = { externalId };
+    if (tenantId) where.tenantId = tenantId;
     return this.documentRepository.findOne({
-      where: { externalId },
+      where,
       relations: ['chunks'],
     });
   }
 
-  async deleteDocument(id: string): Promise<void> {
+  async deleteDocument(id: string, tenantId?: string): Promise<void> {
+    // Tenant scoping (P0 fix): filter by tenantId so cross-tenant deletion is impossible.
     await this.dataSource.transaction(async (manager) => {
-      const doc = await manager.findOne(Document, { where: { id } });
+      const findWhere: any = { id };
+      if (tenantId) findWhere.tenantId = tenantId;
+      const doc = await manager.findOne(Document, { where: findWhere });
+      if (!doc) {
+        // No document found for this tenant — nothing to delete.
+        return;
+      }
       await manager.delete(DocumentChunk, { documentId: id });
       await manager.delete(Document, { id });
       if (doc) {
@@ -443,8 +481,16 @@ export class KnowledgeLayerService {
     tags?: string[];
     limit?: number;
     offset?: number;
-  }): Promise<{ items: Document[]; total: number }> {
+    cursor?: string; // P1 #8: cursor-based pagination
+    // Tenant scoping (P0 fix): set from the authenticated request by the controller.
+    tenantId?: string;
+  }): Promise<{ items: Document[]; total: number; hasNext?: boolean; nextCursor?: string | null }> {
     const queryBuilder = this.documentRepository.createQueryBuilder('doc');
+
+    // Tenant scoping (P0 fix): filter by tenantId so cross-tenant listing is impossible.
+    if (params.tenantId) {
+      queryBuilder.andWhere('doc.tenantId = :tenantId', { tenantId: params.tenantId });
+    }
 
     if (params.type) {
       queryBuilder.andWhere('doc.type = :type', { type: params.type });
@@ -462,6 +508,12 @@ export class KnowledgeLayerService {
       queryBuilder.andWhere(':tag = ANY(doc.tags)', { tag: params.tags[0] });
     }
 
+    // P1 #8: cursor-based pagination (backward compatible — falls back to offset if no cursor)
+    if (params.cursor) {
+      const result = await applyCursorPagination<Document>(queryBuilder, params.cursor, params.limit || 50, 'DESC', 'doc', 'createdAt', 'id');
+      return { items: result.items, total: result.items.length, hasNext: result.hasNext, nextCursor: result.nextCursor };
+    }
+
     const limit = params.limit || 50;
     const offset = params.offset || 0;
 
@@ -471,8 +523,11 @@ export class KnowledgeLayerService {
     return { items, total };
   }
 
-  async reindexDocument(id: string): Promise<Document> {
-    const document = await this.documentRepository.findOne({ where: { id } });
+  async reindexDocument(id: string, tenantId?: string): Promise<Document> {
+    // Tenant scoping (P0 fix): filter by tenantId so cross-tenant reindex is impossible.
+    const findWhere: any = { id };
+    if (tenantId) findWhere.tenantId = tenantId;
+    const document = await this.documentRepository.findOne({ where: findWhere });
     if (!document) {
       throw new Error(`Document not found: ${id}`);
     }
@@ -487,7 +542,7 @@ export class KnowledgeLayerService {
     return document;
   }
 
-  async getStats(): Promise<{
+  async getStats(tenantId?: string): Promise<{
     totalDocuments: number;
     indexedDocuments: number;
     pendingDocuments: number;
@@ -495,11 +550,14 @@ export class KnowledgeLayerService {
     documentsByType: Record<DocumentType, number>;
     documentsByLanguage: Record<string, number>;
   }> {
+    // Tenant scoping (P0 fix): filter all counts by tenantId when provided.
+    const tenantWhere = tenantId ? { tenantId } : {};
+
     const [total, indexed, pending, failed] = await Promise.all([
-      this.documentRepository.count(),
-      this.documentRepository.count({ where: { status: DocumentStatus.INDEXED } }),
-      this.documentRepository.count({ where: { status: DocumentStatus.PENDING } }),
-      this.documentRepository.count({ where: { status: DocumentStatus.FAILED } }),
+      this.documentRepository.count({ where: tenantWhere }),
+      this.documentRepository.count({ where: { ...tenantWhere, status: DocumentStatus.INDEXED } }),
+      this.documentRepository.count({ where: { ...tenantWhere, status: DocumentStatus.PENDING } }),
+      this.documentRepository.count({ where: { ...tenantWhere, status: DocumentStatus.FAILED } }),
     ]);
 
     const documentsByType: Record<DocumentType, number> = {
@@ -513,11 +571,11 @@ export class KnowledgeLayerService {
     };
 
     for (const type of Object.values(DocumentType)) {
-      documentsByType[type] = await this.documentRepository.count({ where: { type } });
+      documentsByType[type] = await this.documentRepository.count({ where: { ...tenantWhere, type } });
     }
 
     const documentsByLanguage: Record<string, number> = {};
-    const docs = await this.documentRepository.find({ select: ['language'] });
+    const docs = await this.documentRepository.find({ select: ['language'], where: tenantWhere });
     for (const doc of docs) {
       if (doc.language) {
         documentsByLanguage[doc.language] = (documentsByLanguage[doc.language] || 0) + 1;

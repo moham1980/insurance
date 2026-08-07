@@ -7,12 +7,17 @@ import { NotificationLog } from './entities/NotificationLog';
 import { EmailTemplate } from './entities/EmailTemplate';
 import { SmsTemplate } from './entities/SmsTemplate';
 import { Credential } from './entities/Credential';
+import { AuditLog } from './entities/AuditLog'; // P1 #10
+import { EntityVersion } from './entities/EntityVersion'; // P1 #10
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { PermissionsGuard } from './permissions.guard';
 import { TenantGuard } from './tenant.guard';
 import { RedisService } from './redis.service';
 import { CallbackAuthGuard } from './callback-auth.guard';
+import { OtpRateLimitGuard } from './otp-rate-limit.guard';
+import { BulkRateLimitGuard } from './bulk-rate-limit.guard'; // P2 #1: bulk rate limiting
 import { OutboxEvent } from '@insurance/shared';
+import { IdempotencyInterceptor } from '@insurance/shared';
 import { KavenegarProvider } from './sms-providers/kavenegar.provider';
 import { TwilioProvider } from './sms-providers/twilio.provider';
 import { MelliPayamakProvider } from './sms-providers/melli-payamak.provider';
@@ -92,9 +97,9 @@ function createEmailProvider(): any {
       database: process.env.DB_DATABASE || process.env.DB_NAME || 'postgres',
       schema: process.env.DB_SCHEMA || 'notification',
       synchronize: process.env.NODE_ENV !== 'production' && process.env.DB_SYNC === 'true',
-      entities: [NotificationLog, EmailTemplate, SmsTemplate, OutboxEvent, Credential],
+      entities: [NotificationLog, EmailTemplate, SmsTemplate, OutboxEvent, Credential, AuditLog, EntityVersion],
     }),
-    TypeOrmModule.forFeature([NotificationLog, EmailTemplate, SmsTemplate, OutboxEvent, Credential]),
+    TypeOrmModule.forFeature([NotificationLog, EmailTemplate, SmsTemplate, OutboxEvent, Credential, AuditLog, EntityVersion]),
   ],
   controllers: [NotificationController, HealthController],
   providers: [
@@ -112,6 +117,8 @@ function createEmailProvider(): any {
     { provide: 'SMS_PROVIDER', useFactory: createSmsProvider },
     { provide: 'SMS_FALLBACK_PROVIDER', useFactory: createFallbackSmsProvider },
     { provide: 'EMAIL_PROVIDER', useFactory: createEmailProvider },
+    IdempotencyInterceptor,
+    BulkRateLimitGuard,
   ],
 })
 export class AppModule {}

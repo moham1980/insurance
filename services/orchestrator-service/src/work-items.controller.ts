@@ -111,13 +111,14 @@ export class WorkItemsController {
       };
     }
 
-    // Use req.user.userId for decidedBy if not provided in body
-    const decidedBy = body.decidedBy || actor;
+    // P0 security: always use the authenticated user from JWT as decidedBy.
+    // body.decidedBy is ignored to prevent identity spoofing / IDOR.
+    const decidedBy = actor;
     if (!decidedBy) {
       auditLogger.warn('work_items.complete.no_actor', { correlationId, tenantId, actor, action: 'work_items:complete', workItemId });
       return {
         success: false,
-        error: { code: 'VALIDATION_ERROR', message: 'decidedBy is required (provide in body)' },
+        error: { code: 'VALIDATION_ERROR', message: 'Authenticated user identity is required (JWT sub)' },
         correlationId,
       };
     }
@@ -167,6 +168,15 @@ export class WorkItemsController {
         return {
           success: false,
           error: { code: 'ALREADY_DECIDED', message: e.message },
+          correlationId,
+        };
+      }
+
+      if (e?.code === 'SOD_VIOLATION') {
+        auditLogger.warn('work_items.complete.sod_violation', { correlationId, tenantId, actor, action: 'work_items:complete', workItemId });
+        return {
+          success: false,
+          error: { code: 'SOD_VIOLATION', message: e.message },
           correlationId,
         };
       }
@@ -307,6 +317,7 @@ export class WorkItemsController {
       inquiry: body.inquiry,
       result: body.result,
       priority: body.priority,
+      submittedBy: actor, // P1 #5 (SoD): track submitter
     });
 
     auditLogger.info('work_items.sanhab_followup.create.success', {
@@ -365,6 +376,7 @@ export class WorkItemsController {
       context: body.context && typeof body.context === 'object' ? body.context : undefined,
       priority: body.priority,
       dueDate: body.dueDate,
+      submittedBy: actor, // P1 #5 (SoD): track submitter
     });
 
     auditLogger.info('work_items.underwriting_review.create.success', {
@@ -504,6 +516,7 @@ export class WorkItemsController {
       context: body.context && typeof body.context === 'object' ? body.context : undefined,
       priority: body.priority,
       dueDate: body.dueDate,
+      submittedBy: actor, // P1 #5 (SoD): track submitter
     });
 
     auditLogger.info('work_items.override_review.create.success', {

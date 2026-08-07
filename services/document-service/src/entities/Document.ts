@@ -6,6 +6,7 @@ import { Entity, PrimaryGeneratedColumn, Column, Index, CreateDateColumn, Update
 @Index(['reconciliationId'])
 @Index(['status', 'createdAt'])
 @Index(['tenantId', 'status'])
+@Index(['retentionUntil', 'legalHold'])
 export class Document {
   @PrimaryGeneratedColumn('uuid', { name: 'document_id' })
   documentId: string;
@@ -48,6 +49,19 @@ export class Document {
 
   @Column({ name: 'created_by', type: 'text', nullable: true })
   createdBy: string | null;
+
+  // P2 #7: Retention policy and legal hold fields
+  /** Retention deadline; documents with retentionUntil < now and no legal hold are eligible for soft delete. */
+  @Column({ name: 'retention_until', type: 'timestamptz', nullable: true })
+  retentionUntil: Date | null;
+
+  /** When true, the document is protected from automatic retention-based deletion. */
+  @Column({ name: 'legal_hold', type: 'boolean', default: false })
+  legalHold: boolean;
+
+  /** Soft-delete timestamp; set by applyRetentionPolicy when the document is purged. */
+  @Column({ name: 'deleted_at', type: 'timestamptz', nullable: true })
+  deletedAt: Date | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz', default: () => 'NOW()' })
   createdAt: Date;

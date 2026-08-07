@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import * as http from 'node:http';
 import * as https from 'node:https';
 import { ModelRouter } from './model-router';
+import { logLlmCost } from './cost-logger';
 
 export type LLMProvider = 'openai' | 'gemini' | 'deepseek' | 'ollama';
 
@@ -213,15 +214,19 @@ export class LLMService {
     const temperature = options?.temperature ?? config.temperature;
 
     try {
+      let response: LLMResponse;
       if (provider === 'openai' || provider === 'deepseek') {
-        return await this.callOpenAICompatible(config, prompt, options?.systemPrompt, maxTokens, temperature, provider);
+        response = await this.callOpenAICompatible(config, prompt, options?.systemPrompt, maxTokens, temperature, provider);
       } else if (provider === 'gemini') {
-        return await this.callGemini(config, prompt, options?.systemPrompt, maxTokens, temperature);
+        response = await this.callGemini(config, prompt, options?.systemPrompt, maxTokens, temperature);
       } else if (provider === 'ollama') {
-        return await this.callOllama(config, prompt, options?.systemPrompt, maxTokens, temperature);
+        response = await this.callOllama(config, prompt, options?.systemPrompt, maxTokens, temperature);
       } else {
         throw new Error(`Unsupported provider: ${provider}`);
       }
+      // Cost tracking: log token count, model name, and estimated cost after each AI provider call
+      logLlmCost(response);
+      return response;
     } catch (error: any) {
       this.logger.error(`LLM call failed for provider ${provider}: ${error.message}`);
       throw error;

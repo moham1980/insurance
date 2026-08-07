@@ -4,6 +4,10 @@ export type PermissionKey =
   | 're:treaties:list'
   | 're:treaties:update'
   | 're:treaties:close'
+  // P1 #5 (SoD): submit and approve are separate permissions.
+  // A user with :submit cannot self-approve; a different user with :approve must review.
+  | 're:treaties:submit'
+  | 're:treaties:approve'
   | 're:cessions:create'
   | 're:cessions:view'
   | 're:cessions:list'
@@ -38,6 +42,8 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     're:treaties:list',
     're:treaties:update',
     're:treaties:close',
+    're:treaties:submit',
+    're:treaties:approve',
     're:cessions:create',
     're:cessions:view',
     're:cessions:list',
@@ -69,6 +75,7 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     're:treaties:view',
     're:treaties:list',
     're:treaties:update',
+    're:treaties:approve',
     're:cessions:view',
     're:cessions:list',
     're:cessions:update',
@@ -97,6 +104,7 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     're:treaties:list',
     're:treaties:update',
     're:treaties:close',
+    're:treaties:submit',
     're:cessions:create',
     're:cessions:view',
     're:cessions:list',

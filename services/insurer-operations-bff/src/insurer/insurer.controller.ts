@@ -1,5 +1,6 @@
-import { Body, Controller, Get, Headers, Param, Post, Query, Req } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { InsurerBffService } from './insurer-bff.service';
+import { JwtAuthGuard } from '../jwt-auth.guard';
 
 function extractToken(req: any): string {
   const auth = req?.headers?.authorization || '';
@@ -7,6 +8,7 @@ function extractToken(req: any): string {
 }
 
 @Controller('insurer')
+@UseGuards(JwtAuthGuard)
 export class InsurerController {
   constructor(private readonly bff: InsurerBffService) {}
 
@@ -18,73 +20,83 @@ export class InsurerController {
 
   @Get('products')
   async listProducts(@Query('limit') limit: string = '50', @Query('offset') offset: string = '0', @Req() req: any, @Headers() headers: Record<string, any>) {
-    const data = await this.bff.listProducts(extractToken(req), { limit: +limit, offset: +offset });
-    return { success: true, data, correlationId: this.cid(headers) };
+    const cid = this.cid(headers);
+    const data = await this.bff.listProducts(extractToken(req), { limit: +limit, offset: +offset }, cid);
+    return { success: true, data, correlationId: cid };
   }
 
   @Get('rate-tables')
   async listRateTables(@Req() req: any, @Headers() headers: Record<string, any>) {
-    const data = await this.bff.listRateTables(extractToken(req));
-    return { success: true, data, correlationId: this.cid(headers) };
+    const cid = this.cid(headers);
+    const data = await this.bff.listRateTables(extractToken(req), cid);
+    return { success: true, data, correlationId: cid };
   }
 
   // --- Distribution agreements ---
 
   @Get('distribution-agreements')
   async listDistributionAgreements(@Req() req: any, @Headers() headers: Record<string, any>) {
-    const data = await this.bff.listDistributionAgreements(extractToken(req));
-    return { success: true, data, correlationId: this.cid(headers) };
+    const cid = this.cid(headers);
+    const data = await this.bff.listDistributionAgreements(extractToken(req), cid);
+    return { success: true, data, correlationId: cid };
   }
 
   // --- RFQ ---
 
   @Get('rfqs')
   async listRfqs(@Req() req: any, @Headers() headers: Record<string, any>) {
-    const data = await this.bff.listRfqs(extractToken(req));
-    return { success: true, data, correlationId: this.cid(headers) };
+    const cid = this.cid(headers);
+    const data = await this.bff.listRfqs(extractToken(req), cid);
+    return { success: true, data, correlationId: cid };
   }
 
   @Post('rfqs/:rfqId/process')
   async processRfq(@Param('rfqId') rfqId: string, @Body() body: any, @Req() req: any, @Headers() headers: Record<string, any>) {
-    const data = await this.bff.processRfq(extractToken(req), rfqId, body);
-    return { success: true, data, correlationId: this.cid(headers) };
+    const cid = this.cid(headers);
+    const data = await this.bff.processRfq(extractToken(req), rfqId, body, cid);
+    return { success: true, data, correlationId: cid };
   }
 
   // --- Claims ---
 
   @Get('claims')
   async listClaims(@Query('limit') limit: string = '50', @Query('offset') offset: string = '0', @Req() req: any, @Headers() headers: Record<string, any>) {
-    const data = await this.bff.listClaims(extractToken(req), { limit: +limit, offset: +offset });
-    return { success: true, data, correlationId: this.cid(headers) };
+    const cid = this.cid(headers);
+    const data = await this.bff.listClaims(extractToken(req), { limit: +limit, offset: +offset }, cid);
+    return { success: true, data, correlationId: cid };
   }
 
   @Post('claims/:claimId/assign-loss-adjuster')
   async assignLossAdjuster(@Param('claimId') claimId: string, @Body() body: { lossAdjusterId: string }, @Req() req: any, @Headers() headers: Record<string, any>) {
-    const data = await this.bff.assignLossAdjuster(extractToken(req), claimId, body);
-    return { success: true, data, correlationId: this.cid(headers) };
+    const cid = this.cid(headers);
+    const data = await this.bff.assignLossAdjuster(extractToken(req), claimId, body, cid);
+    return { success: true, data, correlationId: cid };
   }
 
   // --- Settlements ---
 
   @Get('settlements')
   async listSettlements(@Req() req: any, @Headers() headers: Record<string, any>) {
-    const data = await this.bff.listSettlements(extractToken(req));
-    return { success: true, data, correlationId: this.cid(headers) };
+    const cid = this.cid(headers);
+    const data = await this.bff.listSettlements(extractToken(req), cid);
+    return { success: true, data, correlationId: cid };
   }
 
   // --- Broker performance ---
 
   @Get('broker-performance')
   async listBrokerPerformance(@Req() req: any, @Headers() headers: Record<string, any>) {
-    const data = await this.bff.listBrokerPerformance(extractToken(req));
-    return { success: true, data, correlationId: this.cid(headers) };
+    const cid = this.cid(headers);
+    const data = await this.bff.listBrokerPerformance(extractToken(req), cid);
+    return { success: true, data, correlationId: cid };
   }
 
   // --- Regulatory reports ---
 
   @Get('regulatory-reports')
   async listRegulatoryReports(@Req() req: any, @Headers() headers: Record<string, any>) {
-    const data = await this.bff.listRegulatoryReports(extractToken(req));
-    return { success: true, data, correlationId: this.cid(headers) };
+    const cid = this.cid(headers);
+    const data = await this.bff.listRegulatoryReports(extractToken(req), cid);
+    return { success: true, data, correlationId: cid };
   }
 }

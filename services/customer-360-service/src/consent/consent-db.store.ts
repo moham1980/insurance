@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { randomUUID } from 'node:crypto';
+import { applyCursorPagination } from '@insurance/shared';
 import { ConsentRecordEntity } from '../entities/ConsentRecordEntity';
 import { ConsentRecord } from '../models/Customer360Profile';
 
@@ -20,9 +21,24 @@ export class ConsentDbStore {
     private readonly repo: Repository<ConsentRecordEntity>,
   ) {}
 
-  async list(customerId: string): Promise<ConsentRecord[]> {
+  async list(customerId: string, tenantId?: string, cursor?: string, limit?: number): Promise<ConsentRecord[] | { items: ConsentRecord[]; hasNext: boolean; nextCursor: string | null }> {
+    // P1 #8: cursor-based pagination (backward compatible)
+    if (cursor) {
+      const qb = this.repo.createQueryBuilder('c');
+      qb.andWhere('c.customerId = :customerId', { customerId });
+      if (tenantId) qb.andWhere('c.tenantId = :tenantId', { tenantId });
+      const result = await applyCursorPagination<ConsentRecordEntity>(qb, cursor, limit || 50, 'DESC', 'c', 'createdAt', 'consentId');
+      return {
+        items: result.items.map((e) => this.toRecord(this.withEffectiveStatus(e))),
+        hasNext: result.hasNext,
+        nextCursor: result.nextCursor,
+      };
+    }
+
+    const where: any = { customerId };
+    if (tenantId) where.tenantId = tenantId;
     const entities = await this.repo.find({
-      where: { customerId },
+      where,
       order: { createdAt: 'DESC' },
     });
     return entities.map((e) => this.toRecord(this.withEffectiveStatus(e)));
@@ -31,9 +47,12 @@ export class ConsentDbStore {
   async check(
     customerId: string,
     purpose: string,
+    tenantId?: string,
   ): Promise<{ purpose: string; granted: boolean; consent: ConsentRecord | null }> {
+    const where: any = { customerId, purpose };
+    if (tenantId) where.tenantId = tenantId;
     const entity = await this.repo.findOne({
-      where: { customerId, purpose },
+      where,
       order: { createdAt: 'DESC' },
     });
 
@@ -74,8 +93,11 @@ export class ConsentDbStore {
     customerId: string,
     consentId: string,
     reason?: string,
+    tenantId?: string,
   ): Promise<ConsentRecord | null> {
-    const entity = await this.repo.findOne({ where: { consentId, customerId } });
+    const where: any = { consentId, customerId };
+    if (tenantId) where.tenantId = tenantId;
+    const entity = await this.repo.findOne({ where });
     if (!entity) return null;
 
     entity.status = 'revoked';

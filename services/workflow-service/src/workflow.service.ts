@@ -6,7 +6,21 @@ import { WorkflowDefinition, WorkflowStatus } from './entities/WorkflowDefinitio
 import { WorkflowInstance, InstanceStatus } from './entities/WorkflowInstance';
 import { WorkflowTemplate } from './entities/WorkflowTemplate';
 import { OutboxPublisher } from '@insurance/shared';
+import { TaskExecutor } from './task-executor.interface';
 
+/**
+ * P1 #1 — Architecture boundary:
+ * This service is the domain-oriented workflow wrapper.  The definition
+ * management methods below (createDefinition, activateDefinition,
+ * deactivateDefinition, validateDefinition, updateDefinition, deleteDefinition,
+ * getDefinition, listDefinitions) currently maintain an independent
+ * WorkflowDefinition store that DUPLICATES `workflow-engine-service`.
+ * In a future refactor these should delegate to workflow-engine-service
+ * (the canonical BPMN engine) rather than re-implementing the logic.
+ *
+ * Domain-specific logic (templates, task execution, instance advancement)
+ * remains in this service and is NOT duplicated by workflow-engine-service.
+ */
 @Injectable()
 export class WorkflowService {
   private readonly logger = new Logger(WorkflowService.name);
@@ -18,7 +32,8 @@ export class WorkflowService {
     @InjectRepository(WorkflowInstance)
     private instanceRepo: Repository<WorkflowInstance>,
     @InjectRepository(WorkflowTemplate)
-    private templateRepo: Repository<WorkflowTemplate>
+    private templateRepo: Repository<WorkflowTemplate>,
+    private readonly taskExecutor: TaskExecutor,
   ) {}
 
   async createDefinition(params: {
@@ -467,17 +482,58 @@ export class WorkflowService {
 
   private async executeTask(instance: WorkflowInstance, node: any): Promise<void> {
     this.logger.log(`Executing task ${node.name} for instance ${instance.id}`);
-    
-    // Task execution logic
-    if (node.config?.service) {
-      this.logger.log(`Would call service: ${node.config.service}`, node.config.params);
-    }
 
-    // Update variables based on task output
-    if (node.config?.outputMapping) {
-      for (const [target, source] of Object.entries(node.config.outputMapping)) {
-        this.setNestedValue(instance.variables, target, this.getNestedValue(node.config.output, source as string) as any);
+    // If the node declares a target service, dispatch via the TaskExecutor.
+    if (node.config?.service) {
+      try {
+        const result = await this.taskExecutor.execute({
+          tenantId: instance.tenantId,
+          instanceId: instance.id,
+          nodeId: node.id,
+          nodeName: node.name,
+          service: node.config.service,
+          method: node.config.method,
+          params: node.config.params,
+          variables: instance.variables,
+        });
+
+        if (!result.success) {
+          // Task execution failed — mark the instance as failed with details.
+          instance.status = InstanceStatus.FAILED;
+          instance.error = {
+            message: result.error || `Task "${node.name}" execution failed`,
+            nodeId: node.id,
+            occurredAt: new Date(),
+          };
+          this.logger.error(`Task "${node.name}" failed for instance ${instance.id}: ${result.error}`);
+          return;
+        }
+
+        // Update variables based on task output mapping.
+        if (node.config?.outputMapping && result.output) {
+          for (const [target, source] of Object.entries(node.config.outputMapping)) {
+            this.setNestedValue(instance.variables, target, this.getNestedValue(result.output, source as string) as any);
+          }
+        }
+
+        // Record task completion on the current node.
+        instance.currentNode.completedAt = new Date();
+      } catch (error) {
+        // Unexpected error during task execution — fail the instance.
+        instance.status = InstanceStatus.FAILED;
+        instance.error = {
+          message: error instanceof Error ? error.message : String(error),
+          nodeId: node.id,
+          occurredAt: new Date(),
+        };
+        this.logger.error(`Task "${node.name}" threw an error for instance ${instance.id}`, error);
+        return;
       }
+    } else {
+      // No service target declared — nothing to execute, but still record
+      // completion so the node is not left in an ambiguous state.
+      this.logger.log(`Task ${node.name} has no configured service; skipping external call`);
+      instance.currentNode.completedAt = new Date();
     }
   }
 

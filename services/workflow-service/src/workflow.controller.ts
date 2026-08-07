@@ -7,11 +7,32 @@ import { PermissionsGuard } from './permissions.guard';
 import { AbacGuard } from './abac.guard';
 import { TenantGuard } from './tenant.guard';
 
+/**
+ * ──────────────────────────────────────────────────────────────────────────
+ * ARCHITECTURE BOUNDARY (P1 #1 — workflow-service vs workflow-engine-service)
+ * ──────────────────────────────────────────────────────────────────────────
+ * This controller is the **domain-oriented workflow wrapper**.
+ * It provides domain-specific workflow templates, task execution, and
+ * business-level workflow operations on top of the generic BPMN engine.
+ *
+ * The definition-management endpoints below (create/activate/deactivate/
+ * validate/update/delete/get/list definitions) currently have independent
+ * logic that DUPLICATES `workflow-engine-service`.  These should eventually
+ * delegate to `workflow-engine-service` (the canonical BPMN engine) instead
+ * of maintaining a parallel definition store.
+ *
+ * Responsibility:  domain-specific workflows, templates, task execution
+ * Delegates to:    `workflow-engine-service` for generic BPMN definition &
+ *                  instance lifecycle management.
+ * ──────────────────────────────────────────────────────────────────────────
+ */
 @Controller('workflow')
 @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
 export class WorkflowController {
   constructor(private readonly service: WorkflowService) {}
 
+  // P1 #1: Definition management below duplicates workflow-engine-service.
+  // These endpoints should delegate to workflow-engine-service in a future refactor.
   @Post('definitions')
   async createDefinition(
     @Headers() headers: Record<string, any>,
@@ -179,12 +200,15 @@ export class WorkflowController {
   async advanceInstance(
     @Param('id') id: string,
     @Headers() headers: Record<string, any>,
+    @Req() req: any,
     @Body() body: {
       userId?: string;
     },
   ) {
     const correlationId = headers['x-correlation-id'] || `wf-${Date.now()}`;
-    const result = await this.service.advanceInstance(id, body.userId);
+    // P0 security: use authenticated user from JWT, ignore body.userId to prevent identity spoofing.
+    const userId = req?.user?.userId || req?.user?.sub;
+    const result = await this.service.advanceInstance(id, userId);
     return {
       success: true,
       data: result,
@@ -197,13 +221,16 @@ export class WorkflowController {
     @Param('id') id: string,
     @Param('taskId') taskId: string,
     @Headers() headers: Record<string, any>,
+    @Req() req: any,
     @Body() body: {
-      userId: string;
+      userId?: string;
       variables?: Record<string, any>;
     },
   ) {
     const correlationId = headers['x-correlation-id'] || `wf-${Date.now()}`;
-    const result = await this.service.completeTask(id, taskId, body.userId, body.variables);
+    // P0 security: use authenticated user from JWT, ignore body.userId to prevent identity spoofing.
+    const userId = req?.user?.userId || req?.user?.sub;
+    const result = await this.service.completeTask(id, taskId, userId, body.variables);
     return {
       success: true,
       data: result,

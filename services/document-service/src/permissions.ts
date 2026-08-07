@@ -1,7 +1,7 @@
-export type PermissionKey = 'documents:upload' | 'documents:link' | 'documents:view' | 'documents:list';
+export type PermissionKey = 'documents:upload' | 'documents:link' | 'documents:view' | 'documents:list' | 'documents:admin';
 
 const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
-  insurer_admin: ['documents:upload', 'documents:link', 'documents:view', 'documents:list'],
+  insurer_admin: ['documents:upload', 'documents:link', 'documents:view', 'documents:list', 'documents:admin'],
   head_office_ops: ['documents:view', 'documents:list'],
   branch_manager: ['documents:view', 'documents:list'],
   branch_staff: ['documents:upload', 'documents:link', 'documents:view', 'documents:list'],

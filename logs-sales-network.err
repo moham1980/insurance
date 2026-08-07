@@ -2,3 +2,69 @@
 (node:35080) TimeoutNegativeWarning: -1785620924243 is a negative number.
 Timeout duration was set to 1.
 (Use `node --trace-warnings ...` to show where the warning was created)
+[31m[Nest] 35080  - [39m08/02/2026, 9:12:29 AM [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31mrelation "sales_network.outbox_events" does not exist[39m
+QueryFailedError: relation "sales_network.outbox_events" does not exist
+    at PostgresQueryRunner.query (D:\CascadeProjects\old\insurance\node_modules\typeorm\src\driver\postgres\PostgresQueryRunner.ts:325:19)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async SelectQueryBuilder.loadRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3868:25)
+    at async SelectQueryBuilder.executeEntitiesAndRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3614:26)
+    at async SelectQueryBuilder.getRawAndEntities (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1671:29)
+    at async SelectQueryBuilder.getMany (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1761:25)
+    at async D:\CascadeProjects\old\insurance\node_modules\src\persistence\SubjectDatabaseEntityLoader.ts:119:32
+    at async Promise.all (index 0)
+    at async SubjectDatabaseEntityLoader.load (D:\CascadeProjects\old\insurance\node_modules\src\persistence\SubjectDatabaseEntityLoader.ts:148:9)
+    at async D:\CascadeProjects\old\insurance\node_modules\src\persistence\EntityPersistExecutor.ts:116:21
+[31m[Nest] 35080  - [39m08/02/2026, 9:12:29 AM [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31mrelation "sales_network.outbox_events" does not exist[39m
+QueryFailedError: relation "sales_network.outbox_events" does not exist
+    at PostgresQueryRunner.query (D:\CascadeProjects\old\insurance\node_modules\typeorm\src\driver\postgres\PostgresQueryRunner.ts:325:19)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async SelectQueryBuilder.loadRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3868:25)
+    at async SelectQueryBuilder.executeEntitiesAndRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3614:26)
+    at async SelectQueryBuilder.getRawAndEntities (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1671:29)
+    at async SelectQueryBuilder.getMany (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1761:25)
+    at async D:\CascadeProjects\old\insurance\node_modules\src\persistence\SubjectDatabaseEntityLoader.ts:119:32
+    at async Promise.all (index 0)
+    at async SubjectDatabaseEntityLoader.load (D:\CascadeProjects\old\insurance\node_modules\src\persistence\SubjectDatabaseEntityLoader.ts:148:9)
+    at async D:\CascadeProjects\old\insurance\node_modules\src\persistence\EntityPersistExecutor.ts:116:21
+[31m[Nest] 35080  - [39m08/02/2026, 9:12:30 AM [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31mcolumn k.organization_id does not exist[39m
+QueryFailedError: column k.organization_id does not exist
+    at PostgresQueryRunner.query (D:\CascadeProjects\old\insurance\node_modules\typeorm\src\driver\postgres\PostgresQueryRunner.ts:325:19)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async SelectQueryBuilder.loadRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3868:25)
+    at async SelectQueryBuilder.executeEntitiesAndRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3614:26)
+    at async SelectQueryBuilder.getManyAndCount (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1874:36)
+    at async SalesNetworkService.listKpiDaily (D:\CascadeProjects\old\insurance\services\sales-network-service\src\sales-network.service.ts:753:27)
+    at async SalesNetworkController.listKpiDaily (D:\CascadeProjects\old\insurance\services\sales-network-service\src\sales-network.controller.ts:387:29)
+[31m[Nest] 35080  - [39m08/02/2026, 9:12:30 AM [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31mcolumn k.organization_id does not exist[39m
+QueryFailedError: column k.organization_id does not exist
+    at PostgresQueryRunner.query (D:\CascadeProjects\old\insurance\node_modules\typeorm\src\driver\postgres\PostgresQueryRunner.ts:325:19)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async SelectQueryBuilder.loadRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3868:25)
+    at async SelectQueryBuilder.executeEntitiesAndRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3614:26)
+    at async SelectQueryBuilder.getManyAndCount (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1874:36)
+    at async SalesNetworkService.listKpiDaily (D:\CascadeProjects\old\insurance\services\sales-network-service\src\sales-network.service.ts:753:27)
+    at async SalesNetworkController.listKpiDaily (D:\CascadeProjects\old\insurance\services\sales-network-service\src\sales-network.controller.ts:387:29)
+[31m[Nest] 35080  - [39m08/02/2026, 9:13:25 AM [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31mrelation "sales_network.outbox_events" does not exist[39m
+QueryFailedError: relation "sales_network.outbox_events" does not exist
+    at PostgresQueryRunner.query (D:\CascadeProjects\old\insurance\node_modules\typeorm\src\driver\postgres\PostgresQueryRunner.ts:325:19)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async SelectQueryBuilder.loadRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3868:25)
+    at async SelectQueryBuilder.executeEntitiesAndRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3614:26)
+    at async SelectQueryBuilder.getRawAndEntities (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1671:29)
+    at async SelectQueryBuilder.getMany (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1761:25)
+    at async D:\CascadeProjects\old\insurance\node_modules\src\persistence\SubjectDatabaseEntityLoader.ts:119:32
+    at async Promise.all (index 0)
+    at async SubjectDatabaseEntityLoader.load (D:\CascadeProjects\old\insurance\node_modules\src\persistence\SubjectDatabaseEntityLoader.ts:148:9)
+    at async D:\CascadeProjects\old\insurance\node_modules\src\persistence\EntityPersistExecutor.ts:116:21
+[31m[Nest] 35080  - [39m08/02/2026, 9:13:54 AM [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31mrelation "sales_network.outbox_events" does not exist[39m
+QueryFailedError: relation "sales_network.outbox_events" does not exist
+    at PostgresQueryRunner.query (D:\CascadeProjects\old\insurance\node_modules\typeorm\src\driver\postgres\PostgresQueryRunner.ts:325:19)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async SelectQueryBuilder.loadRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3868:25)
+    at async SelectQueryBuilder.executeEntitiesAndRawResults (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:3614:26)
+    at async SelectQueryBuilder.getRawAndEntities (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1671:29)
+    at async SelectQueryBuilder.getMany (D:\CascadeProjects\old\insurance\node_modules\src\query-builder\SelectQueryBuilder.ts:1761:25)
+    at async D:\CascadeProjects\old\insurance\node_modules\src\persistence\SubjectDatabaseEntityLoader.ts:119:32
+    at async Promise.all (index 0)
+    at async SubjectDatabaseEntityLoader.load (D:\CascadeProjects\old\insurance\node_modules\src\persistence\SubjectDatabaseEntityLoader.ts:148:9)
+    at async D:\CascadeProjects\old\insurance\node_modules\src\persistence\EntityPersistExecutor.ts:116:21

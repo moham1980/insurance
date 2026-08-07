@@ -665,8 +665,10 @@ async function bootstrap() {
   const checkUpstreamHealth = async (name: string, target: string): Promise<boolean> => {
     const health = upstreamHealth[name] ?? { lastCheck: 0, isHealthy: false, failureCount: 0, lastFailure: null, checked: false };
     try {
+      const parsedTarget = new URL(target);
+      const healthUrl = `${parsedTarget.origin}/health`;
       const r = await requestNoProxy({
-        url: `${target}/health`,
+        url: healthUrl,
         method: 'GET',
         headers: { accept: 'application/json' },
         timeoutMs: 5000,

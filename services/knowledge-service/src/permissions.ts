@@ -6,6 +6,7 @@ export type PermissionKey =
   | 'knowledge:articles:delete'
   | 'knowledge:graph:view'
   | 'knowledge:graph:list'
+  | 'knowledge:nba:create'
   | 'knowledge:nba:view'
   | 'knowledge:nba:list'
   | 'knowledge:export';

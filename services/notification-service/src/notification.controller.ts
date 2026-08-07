@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Body, Param, Headers, Query, Req, UseGuards, BadRequestException, Delete } from '@nestjs/common';
+import { Idempotent } from '@insurance/shared';
 import { NotificationService } from './notification.service';
 import { CredentialVaultService } from './credential-vault.service';
 import { NotificationChannel, NotificationType } from './entities/NotificationLog';
@@ -11,6 +12,7 @@ import { RequirePermissions } from './permissions.decorator';
 import { TenantGuard } from './tenant.guard';
 import { CallbackAuthGuard } from './callback-auth.guard';
 import { PushChannel } from './push-channel';
+import { BulkRateLimitGuard } from './bulk-rate-limit.guard'; // P2 #1: bulk rate limiting
 
 interface RequestWithTenant {
   tenantId?: string;
@@ -45,6 +47,7 @@ export class NotificationController {
   @Post()
   @UseGuards(JwtAuthGuard, PermissionsGuard, TenantGuard)
   @RequirePermissions('notification:send')
+  @Idempotent({ ttl: 86400 })
   async send(
     @Req() req: RequestWithTenant,
     @Headers() headers: Record<string, any>,
@@ -638,5 +641,63 @@ export class NotificationController {
   ) {
     const deleted = await this.credentialVault.deleteCredential(credentialId);
     return { success: deleted, data: { credentialId, deleted } };
+  }
+
+  // P2 #1: Bulk send — send multiple notifications in a single request
+  @Post('bulk')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, TenantGuard, BulkRateLimitGuard)
+  @RequirePermissions('notification:send')
+  async bulkSend(
+    @Req() req: RequestWithTenant,
+    @Headers() headers: Record<string, any>,
+    @Body() body: { items: Array<{ channel: NotificationChannel; type: NotificationType; recipient: string; message: string; userId?: string; metadata?: Record<string, any> }> },
+  ) {
+    const correlationId = headers['x-correlation-id'] || `notif-bulk-${Date.now()}`;
+    const items = Array.isArray(body?.items) ? body.items : [];
+    if (items.length === 0) {
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'items array is required' }, correlationId };
+    }
+    if (items.length > 100) {
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'Maximum 100 items per bulk request' }, correlationId };
+    }
+
+    const results: Array<{ success: boolean; data?: any; error?: any }> = [];
+    let succeeded = 0;
+    let failed = 0;
+
+    for (const item of items) {
+      try {
+        if (!item?.channel || !item?.recipient || !item?.message) {
+          results.push({ success: false, error: { code: 'VALIDATION_ERROR', message: 'channel, recipient, and message are required' } });
+          failed++;
+          continue;
+        }
+        const result = await this.notificationService.sendNotification({
+          tenantId: req.tenantId!,
+          userId: item.userId,
+          correlationId,
+          channel: item.channel,
+          type: item.type,
+          recipient: item.recipient,
+          message: item.message,
+          metadata: item.metadata,
+        });
+        results.push({ success: true, data: this.toSummary(result) });
+        succeeded++;
+      } catch (e: any) {
+        const err = e instanceof Error ? e : new Error(String(e));
+        results.push({ success: false, error: { code: 'INTERNAL_ERROR', message: err.message } });
+        failed++;
+      }
+    }
+
+    return {
+      success: true,
+      data: {
+        results,
+        summary: { total: items.length, succeeded, failed },
+      },
+      correlationId,
+    };
   }
 }

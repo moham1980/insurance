@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { Idempotent } from '@insurance/shared';
 import { WorkflowEngineService, StartProcessParams, SignalParams } from './workflow-engine.service';
 import { ProcessDefinition, ProcessDefinitionStatus } from './entities/process-definition.entity';
 import { ProcessInstance } from './entities/process-instance.entity';
@@ -8,6 +9,23 @@ import { RequirePermissions } from './permissions.decorator';
 import { AbacGuard } from './abac.guard';
 import { TenantGuard } from './tenant.guard';
 
+/**
+ * ──────────────────────────────────────────────────────────────────────────
+ * ARCHITECTURE BOUNDARY (P1 #1 — workflow-engine-service vs workflow-service)
+ * ──────────────────────────────────────────────────────────────────────────
+ * This controller is the **general-purpose BPMN process engine**.
+ * It owns the low-level process definition lifecycle (CRUD, versioning,
+ * activation) and process instance execution (start, signal, cancel, history).
+ *
+ * The domain-oriented `workflow-service` is a higher-level wrapper that should
+ * delegate definition-management and instance-execution operations here rather
+ * than re-implementing them independently.
+ *
+ * Responsibility:  generic BPMN engine (process definitions + instances)
+ * NOT responsible for: domain-specific workflow templates, task execution,
+ *   domain-specific business rules — those belong in `workflow-service`.
+ * ──────────────────────────────────────────────────────────────────────────
+ */
 @Controller('workflow')
 @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
 export class WorkflowEngineController {
@@ -85,6 +103,7 @@ export class WorkflowEngineController {
   @Post('start')
   @HttpCode(HttpStatus.OK)
   @RequirePermissions('workflow:start')
+  @Idempotent({ ttl: 86400 })
   async startProcess(@Body() params: StartProcessParams, @Req() req: any): Promise<ProcessInstance> {
     const { tenantId, userId } = this.getRequestUser(req);
     return this.workflowEngine.startProcess({ ...params, tenantId, startedBy: userId });

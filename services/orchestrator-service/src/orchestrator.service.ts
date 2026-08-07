@@ -8,6 +8,15 @@ import { SagaInstance } from './entities/SagaInstance';
 import { SagaStep } from './entities/SagaStep';
 import { WorkItem, WorkItemPriority, WorkItemStatus } from './entities/WorkItem';
 
+/**
+ * P1 #2 — Architecture boundary:
+ * This service implements the **saga pattern** (standard distributed
+ * transactions) and is the canonical orchestration engine.  The legacy
+ * "process" endpoints in WorkflowsController (`/workflows/processes/*`)
+ * already delegate to this saga engine and are deprecated — they will be
+ * removed in the next major version.  Consumers should use the saga API
+ * (`/orchestrations/sagas`) or `workflow-engine-service` instead.
+ */
 @Injectable()
 export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
   private logger: Logger;
@@ -511,6 +520,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
     policyId?: string;
     context?: Record<string, any>;
     priority?: WorkItemPriority;
+    submittedBy?: string; // P1 #5 (SoD): tracks who submitted the work item
   }): Promise<WorkItem> {
     const workItem = this.workItemRepo.create({
       workItemId: uuidv4(),
@@ -523,6 +533,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
       policyId: params.policyId || null,
       context: params.context || {},
       priority: params.priority || WorkItemPriority.medium,
+      submittedBy: params.submittedBy || null, // P1 #5 (SoD)
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -643,6 +654,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
     inquiry: Record<string, any>;
     result?: Record<string, any>;
     priority?: WorkItem['priority'];
+    submittedBy?: string; // P1 #5 (SoD)
   }): Promise<{ saga: SagaInstance; workItem: WorkItem }> {
     const saga = this.sagaRepo.create({
       sagaId: uuidv4(),
@@ -681,6 +693,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
         result: params.result,
       },
       priority: params.priority || WorkItemPriority.high,
+      submittedBy: params.submittedBy, // P1 #5 (SoD)
     });
 
     this.logger.info('SANHAB follow-up work item created', {
@@ -711,6 +724,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
     context?: Record<string, any>;
     priority?: WorkItem['priority'];
     dueDate?: string;
+    submittedBy?: string; // P1 #5 (SoD)
   }): Promise<{ saga: SagaInstance; workItem: WorkItem }> {
     const saga = this.sagaRepo.create({
       sagaId: uuidv4(),
@@ -747,6 +761,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
         ...(params.context ? { context: params.context } : {}),
       },
       priority: params.priority || WorkItemPriority.high,
+      submittedBy: params.submittedBy, // P1 #5 (SoD)
     });
 
     if (params.dueDate) {
@@ -779,6 +794,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
     context?: Record<string, any>;
     priority?: WorkItem['priority'];
     dueDate?: string;
+    submittedBy?: string; // P1 #5 (SoD)
   }): Promise<{ saga: SagaInstance; workItem: WorkItem }> {
     const saga = this.sagaRepo.create({
       sagaId: uuidv4(),
@@ -817,6 +833,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
         ...(params.context ? { context: params.context } : {}),
       },
       priority: params.priority || WorkItemPriority.high,
+      submittedBy: params.submittedBy, // P1 #5 (SoD)
     });
 
     if (params.dueDate) {
@@ -902,6 +919,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
         explainability: params.explainability || null,
       },
       priority: params.priority || WorkItemPriority.high,
+      submittedBy: params.createdBy || undefined, // P1 #5 (SoD)
     });
 
     if (params.dueDate) {
@@ -1406,6 +1424,14 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
     if (workItem.status === WorkItemStatus.approved || workItem.status === WorkItemStatus.rejected) {
       const err: any = new Error('Work item has already been decided');
       err.code = 'ALREADY_DECIDED';
+      throw err;
+    }
+
+    // P1 #5 (SoD): The submitter cannot approve their own work item.
+    // This enforces Segregation of Duties for human_approval work items.
+    if (params.decision === 'approved' && workItem.submittedBy && workItem.submittedBy === params.decidedBy) {
+      const err: any = new Error('Segregation of Duties violation: the submitter cannot approve their own work item');
+      err.code = 'SOD_VIOLATION';
       throw err;
     }
 

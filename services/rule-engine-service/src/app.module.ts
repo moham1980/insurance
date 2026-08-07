@@ -6,6 +6,8 @@ import { HealthController } from './health.controller';
 import { Rule } from './entities/Rule';
 import { RuleExecution } from './entities/RuleExecution';
 import { RuleTemplate } from './entities/RuleTemplate';
+import { AuditLog } from './entities/AuditLog'; // P1 #10
+import { EntityVersion } from './entities/EntityVersion'; // P1 #10
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { PermissionsGuard } from './permissions.guard';
 import { TenantGuard } from './tenant.guard';
@@ -21,9 +23,9 @@ import { OutboxEvent } from '@insurance/shared';
       database: process.env.DB_DATABASE || process.env.DB_NAME || 'postgres',
       schema: process.env.DB_SCHEMA || 'rule_engine',
       synchronize: process.env.NODE_ENV !== 'production' && process.env.DB_SYNC === 'true',
-      entities: [Rule, RuleExecution, RuleTemplate, OutboxEvent],
+      entities: [Rule, RuleExecution, RuleTemplate, AuditLog, EntityVersion, OutboxEvent],
     }),
-    TypeOrmModule.forFeature([Rule, RuleExecution, RuleTemplate, OutboxEvent]),
+    TypeOrmModule.forFeature([Rule, RuleExecution, RuleTemplate, AuditLog, EntityVersion, OutboxEvent]),
   ],
   controllers: [RuleEngineController, HealthController],
   providers: [TenantGuard, RuleEngineService, JwtAuthGuard, PermissionsGuard],

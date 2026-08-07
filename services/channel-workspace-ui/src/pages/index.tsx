@@ -6,7 +6,7 @@ import {
   Briefcase, FileText, Users, DollarSign, ChevronLeft, Plus,
   UsersRound, LayoutDashboard, Search, Phone, Mail, TrendingUp,
   Shield, Award, Target, ArrowUpRight, CheckCircle, Activity, BarChart3,
-  Sparkles,
+  Sparkles, FileCheck, Upload, Clock, Download, FileStack, Wallet,
 } from 'lucide-react';
 import { Button, Card, DataTable, SubmissionWizard, QuoteComparisonTable, SubAgentTree, CommissionLedgerCard, PolicyTimeline, BrandWrapper, ConsentPanel, CarrierSelector, type SubAgentNode, type WizardStep, type QuoteComparisonItem, type CommissionLine, type TimelineEvent, type BrandConfig, type ConsentPurpose, type CarrierOption } from '@insurance/design-system';
 import { cn } from '@insurance/ui-utils';
@@ -16,9 +16,10 @@ import {
   mockWorkspaces, mockOfferings, mockSubmissions, mockCommissions,
   mockCustomers, mockSubAgents, mockPartners, mockDashboardStats,
   mockSubAgentHierarchy, mockChannelCapabilities, formatToman,
+  mockSettlements, mockBrokerDocuments,
 } from '@/lib/mock-data';
 
-type Tab = 'overview' | 'offerings' | 'submissions' | 'quotes' | 'placements' | 'commissions' | 'customers' | 'claims' | 'dashboard' | 'subAgents' | 'partners' | 'brandSettings';
+type Tab = 'overview' | 'offerings' | 'submissions' | 'quotes' | 'placements' | 'commissions' | 'settlements' | 'customers' | 'claims' | 'dashboard' | 'subAgents' | 'partners' | 'documents' | 'brandSettings';
 
 const tabTitles: Record<Tab, { label: string; icon: any }> = {
   overview: { label: 'نمای کلی', icon: Briefcase },
@@ -33,6 +34,8 @@ const tabTitles: Record<Tab, { label: string; icon: any }> = {
   subAgents: { label: 'نمایندگان فرعی', icon: Users },
   partners: { label: 'شرکا', icon: UsersRound },
   brandSettings: { label: 'تنظیمات برند', icon: Award },
+  settlements: { label: 'تسویه‌ها', icon: Wallet },
+  documents: { label: 'مدارک', icon: FileCheck },
 };
 
 const defaultBrand: BrandConfig = {
@@ -85,11 +88,13 @@ export default function ChannelWorkspacePage() {
         quotes: '/api/v1/channel/quotes',
         placements: '/api/v1/channel/placements',
         commissions: '/api/v1/channel/commissions',
+        settlements: '/api/v1/channel/settlements',
         customers: '/api/v1/channel/customers',
         claims: '/api/v1/channel/claims',
         dashboard: '/api/v1/channel/dashboard',
         subAgents: '/api/v1/channel/sub-agents',
         partners: '/api/v1/channel/partners',
+        documents: '/api/v1/channel/documents',
         brandSettings: '/api/v1/channel/brand-settings',
       };
       const json = await fetchBFF(tabPaths[activeTab]);
@@ -100,9 +105,9 @@ export default function ChannelWorkspacePage() {
         overview: mockWorkspaces, offerings: { rows: mockOfferings },
         submissions: { rows: mockSubmissions }, quotes: { rows: [] },
         placements: { rows: [] }, commissions: { rows: mockCommissions },
-        customers: { rows: mockCustomers }, claims: { rows: [] },
+        settlements: mockSettlements, customers: { rows: mockCustomers }, claims: { rows: [] },
         dashboard: mockDashboardStats, subAgents: { rows: mockSubAgents },
-        partners: { rows: mockPartners }, brandSettings: {},
+        partners: { rows: mockPartners }, documents: mockBrokerDocuments, brandSettings: {},
       };
       setData(mockMap[activeTab]);
     } finally { setLoading(false); }
@@ -160,12 +165,14 @@ export default function ChannelWorkspacePage() {
         {activeTab === 'quotes' && <QuotesTab data={data} loading={loading} />}
         {activeTab === 'placements' && <PlacementsTab />}
         {activeTab === 'commissions' && <CommissionsTab data={data} loading={loading} />}
+        {activeTab === 'settlements' && <SettlementsTab data={data} loading={loading} />}
         {activeTab === 'customers' && (selectedCustomer
           ? <CustomerDetail customer={selectedCustomer} onBack={() => setSelectedCustomer(null)} />
           : <CustomersTab data={data} loading={loading} onSelect={setSelectedCustomer} />)}
         {activeTab === 'claims' && <ClaimsTab data={data} loading={loading} />}
         {activeTab === 'subAgents' && <SubAgentsTab data={data} loading={loading} />}
         {activeTab === 'partners' && <PartnersTab data={data} loading={loading} />}
+        {activeTab === 'documents' && <DocumentsTab data={data} loading={loading} />}
         {activeTab === 'brandSettings' && <BrandSettingsTab />}
       </main>
       <CopilotPanel open={copilotOpen} onClose={() => setCopilotOpen(false)} />
@@ -1113,6 +1120,303 @@ function BrandSettingsTab() {
         }}
         onRevokeAll={() => setMockConsents(prev => prev.map(c => ({ ...c, granted: false })))}
       />
+    </div>
+  );
+}
+
+function SettlementsTab({ data, loading }: { data: any; loading: boolean }) {
+  const [filterStatus, setFilterStatus] = useState('');
+
+  if (loading) return <Loading />;
+  const settlements = data?.rows || [];
+  const filtered = filterStatus ? settlements.filter((s: any) => s.status === filterStatus) : settlements;
+
+  const totalSettled = settlements.filter((s: any) => s.status === 'تسویه شده').reduce((sum: number, s: any) => sum + (s.commissionAmount || 0), 0);
+  const totalPending = settlements.filter((s: any) => s.status === 'در انتظار').reduce((sum: number, s: any) => sum + (s.commissionAmount || 0), 0);
+  const totalPremium = settlements.reduce((sum: number, s: any) => sum + (s.totalPremium || 0), 0);
+
+  return (
+    <div className="space-y-6" dir="rtl">
+      <div>
+        <h2 className="text-h3 font-semibold text-text-primary">تسویه حساب پورسانت</h2>
+        <p className="mt-1 text-sm text-text-muted">مدیریت تسویه با بیمه‌گران</p>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="p-5">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-feedback-success-subtle">
+            <CheckCircle className="h-6 w-6 text-feedback-success" />
+          </div>
+          <p className="mt-3 text-sm text-text-secondary">تسویه شده</p>
+          <p className="mt-1 text-xl font-bold text-feedback-success">{formatToman(totalSettled)}</p>
+        </Card>
+        <Card className="p-5">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-feedback-warning-subtle">
+            <Clock className="h-6 w-6 text-feedback-warning" />
+          </div>
+          <p className="mt-3 text-sm text-text-secondary">در انتظار تسویه</p>
+          <p className="mt-1 text-xl font-bold text-feedback-warning">{formatToman(totalPending)}</p>
+        </Card>
+        <Card className="p-5">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-primary-subtle">
+            <Wallet className="h-6 w-6 text-brand-primary" />
+          </div>
+          <p className="mt-3 text-sm text-text-secondary">کل حق بیمه</p>
+          <p className="mt-1 text-xl font-bold text-text-primary">{formatToman(totalPremium)}</p>
+        </Card>
+        <Card className="p-5">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-secondary-subtle">
+            <TrendingUp className="h-6 w-6 text-brand-secondary" />
+          </div>
+          <p className="mt-3 text-sm text-text-secondary">تعداد تسویه</p>
+          <p className="mt-1 text-xl font-bold text-text-primary">{settlements.length}</p>
+        </Card>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+          className="rounded-lg border border-border-default bg-bg-raised px-3 py-2 text-sm focus:border-brand-primary focus:outline-none"
+        >
+          <option value="">همه وضعیت‌ها</option>
+          <option value="تسویه شده">تسویه شده</option>
+          <option value="در انتظار">در انتظار</option>
+        </select>
+      </div>
+
+      {filtered.length === 0 ? (
+        <Card className="p-12 text-center">
+          <FileStack className="mx-auto h-12 w-12 text-text-muted" />
+          <p className="mt-4 text-text-muted">تسویه‌ای یافت نشد</p>
+        </Card>
+      ) : (
+        <Card className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-border-default">
+            <thead className="bg-bg-subtle">
+              <tr>
+                <th className="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-text-muted">دوره</th>
+                <th className="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-text-muted">بیمه‌گر</th>
+                <th className="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-text-muted">کل حق بیمه</th>
+                <th className="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-text-muted">مبلغ پورسانت</th>
+                <th className="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-text-muted">وضعیت</th>
+                <th className="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-text-muted">تاریخ تسویه</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border-subtle bg-bg-raised">
+              {filtered.map((s: any) => (
+                <tr key={s.settlementId || s.id} className="transition-colors hover:bg-bg-subtle">
+                  <td className="px-6 py-4 text-sm font-medium text-text-primary">{s.period}</td>
+                  <td className="px-6 py-4 text-sm text-text-secondary">{s.carrierName}</td>
+                  <td className="px-6 py-4 text-sm text-text-secondary">{formatToman(s.totalPremium)}</td>
+                  <td className="px-6 py-4 text-sm font-medium text-text-primary">{formatToman(s.commissionAmount)}</td>
+                  <td className="px-6 py-4">
+                    <span className={cn('rounded-md px-2 py-0.5 text-xs font-medium',
+                      s.status === 'تسویه شده' ? 'bg-feedback-success-subtle text-feedback-success' : 'bg-feedback-warning-subtle text-feedback-warning')}>
+                      {s.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-text-muted">{s.settlementDate || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function DocumentsTab({ data, loading }: { data: any; loading: boolean }) {
+  const [filterCarrier, setFilterCarrier] = useState('');
+  const [search, setSearch] = useState('');
+  const [showUpload, setShowUpload] = useState(false);
+  const [uploadForm, setUploadForm] = useState({ carrierName: '', docType: '', fileName: '' });
+  const [docs, setDocs] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (data?.rows) setDocs(data.rows);
+    else if (Array.isArray(data)) setDocs(data);
+    else setDocs(mockBrokerDocuments.rows || []);
+  }, [data]);
+
+  if (loading) return <Loading />;
+
+  const carrierNames = [...new Set(docs.map((d: any) => d.carrierName))];
+  const docTypes = ['قرارداد کارگزاری', 'مجوز فعالیت', 'بیمه‌نامه نمونه', 'کارت ملی مدیر', 'سند مالکیت', 'گواهی عدم سوءپیشینه', 'سند دیگر'];
+
+  const filtered = docs.filter((doc: any) => {
+    if (filterCarrier && doc.carrierName !== filterCarrier) return false;
+    if (search && !doc.fileName.includes(search) && !doc.docType.includes(search)) return false;
+    return true;
+  });
+
+  const groupedByCarrier = filtered.reduce((acc: Record<string, any[]>, doc: any) => {
+    if (!acc[doc.carrierName]) acc[doc.carrierName] = [];
+    acc[doc.carrierName].push(doc);
+    return acc;
+  }, {});
+
+  const handleUpload = () => {
+    if (!uploadForm.carrierName || !uploadForm.docType || !uploadForm.fileName) return;
+    const newDoc = {
+      id: `DOC-${Date.now()}`,
+      carrierName: uploadForm.carrierName,
+      docType: uploadForm.docType,
+      fileName: uploadForm.fileName,
+      fileSize: '—',
+      uploadDate: new Date().toLocaleDateString('fa-IR'),
+      status: 'در انتظار',
+      uploadedBy: 'کاربر فعلی',
+    };
+    setDocs(prev => [newDoc, ...prev]);
+    setShowUpload(false);
+    setUploadForm({ carrierName: '', docType: '', fileName: '' });
+  };
+
+  const statusConfig: Record<string, string> = {
+    'تأیید شده': 'bg-feedback-success-subtle text-feedback-success',
+    'در حال بررسی': 'bg-feedback-info-subtle text-feedback-info',
+    'در انتظار': 'bg-feedback-warning-subtle text-feedback-warning',
+    'رد شده': 'bg-feedback-error-subtle text-feedback-error',
+  };
+
+  return (
+    <div className="space-y-6" dir="rtl">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-h3 font-semibold text-text-primary">مدارک و مستندات</h2>
+          <p className="mt-1 text-sm text-text-muted">بارگذاری و مدیریت مدارک به تفکیک بیمه‌گر</p>
+        </div>
+        <Button onClick={() => setShowUpload(!showUpload)} className="flex items-center gap-2">
+          <Upload className="h-4 w-4" />
+          بارگذاری سند
+        </Button>
+      </div>
+
+      {showUpload && (
+        <Card className="p-5 space-y-4">
+          <div className="grid gap-4 md:grid-cols-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-text-primary">بیمه‌گر</label>
+              <select
+                value={uploadForm.carrierName}
+                onChange={(e) => setUploadForm({ ...uploadForm, carrierName: e.target.value })}
+                className="w-full rounded-lg border border-border-default bg-bg-raised px-3 py-2 text-sm focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
+              >
+                <option value="">انتخاب...</option>
+                {carrierNames.map((c: string) => <option key={c} value={c}>{c}</option>)}
+                <option value="بیمه ایران">بیمه ایران</option>
+                <option value="بیمه آسیه">بیمه آسیه</option>
+                <option value="بیمه پاسارگاد">بیمه پاسارگاد</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-text-primary">نوع سند</label>
+              <select
+                value={uploadForm.docType}
+                onChange={(e) => setUploadForm({ ...uploadForm, docType: e.target.value })}
+                className="w-full rounded-lg border border-border-default bg-bg-raised px-3 py-2 text-sm focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
+              >
+                <option value="">انتخاب...</option>
+                {docTypes.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-text-primary">نام فایل</label>
+              <input
+                value={uploadForm.fileName}
+                onChange={(e) => setUploadForm({ ...uploadForm, fileName: e.target.value })}
+                placeholder="مثلاً: قرارداد-1403.pdf"
+                className="w-full rounded-lg border border-border-default bg-bg-raised px-3 py-2 text-sm focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setShowUpload(false)}>انصراف</Button>
+            <Button onClick={handleUpload} disabled={!uploadForm.carrierName || !uploadForm.docType || !uploadForm.fileName}>
+              بارگذاری
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="جستجوی سند..."
+            className="w-full rounded-lg border border-border-default bg-bg-raised pr-10 pl-3 py-2 text-sm focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
+          />
+        </div>
+        <select
+          value={filterCarrier}
+          onChange={(e) => setFilterCarrier(e.target.value)}
+          className="rounded-lg border border-border-default bg-bg-raised px-3 py-2 text-sm focus:border-brand-primary focus:outline-none"
+        >
+          <option value="">همه بیمه‌گران</option>
+          {carrierNames.map((c: string) => <option key={c} value={c}>{c}</option>)}
+        </select>
+      </div>
+
+      {filtered.length === 0 ? (
+        <Card className="p-12 text-center">
+          <FileCheck className="mx-auto h-12 w-12 text-text-muted" />
+          <p className="mt-4 text-text-muted">سندی یافت نشد</p>
+        </Card>
+      ) : (
+        <div className="space-y-6">
+          {Object.entries(groupedByCarrier).map(([carrier, carrierDocs]) => (
+            <div key={carrier}>
+              <div className="mb-3 flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
+                  <FileText className="h-4 w-4" />
+                </div>
+                <h3 className="text-sm font-semibold text-text-primary">{carrier}</h3>
+                <span className="rounded-full bg-bg-subtle px-2 py-0.5 text-xs text-text-muted">{carrierDocs.length} سند</span>
+              </div>
+              <Card className="overflow-hidden">
+                <table className="min-w-full divide-y divide-border-default">
+                  <thead className="bg-bg-subtle">
+                    <tr>
+                      <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-text-muted">نوع سند</th>
+                      <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-text-muted">نام فایل</th>
+                      <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-text-muted">حجم</th>
+                      <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-text-muted">تاریخ بارگذاری</th>
+                      <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-text-muted">بارگذاری توسط</th>
+                      <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-text-muted">وضعیت</th>
+                      <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-text-muted">عملیات</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border-subtle bg-bg-raised">
+                    {carrierDocs.map((doc: any) => (
+                      <tr key={doc.id} className="transition-colors hover:bg-bg-subtle">
+                        <td className="px-6 py-4 text-sm text-text-secondary">{doc.docType}</td>
+                        <td className="px-6 py-4 text-sm font-medium text-text-primary">{doc.fileName}</td>
+                        <td className="px-6 py-4 text-sm text-text-muted">{doc.fileSize}</td>
+                        <td className="px-6 py-4 text-sm text-text-muted">{doc.uploadDate}</td>
+                        <td className="px-6 py-4 text-sm text-text-muted">{doc.uploadedBy}</td>
+                        <td className="px-6 py-4">
+                          <span className={cn('rounded-md px-2 py-0.5 text-xs font-medium', statusConfig[doc.status] || 'bg-bg-subtle text-text-muted')}>
+                            {doc.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <button className="text-text-muted hover:text-brand-primary" title="دانلود">
+                            <Download className="h-4 w-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </Card>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

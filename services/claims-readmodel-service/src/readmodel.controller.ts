@@ -72,25 +72,37 @@ export class ReadModelController {
     @Query('policyId') policyId?: string,
     @Query('status') status?: string,
     @Query('limit') limit: string = '50',
-    @Query('offset') offset: string = '0'
+    @Query('offset') offset: string = '0',
+    @Query('cursor') cursor?: string, // P1 #8: cursor-based pagination (backward compatible)
   ) {
     const correlationId = this.getCorrelationId(headers);
     const tenantId = this.getTenantId(req);
     const lim = Math.min(parseInt(limit, 10) || 50, 200);
     const off = parseInt(offset, 10) || 0;
 
-    const { rows, total } = await this.readModelService.listClaims({
+    const result = await this.readModelService.listClaims({
       tenantId,
       policyId,
       status,
       limit: lim,
       offset: off,
+      cursor, // P1 #8: pass cursor if provided
     });
+
+    // P1 #8: return cursor-based pagination info when cursor is used
+    if (cursor && (result as any).hasNext !== undefined) {
+      return {
+        success: true,
+        data: this.maskRowsPii(result.rows, req.user),
+        pagination: { limit: lim, hasNext: (result as any).hasNext, nextCursor: (result as any).nextCursor },
+        correlationId,
+      };
+    }
 
     return {
       success: true,
-      data: this.maskRowsPii(rows, req.user),
-      pagination: { total, limit: lim, offset: off },
+      data: this.maskRowsPii(result.rows, req.user),
+      pagination: { total: result.total, limit: lim, offset: off },
       correlationId,
     };
   }
@@ -130,7 +142,8 @@ export class ReadModelController {
     @Query('status') status?: string,
     @Query('minScore') minScore?: string,
     @Query('limit') limit: string = '50',
-    @Query('offset') offset: string = '0'
+    @Query('offset') offset: string = '0',
+    @Query('cursor') cursor?: string, // P1 #8: cursor-based pagination
   ) {
     const correlationId = this.getCorrelationId(headers);
     const tenantId = this.getTenantId(req);
@@ -138,18 +151,28 @@ export class ReadModelController {
     const off = parseInt(offset, 10) || 0;
     const min = minScore !== undefined ? parseInt(minScore, 10) : undefined;
 
-    const { rows, total } = await this.readModelService.listFraudCases({
+    const result = await this.readModelService.listFraudCases({
       tenantId,
       status,
       minScore: typeof min === 'number' && Number.isFinite(min) ? min : undefined,
       limit: lim,
       offset: off,
+      cursor,
     });
+
+    if (cursor && (result as any).hasNext !== undefined) {
+      return {
+        success: true,
+        data: this.maskRowsPii(result.rows, req.user),
+        pagination: { limit: lim, hasNext: (result as any).hasNext, nextCursor: (result as any).nextCursor },
+        correlationId,
+      };
+    }
 
     return {
       success: true,
-      data: this.maskRowsPii(rows, req.user),
-      pagination: { total, limit: lim, offset: off },
+      data: this.maskRowsPii(result.rows, req.user),
+      pagination: { total: result.total, limit: lim, offset: off },
       correlationId,
     };
   }
@@ -163,25 +186,36 @@ export class ReadModelController {
     @Query('status') status?: string,
     @Query('complaintType') complaintType?: string,
     @Query('limit') limit: string = '50',
-    @Query('offset') offset: string = '0'
+    @Query('offset') offset: string = '0',
+    @Query('cursor') cursor?: string, // P1 #8: cursor-based pagination
   ) {
     const correlationId = this.getCorrelationId(headers);
     const tenantId = this.getTenantId(req);
     const lim = Math.min(parseInt(limit, 10) || 50, 200);
     const off = parseInt(offset, 10) || 0;
 
-    const { rows, total } = await this.readModelService.listComplaintsOps({
+    const result = await this.readModelService.listComplaintsOps({
       tenantId,
       status,
       complaintType,
       limit: lim,
       offset: off,
+      cursor,
     });
+
+    if (cursor && (result as any).hasNext !== undefined) {
+      return {
+        success: true,
+        data: this.maskRowsPii(result.rows, req.user),
+        pagination: { limit: lim, hasNext: (result as any).hasNext, nextCursor: (result as any).nextCursor },
+        correlationId,
+      };
+    }
 
     return {
       success: true,
-      data: this.maskRowsPii(rows, req.user),
-      pagination: { total, limit: lim, offset: off },
+      data: this.maskRowsPii(result.rows, req.user),
+      pagination: { total: result.total, limit: lim, offset: off },
       correlationId,
     };
   }

@@ -76,6 +76,11 @@ export class WorkItem {
   @Column({ name: 'decided_by', type: 'text', nullable: true })
   decidedBy: string | null;
 
+  // P1 #5 (SoD): tracks who submitted/created the work item for approval.
+  // The approver (decidedBy) must be a different user (submitter != approver).
+  @Column({ name: 'submitted_by', type: 'text', nullable: true })
+  submittedBy: string | null;
+
   @Column({ name: 'due_date', type: 'timestamptz', nullable: true })
   dueDate: Date | null;
 

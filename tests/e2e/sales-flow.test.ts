@@ -4,9 +4,10 @@ import { JwtFactory } from '../helpers/jwt-factory';
 import { DbHelper } from '../helpers/db-helper';
 import { DockerComposeHelper } from '../helpers/docker-compose';
 import { AssertionHelpers } from '../helpers/assertions';
+import { v4 as uuidv4 } from 'uuid';
 
 describe('E2E: Sales Network Flow', () => {
-  const tenantId = 'test-tenant';
+  const tenantId = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
   const adminToken = JwtFactory.createAdminToken(tenantId);
   const apiClient = createGatewayClient(adminToken);
   apiClient.setTenantId(tenantId);
@@ -29,7 +30,7 @@ describe('E2E: Sales Network Flow', () => {
 
     const createResponse = await apiClient.post('/sales-network/partners', {
       tenantId,
-      orgUnitId: 'partner-001',
+      orgUnitId: uuidv4(),
       kind: 'agent',
       displayName: 'Test Agency',
       legalNationalId: '1234567890',
@@ -78,7 +79,7 @@ describe('E2E: Sales Network Flow', () => {
 
     const partnerResponse = await apiClient.post('/sales-network/partners', {
       tenantId,
-      orgUnitId: 'partner-002',
+      orgUnitId: uuidv4(),
       kind: 'agent',
       displayName: 'Commission Partner',
       legalNationalId: '9876543210',

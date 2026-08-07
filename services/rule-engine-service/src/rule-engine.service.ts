@@ -1,9 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ForbiddenException } from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import {Repository, DataSource} from 'typeorm';
 import { Rule, RuleStatus, RuleType } from './entities/Rule';
 import { RuleExecution, ExecutionStatus } from './entities/RuleExecution';
 import { RuleTemplate } from './entities/RuleTemplate';
+import { AuditLog } from './entities/AuditLog'; // P1 #10
+import { EntityVersion } from './entities/EntityVersion'; // P1 #10
 import { OutboxPublisher } from '@insurance/shared';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -18,8 +20,69 @@ export class RuleEngineService {
     @InjectRepository(RuleExecution)
     private executionRepo: Repository<RuleExecution>,
     @InjectRepository(RuleTemplate)
-    private templateRepo: Repository<RuleTemplate>
+    private templateRepo: Repository<RuleTemplate>,
+    @InjectRepository(AuditLog)
+    private auditLogRepo: Repository<AuditLog>, // P1 #10
+    @InjectRepository(EntityVersion)
+    private entityVersionRepo: Repository<EntityVersion>, // P1 #10
   ) {}
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // P1 #10: Audit trail & versioning helpers
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Write an immutable audit log entry within the current transaction.
+   */
+  private async writeAuditLog(manager: any, params: {
+    resourceType: string;
+    resourceId: string;
+    action: string;
+    actor: string;
+    tenantId?: string | null;
+    before?: Record<string, any> | null;
+    after?: Record<string, any> | null;
+    correlationId?: string | null;
+  }): Promise<void> {
+    const entry = manager.create(AuditLog, {
+      resourceType: params.resourceType,
+      resourceId: params.resourceId,
+      action: params.action,
+      actor: params.actor,
+      tenantId: params.tenantId ?? null,
+      before: params.before ?? null,
+      after: params.after ?? null,
+      correlationId: params.correlationId ?? null,
+    });
+    await manager.save(entry);
+  }
+
+  /**
+   * Write an immutable entity version snapshot within the current transaction.
+   */
+  private async writeEntityVersion(manager: any, params: {
+    resourceType: string;
+    resourceId: string;
+    snapshot: Record<string, any>;
+    actor: string;
+    tenantId?: string | null;
+  }): Promise<void> {
+    const versions = await manager.find(EntityVersion, {
+      where: { resourceType: params.resourceType, resourceId: params.resourceId },
+      order: { version: 'DESC' },
+      take: 1,
+    });
+    const nextVersion = (versions.length > 0 ? versions[0].version : 0) + 1;
+    const entry = manager.create(EntityVersion, {
+      resourceType: params.resourceType,
+      resourceId: params.resourceId,
+      version: nextVersion,
+      snapshot: params.snapshot,
+      actor: params.actor,
+      tenantId: params.tenantId ?? null,
+    });
+    await manager.save(entry);
+  }
 
   async createRule(params: {
     tenantId: string;
@@ -65,6 +128,23 @@ export class RuleEngineService {
         tags: params.tags || [],
       });
       const saved = await manager.save(rule);
+      // P1 #10: write immutable audit log and entity version
+      await this.writeAuditLog(manager, {
+        resourceType: 'rule',
+        resourceId: saved.id,
+        action: 'created',
+        actor: 'system',
+        tenantId: saved.tenantId,
+        before: null,
+        after: { id: saved.id, name: saved.name, ruleSetKey: saved.ruleSetKey, type: saved.type, version: saved.version, status: saved.status },
+      });
+      await this.writeEntityVersion(manager, {
+        resourceType: 'rule',
+        resourceId: saved.id,
+        snapshot: { id: saved.id, name: saved.name, ruleSetKey: saved.ruleSetKey, type: saved.type, condition: saved.condition, action: saved.action, priority: saved.priority, status: saved.status, version: saved.version, metadata: saved.metadata, tags: saved.tags },
+        actor: 'system',
+        tenantId: saved.tenantId,
+      });
       const outbox = new OutboxPublisher(manager);
       await outbox.publish({
         topic: 'insurance.rule_engine.rule.created',
@@ -91,9 +171,28 @@ export class RuleEngineService {
     return await this.dataSource.transaction(async (manager) => {
       const rule = await manager.findOne(Rule, { where: { id, tenantId } });
       if (!rule) throw new Error('Rule not found');
+      // P1 #5 (SoD): prefer activation from APPROVED status (after approval workflow).
+      // DRAFT is still allowed for backward compatibility.
       rule.status = RuleStatus.ACTIVE;
       rule.activatedAt = new Date();
       const saved = await manager.save(rule);
+      // P1 #10: write immutable audit log and entity version
+      await this.writeAuditLog(manager, {
+        resourceType: 'rule',
+        resourceId: saved.id,
+        action: 'activated',
+        actor: 'system',
+        tenantId: saved.tenantId,
+        before: { status: rule.status, activatedAt: null },
+        after: { status: saved.status, activatedAt: saved.activatedAt },
+      });
+      await this.writeEntityVersion(manager, {
+        resourceType: 'rule',
+        resourceId: saved.id,
+        snapshot: { id: saved.id, name: saved.name, status: saved.status, version: saved.version, activatedAt: saved.activatedAt },
+        actor: 'system',
+        tenantId: saved.tenantId,
+      });
       const outbox = new OutboxPublisher(manager);
       await outbox.publish({
         topic: 'insurance.rule_engine.rule.activated',
@@ -106,6 +205,136 @@ export class RuleEngineService {
           ruleId: saved.id,
           name: saved.name,
           status: saved.status,
+          tenantId: saved.tenantId,
+        },
+      });
+      return saved;
+    });
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // P1 #5 (SoD): Approval state machine — DRAFT → PENDING_APPROVAL → APPROVED/REJECTED
+  // The submitter cannot be the approver (Segregation of Duties).
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Submit a rule for approval.
+   * Transitions: DRAFT → PENDING_APPROVAL
+   * The actor is recorded as the submitter and cannot later approve the same rule.
+   */
+  async submitRuleForApproval(tenantId: string, id: string, submittedBy: string): Promise<Rule> {
+    return await this.dataSource.transaction(async (manager) => {
+      const rule = await manager.findOne(Rule, { where: { id, tenantId } });
+      if (!rule) throw new Error('Rule not found');
+      if (rule.status !== RuleStatus.DRAFT) {
+        throw new Error(`Rule must be in DRAFT status to submit for approval. Current status: ${rule.status}`);
+      }
+      rule.status = RuleStatus.PENDING_APPROVAL;
+      rule.submittedBy = submittedBy;
+      const saved = await manager.save(rule);
+      const outbox = new OutboxPublisher(manager);
+      await outbox.publish({
+        topic: 'insurance.rule_engine.rule.submitted',
+        eventType: 'RuleSubmittedForApproval',
+        eventVersion: 1,
+        correlationId: uuidv4(),
+        tenantId: saved.tenantId,
+        subject: { ruleId: saved.id, ruleSetKey: saved.ruleSetKey },
+        payload: {
+          ruleId: saved.id,
+          name: saved.name,
+          status: saved.status,
+          submittedBy,
+          tenantId: saved.tenantId,
+        },
+      });
+      return saved;
+    });
+  }
+
+  /**
+   * Approve a rule that was submitted for approval.
+   * Transitions: PENDING_APPROVAL → APPROVED
+   * SoD check: the approver must NOT be the same user as the submitter.
+   */
+  async approveRule(tenantId: string, id: string, approvedBy: string): Promise<Rule> {
+    return await this.dataSource.transaction(async (manager) => {
+      const rule = await manager.findOne(Rule, { where: { id, tenantId } });
+      if (!rule) throw new Error('Rule not found');
+      if (rule.status !== RuleStatus.PENDING_APPROVAL) {
+        throw new Error(`Rule must be in PENDING_APPROVAL status to approve. Current status: ${rule.status}`);
+      }
+      // P1 #5 (SoD): submitter cannot be the approver
+      if (rule.submittedBy && rule.submittedBy === approvedBy) {
+        throw new ForbiddenException(
+          'Segregation of Duties violation: the submitter cannot approve their own submission',
+        );
+      }
+      rule.status = RuleStatus.APPROVED;
+      rule.approvedBy = approvedBy;
+      rule.submittedBy = null;
+      const saved = await manager.save(rule);
+      const outbox = new OutboxPublisher(manager);
+      await outbox.publish({
+        topic: 'insurance.rule_engine.rule.approved',
+        eventType: 'RuleApproved',
+        eventVersion: 1,
+        correlationId: uuidv4(),
+        tenantId: saved.tenantId,
+        subject: { ruleId: saved.id, ruleSetKey: saved.ruleSetKey },
+        payload: {
+          ruleId: saved.id,
+          name: saved.name,
+          status: saved.status,
+          approvedBy,
+          tenantId: saved.tenantId,
+        },
+      });
+      return saved;
+    });
+  }
+
+  /**
+   * Reject a rule that was submitted for approval.
+   * Transitions: PENDING_APPROVAL → REJECTED
+   * SoD check: the rejector must NOT be the same user as the submitter.
+   */
+  async rejectRule(tenantId: string, id: string, rejectedBy: string, reason?: string): Promise<Rule> {
+    return await this.dataSource.transaction(async (manager) => {
+      const rule = await manager.findOne(Rule, { where: { id, tenantId } });
+      if (!rule) throw new Error('Rule not found');
+      if (rule.status !== RuleStatus.PENDING_APPROVAL) {
+        throw new Error(`Rule must be in PENDING_APPROVAL status to reject. Current status: ${rule.status}`);
+      }
+      // P1 #5 (SoD): submitter cannot be the rejector
+      if (rule.submittedBy && rule.submittedBy === rejectedBy) {
+        throw new ForbiddenException(
+          'Segregation of Duties violation: the submitter cannot reject their own submission',
+        );
+      }
+      rule.status = RuleStatus.REJECTED;
+      rule.approvedBy = rejectedBy;
+      rule.submittedBy = null;
+      if (rule.metadata) {
+        (rule.metadata as any).rejectionReason = reason || null;
+      } else {
+        rule.metadata = { rejectionReason: reason || null };
+      }
+      const saved = await manager.save(rule);
+      const outbox = new OutboxPublisher(manager);
+      await outbox.publish({
+        topic: 'insurance.rule_engine.rule.rejected',
+        eventType: 'RuleRejected',
+        eventVersion: 1,
+        correlationId: uuidv4(),
+        tenantId: saved.tenantId,
+        subject: { ruleId: saved.id, ruleSetKey: saved.ruleSetKey },
+        payload: {
+          ruleId: saved.id,
+          name: saved.name,
+          status: saved.status,
+          rejectedBy,
+          reason: reason || null,
           tenantId: saved.tenantId,
         },
       });
@@ -681,14 +910,55 @@ export class RuleEngineService {
       if (patch.tags !== undefined) rule.tags = patch.tags;
       rule.updatedAt = new Date();
 
-      return manager.save(rule);
+      const saved = await manager.save(rule);
+      const outbox = new OutboxPublisher(manager);
+      await outbox.publish({
+        topic: 'insurance.rule_engine.rule.updated',
+        eventType: 'RuleUpdated',
+        eventVersion: 1,
+        correlationId: uuidv4(),
+        tenantId: saved.tenantId,
+        subject: { ruleId: saved.id, ruleSetKey: saved.ruleSetKey },
+        payload: {
+          ruleId: saved.id,
+          name: saved.name,
+          ruleSetKey: saved.ruleSetKey,
+          type: saved.type,
+          version: saved.version,
+          status: saved.status,
+          tenantId: saved.tenantId,
+        },
+      });
+      return saved;
     });
   }
 
   async deleteRule(tenantId: string, id: string): Promise<boolean> {
     return await this.dataSource.transaction(async (manager) => {
+      const rule = await manager.findOne(Rule, { where: { id, tenantId } });
+      if (!rule) return false;
       const result = await manager.delete(Rule, { id, tenantId });
-      return (result.affected ?? 0) > 0;
+      const deleted = (result.affected ?? 0) > 0;
+      if (deleted) {
+        const outbox = new OutboxPublisher(manager);
+        await outbox.publish({
+          topic: 'insurance.rule_engine.rule.deleted',
+          eventType: 'RuleDeleted',
+          eventVersion: 1,
+          correlationId: uuidv4(),
+          tenantId: rule.tenantId,
+          subject: { ruleId: rule.id, ruleSetKey: rule.ruleSetKey },
+          payload: {
+            ruleId: rule.id,
+            name: rule.name,
+            ruleSetKey: rule.ruleSetKey,
+            type: rule.type,
+            version: rule.version,
+            tenantId: rule.tenantId,
+          },
+        });
+      }
+      return deleted;
     });
   }
 

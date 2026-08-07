@@ -559,6 +559,9 @@ export class DocumentsService {
     return { valid, issues };
   }
 
+  // Simple (mimeType-based) classification only. Does NOT invoke AI/OCR.
+  // For advanced AI/OCR-based classification, delegate to document-ai-service
+  // (POST /document-ai/documents/:documentId/classify). (P1 #3)
   async classifyDocument(documentId: string, tenantId: string): Promise<{
     documentType: Document['documentType'];
     confidence: number;
@@ -728,6 +731,72 @@ export class DocumentsService {
     }
 
     return { documentId, tenantId, sub, exp };
+  }
+
+  // ---------------------------------------------------------------------------
+  // P2 #7: Retention policy and legal hold
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Apply retention policy: soft-delete documents whose retentionUntil has
+   * passed and that are not under legal hold. Returns the count of documents
+   * that were soft-deleted.
+   */
+  async applyRetentionPolicy(): Promise<{ deletedCount: number }> {
+    const now = new Date();
+    // Find documents eligible for retention-based deletion:
+    // - retentionUntil is set and is in the past
+    // - legalHold is false
+    // - not already soft-deleted
+    const docs = await this.documentRepo
+      .createQueryBuilder('d')
+      .where('d.retentionUntil IS NOT NULL')
+      .andWhere('d.retentionUntil < :now', { now })
+      .andWhere('d.legalHold = false')
+      .andWhere('d.deletedAt IS NULL')
+      .getMany();
+
+    if (docs.length === 0) {
+      return { deletedCount: 0 };
+    }
+
+    // Soft-delete by setting deletedAt
+    const ids = docs.map((d) => d.documentId);
+    await this.documentRepo
+      .createQueryBuilder()
+      .update()
+      .set({ deletedAt: now })
+      .where('document_id IN (:...ids)', { ids })
+      .execute();
+
+    this.logger.log(`Retention policy applied: soft-deleted ${docs.length} document(s)`);
+
+    return { deletedCount: docs.length };
+  }
+
+  /**
+   * Set or remove a legal hold on a document.
+   * When legalHold is true, the document is protected from automatic retention-based deletion.
+   */
+  async setLegalHold(documentId: string, tenantId: string, legalHold: boolean): Promise<Document> {
+    const doc = await this.getDocument(documentId, tenantId);
+    if (!doc) {
+      throw new NotFoundException({ code: 'NOT_FOUND', message: 'Document not found' });
+    }
+    doc.legalHold = legalHold;
+    return this.documentRepo.save(doc);
+  }
+
+  /**
+   * Set the retention deadline for a document.
+   */
+  async setRetentionUntil(documentId: string, tenantId: string, retentionUntil: Date | null): Promise<Document> {
+    const doc = await this.getDocument(documentId, tenantId);
+    if (!doc) {
+      throw new NotFoundException({ code: 'NOT_FOUND', message: 'Document not found' });
+    }
+    doc.retentionUntil = retentionUntil;
+    return this.documentRepo.save(doc);
   }
 }
 

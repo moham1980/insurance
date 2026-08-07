@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
@@ -316,5 +316,158 @@ export class ModelLifecycleService {
 
   getTransitionRules(): ModelStateTransition[] {
     return Array.from(this.stateTransitions.values());
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // P1 #5 (SoD): Approval state machine — DRAFT → PENDING_APPROVAL → APPROVED/REJECTED
+  // The submitter cannot be the approver (Segregation of Duties).
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Submit a model for approval.
+   * Transitions: development → pending_approval
+   * The actor is recorded as the submitter and cannot later approve the same model.
+   */
+  async submitForApproval(modelId: string, submittedBy: string): Promise<ModelInventory> {
+    const model = await this.modelRepository.findOne({ where: { modelId } });
+    if (!model) {
+      throw new BadRequestException(`Model with ID ${modelId} not found`);
+    }
+    if (model.status !== 'development' && model.status !== 'testing') {
+      throw new BadRequestException(
+        `Model must be in 'development' or 'testing' status to submit for approval. Current status: ${model.status}`,
+      );
+    }
+
+    model.status = 'pending_approval';
+    model.submittedBy = submittedBy;
+    await this.modelRepository.save(model);
+
+    // Audit log for state transition
+    const correlationId = uuidv4();
+    await this.dataSource.transaction(async (manager) => {
+      const outbox = new OutboxPublisher(manager);
+      await outbox.publish({
+        topic: 'insurance.ai.model.submitted',
+        eventType: 'AiModelSubmittedForApproval',
+        eventVersion: 1,
+        correlationId,
+        subject: { modelId: model.modelId },
+        payload: {
+          modelId: model.modelId,
+          modelName: model.modelName,
+          submittedBy,
+          previousStatus: model.status,
+          submittedAt: new Date().toISOString(),
+        },
+      });
+    });
+
+    return model;
+  }
+
+  /**
+   * Approve a model that was submitted for approval.
+   * Transitions: pending_approval → staging (approved)
+   * SoD check: the approver must NOT be the same user as the submitter.
+   */
+  async approveModel(modelId: string, approvedBy: string, targetStatus: ModelStatus = 'staging'): Promise<ModelInventory> {
+    const model = await this.modelRepository.findOne({ where: { modelId } });
+    if (!model) {
+      throw new BadRequestException(`Model with ID ${modelId} not found`);
+    }
+    if (model.status !== 'pending_approval') {
+      throw new BadRequestException(
+        `Model must be in 'pending_approval' status to approve. Current status: ${model.status}`,
+      );
+    }
+
+    // P1 #5 (SoD): submitter cannot be the approver
+    if (model.submittedBy && model.submittedBy === approvedBy) {
+      throw new ForbiddenException(
+        'Segregation of Duties violation: the submitter cannot approve their own submission',
+      );
+    }
+
+    const previousStatus = model.status;
+    model.status = targetStatus;
+    model.submittedBy = null; // clear after approval
+    if (targetStatus === 'production') {
+      model.deploymentDate = new Date();
+    }
+
+    const correlationId = uuidv4();
+    await this.dataSource.transaction(async (manager) => {
+      await manager.save(model);
+      const outbox = new OutboxPublisher(manager);
+      await outbox.publish({
+        topic: 'insurance.ai.model.approved',
+        eventType: 'AiModelApproved',
+        eventVersion: 1,
+        correlationId,
+        subject: { modelId: model.modelId },
+        payload: {
+          modelId: model.modelId,
+          modelName: model.modelName,
+          previousStatus,
+          newStatus: targetStatus,
+          approvedBy,
+          approvedAt: new Date().toISOString(),
+        },
+      });
+    });
+
+    return model;
+  }
+
+  /**
+   * Reject a model that was submitted for approval.
+   * Transitions: pending_approval → development (rejected)
+   * SoD check: the rejector must NOT be the same user as the submitter.
+   */
+  async rejectModel(modelId: string, rejectedBy: string, reason?: string): Promise<ModelInventory> {
+    const model = await this.modelRepository.findOne({ where: { modelId } });
+    if (!model) {
+      throw new BadRequestException(`Model with ID ${modelId} not found`);
+    }
+    if (model.status !== 'pending_approval') {
+      throw new BadRequestException(
+        `Model must be in 'pending_approval' status to reject. Current status: ${model.status}`,
+      );
+    }
+
+    // P1 #5 (SoD): submitter cannot be the rejector
+    if (model.submittedBy && model.submittedBy === rejectedBy) {
+      throw new ForbiddenException(
+        'Segregation of Duties violation: the submitter cannot reject their own submission',
+      );
+    }
+
+    const previousStatus = model.status;
+    model.status = 'development';
+    model.submittedBy = null;
+
+    const correlationId = uuidv4();
+    await this.dataSource.transaction(async (manager) => {
+      await manager.save(model);
+      const outbox = new OutboxPublisher(manager);
+      await outbox.publish({
+        topic: 'insurance.ai.model.rejected',
+        eventType: 'AiModelRejected',
+        eventVersion: 1,
+        correlationId,
+        subject: { modelId: model.modelId },
+        payload: {
+          modelId: model.modelId,
+          modelName: model.modelName,
+          previousStatus,
+          rejectedBy,
+          reason: reason || null,
+          rejectedAt: new Date().toISOString(),
+        },
+      });
+    });
+
+    return model;
   }
 }

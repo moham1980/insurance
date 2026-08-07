@@ -37,6 +37,10 @@ export interface UpdateModelDto {
 @ApiTags('Model Intake')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+// P1 #4: ai-governance-service is the single source of truth for the model
+// registry. This controller owns canonical model registration/lifecycle.
+// Other services (copilot-service, model-switchboard-service) must delegate
+// model registration here rather than maintaining independent registries.
 @Controller('models')
 export class ModelIntakeController {
   constructor(
@@ -236,5 +240,52 @@ export class ModelIntakeController {
   @RequirePermissions('ai:model:view')
   async getTransitionRules() {
     return this.modelLifecycleService.getTransitionRules();
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // P1 #5 (SoD): Submit / Approve / Reject endpoints
+  // State machine: development → pending_approval → staging/production (approved)
+  //                                         ↘ development (rejected)
+  // The submitter cannot be the approver (Segregation of Duties).
+  // ──────────────────────────────────────────────────────────────────────────
+
+  @Post(':modelId/submit')
+  @ApiOperation({ summary: 'Submit model for approval (SoD)' })
+  @ApiResponse({ status: 200, description: 'Model submitted for approval' })
+  @ApiBearerAuth()
+  @RequirePermissions('ai:model:submit')
+  async submitForApproval(@Param('modelId') modelId: string, @Req() req: any): Promise<ModelInventory> {
+    const actor = req?.user?.userId || req?.user?.sub || 'system';
+    return this.modelLifecycleService.submitForApproval(modelId, actor);
+  }
+
+  @Post(':modelId/approve')
+  @ApiOperation({ summary: 'Approve a submitted model (SoD — approver must differ from submitter)' })
+  @ApiResponse({ status: 200, description: 'Model approved successfully' })
+  @ApiResponse({ status: 403, description: 'SoD violation or forbidden' })
+  @ApiBearerAuth()
+  @RequirePermissions('ai:model:approve')
+  async approveModel(
+    @Param('modelId') modelId: string,
+    @Body() body: { targetStatus?: ModelStatus },
+    @Req() req: any,
+  ): Promise<ModelInventory> {
+    const actor = req?.user?.userId || req?.user?.sub || 'system';
+    return this.modelLifecycleService.approveModel(modelId, actor, body?.targetStatus || 'staging');
+  }
+
+  @Post(':modelId/reject')
+  @ApiOperation({ summary: 'Reject a submitted model (SoD — rejector must differ from submitter)' })
+  @ApiResponse({ status: 200, description: 'Model rejected' })
+  @ApiResponse({ status: 403, description: 'SoD violation or forbidden' })
+  @ApiBearerAuth()
+  @RequirePermissions('ai:model:approve')
+  async rejectModel(
+    @Param('modelId') modelId: string,
+    @Body() body: { reason?: string },
+    @Req() req: any,
+  ): Promise<ModelInventory> {
+    const actor = req?.user?.userId || req?.user?.sub || 'system';
+    return this.modelLifecycleService.rejectModel(modelId, actor, body?.reason);
   }
 }

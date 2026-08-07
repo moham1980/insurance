@@ -94,7 +94,9 @@ function createService() {
     recoveriesRepo,
     ticketsRepo,
     ticketMessagesRepo,
-    ticketAttachmentsRepo
+    ticketAttachmentsRepo,
+    { create: jest.fn().mockReturnValue({}), save: jest.fn().mockResolvedValue({}), find: jest.fn().mockResolvedValue([]) } as any, // AuditLog repo (P1 #10)
+    { create: jest.fn().mockReturnValue({}), save: jest.fn().mockResolvedValue({}), find: jest.fn().mockResolvedValue([]) } as any, // EntityVersion repo (P1 #10)
   );
 
   return { service, treatiesRepo, cessionsRepo, statementsRepo };

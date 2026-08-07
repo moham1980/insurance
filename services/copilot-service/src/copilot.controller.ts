@@ -179,6 +179,11 @@ export class CopilotController {
   }
 
   // Model Inventory endpoints
+  // P1 #4: ai-governance-service is the single source of truth for the model
+  // registry. This endpoint delegates the canonical registration to
+  // ai-governance (POST /models) and keeps a local mirror. Prefer calling
+  // ai-governance directly for new integrations; this endpoint is retained
+  // for backward compatibility.
   @Post('/copilot/models/register')
   @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
   @RequirePermissions('copilot:manage')

@@ -7,12 +7,15 @@ import { OcrService, OcrProvider } from './ocr/ocr.service';
 import { auditLogger } from './audit.logger';
 import { AbacGuard } from './abac.guard';
 import { TenantGuard } from './tenant.guard';
+import { OcrRateLimitGuard } from './ocr-rate-limit.guard';
+import { AsyncJobService } from './async-job.service'; // P2 #2: async processing
 
 @Controller()
 export class DocumentAiController {
   constructor(
     private readonly documentAiService: DocumentAiService,
     private readonly ocrService: OcrService,
+    private readonly asyncJobService: AsyncJobService,
   ) {}
 
   private getCorrelationId(headers: Record<string, any>): string {
@@ -289,6 +292,13 @@ export class DocumentAiController {
     }
   }
 
+  // ── Boundary: advanced (AI/OCR-based) classification ──────────────
+  // This endpoint performs advanced classification using OCR-extracted text
+  // and keyword/AI scoring. It is the AI/OCR counterpart to the simple
+  // mimeType-based classification in document-service
+  // (POST /documents/:documentId/classify). The two classify endpoints are
+  // intentionally distinct: document-service = simple/fast (mimeType),
+  // document-ai-service = advanced/AI (OCR text + keywords). (P1 #3)
   @Post('/document-ai/documents/:documentId/classify')
   @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
   @RequirePermissions('document_ai:ocr:classify')
@@ -327,7 +337,7 @@ export class DocumentAiController {
 
   // Direct OCR extract — inline extraction without creating a job
   @Post('/api/v1/ocr/extract')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard, OcrRateLimitGuard)
   @RequirePermissions('document_ai:ocr:extract')
   async extractOcr(@Body() body: any, @Req() req: any, @Headers() headers: Record<string, any>) {
     const correlationId = String(req?.correlationId || this.getCorrelationId(headers));
@@ -339,8 +349,16 @@ export class DocumentAiController {
       return { success: false, error: { code: 'VALIDATION_ERROR', message: 'fileBase64 is required' }, correlationId };
     }
 
+    // File size validation — reject files larger than the configured max size
+    const maxFileSizeBytes = parseInt(process.env.OCR_MAX_FILE_SIZE_BYTES || '10485760', 10); // default 10MB
+    const buffer = Buffer.from(body.fileBase64, 'base64');
+    if (buffer.length > maxFileSizeBytes) {
+      const maxMB = (maxFileSizeBytes / (1024 * 1024)).toFixed(1);
+      auditLogger.warn('document_ai.ocr.extract.file_too_large', { correlationId, action: 'document_ai:ocr:extract', fileSize: buffer.length, maxSize: maxFileSizeBytes });
+      return { success: false, error: { code: 'FILE_TOO_LARGE', message: `File size exceeds maximum allowed size of ${maxMB}MB` }, correlationId };
+    }
+
     try {
-      const buffer = Buffer.from(body.fileBase64, 'base64');
       const mimeType = body.mimeType || 'image/png';
       const provider = (body.provider as OcrProvider) || OcrProvider.TESSERACT;
       const language = body.language || 'fas+eng';
@@ -352,5 +370,53 @@ export class DocumentAiController {
       auditLogger.error('document_ai.ocr.extract.failed', err, { correlationId, action: 'document_ai:ocr:extract' });
       return { success: false, error: { code: 'OCR_ERROR', message: e.message }, correlationId };
     }
+  }
+
+  // P2 #2: Async OCR extract — create a job and return jobId immediately
+  @Post('/api/v1/ocr/extract/async')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard, OcrRateLimitGuard)
+  @RequirePermissions('document_ai:ocr:extract')
+  async extractOcrAsync(@Body() body: any, @Req() req: any, @Headers() headers: Record<string, any>) {
+    const correlationId = String(req?.correlationId || this.getCorrelationId(headers));
+    const tenantId = req?.user?.tenantId as string | undefined;
+    const actorUserId = req?.user?.userId as string | undefined;
+    auditLogger.info('document_ai.ocr.extract.async.request', { correlationId, action: 'document_ai:ocr:extract', tenantId, actorUserId });
+
+    if (!body?.fileBase64) {
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'fileBase64 is required' }, correlationId };
+    }
+
+    const maxFileSizeBytes = parseInt(process.env.OCR_MAX_FILE_SIZE_BYTES || '10485760', 10);
+    const buffer = Buffer.from(body.fileBase64, 'base64');
+    if (buffer.length > maxFileSizeBytes) {
+      const maxMB = (maxFileSizeBytes / (1024 * 1024)).toFixed(1);
+      return { success: false, error: { code: 'FILE_TOO_LARGE', message: `File size exceeds maximum allowed size of ${maxMB}MB` }, correlationId };
+    }
+
+    const mimeType = body.mimeType || 'image/png';
+    const provider = (body.provider as OcrProvider) || OcrProvider.TESSERACT;
+    const language = body.language || 'fas+eng';
+
+    const job = this.asyncJobService.createJob();
+    this.asyncJobService.runJob(job.jobId, async () => {
+      return this.ocrService.extractWithFallback(buffer, mimeType, provider, language);
+    }).catch((err) => {
+      auditLogger.error('document_ai.ocr.extract.async.failed', err as Error, { correlationId, jobId: job.jobId });
+    });
+
+    return { success: true, data: { jobId: job.jobId, status: job.status }, correlationId };
+  }
+
+  // P2 #2: Get async job status
+  @Get('/api/v1/jobs/:jobId')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @RequirePermissions('document_ai:jobs:view')
+  async getAsyncJob(@Param('jobId') jobId: string, @Req() req: any, @Headers() headers: Record<string, any>) {
+    const correlationId = String(req?.correlationId || this.getCorrelationId(headers));
+    const job = this.asyncJobService.getJob(jobId);
+    if (!job) {
+      return { success: false, error: { code: 'NOT_FOUND', message: 'Job not found' }, correlationId };
+    }
+    return { success: true, data: job, correlationId };
   }
 }

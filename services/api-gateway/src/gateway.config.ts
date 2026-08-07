@@ -113,7 +113,7 @@ export const PUBLIC_ROUTES: PublicRoute[] = [
   { method: 'GET', path: '/health' },
   { method: 'GET', path: '/gateway/health' },
   { method: 'GET', path: '/gateway/health/upstreams' },
-  { method: 'GET', path: '/gateway/health/deep' },
+  // NOTE: /gateway/health/deep removed from public routes — requires admin auth (AdminGuard)
 ];
 
 /** Convert a public route path template to a regex for matching. */
@@ -215,7 +215,11 @@ export function resolveTenantFromHost(host?: string): { tenant: BrandTenant; mat
 }
 
 export function getGatewaySignatureSecret(): string {
-  return process.env.GATEWAY_SIGNATURE_SECRET || 'default-gateway-secret-do-not-use-in-production';
+  const secret = process.env.GATEWAY_SIGNATURE_SECRET;
+  if (!secret) {
+    throw new Error('GATEWAY_SIGNATURE_SECRET environment variable is required — refusing to start with insecure default');
+  }
+  return secret;
 }
 
 export function signInternalContext(payload: Record<string, string>): string {

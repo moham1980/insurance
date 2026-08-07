@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConsumedEvent, DeadLetterEvent, OutboxEvent } from '@insurance/shared';
 import { EcosystemJwtGuard } from './ecosystem-jwt.guard';
 import { PermissionsGuard } from './permissions.guard';
+import { AbacGuard } from './abac.guard';
 import { ReinsuranceController } from './reinsurance.controller';
 import { ReinsuranceService } from './reinsurance.service';
 import { PolicyConsumer } from './policy.consumer';
@@ -15,6 +16,8 @@ import { ReClaimRecovery } from './entities/ReClaimRecovery';
 import { ReTicket } from './entities/ReTicket';
 import { ReTicketMessage } from './entities/ReTicketMessage';
 import { ReTicketAttachment } from './entities/ReTicketAttachment';
+import { AuditLog } from './entities/AuditLog'; // P1 #10
+import { EntityVersion } from './entities/EntityVersion'; // P1 #10
 import { HealthController } from './health.controller';
 
 import { TenantGuard } from './tenant.guard';
@@ -37,6 +40,8 @@ import { TenantGuard } from './tenant.guard';
         ReTicket,
         ReTicketMessage,
         ReTicketAttachment,
+        AuditLog,
+        EntityVersion,
         OutboxEvent,
         ConsumedEvent,
         DeadLetterEvent,
@@ -52,12 +57,14 @@ import { TenantGuard } from './tenant.guard';
       ReTicket,
       ReTicketMessage,
       ReTicketAttachment,
+      AuditLog,
+      EntityVersion,
       OutboxEvent,
       ConsumedEvent,
       DeadLetterEvent,
     ]),
   ],
   controllers: [ReinsuranceController, HealthController],
-  providers: [TenantGuard, Reflector, EcosystemJwtGuard, ReinsuranceService, PolicyConsumer, PermissionsGuard],
+  providers: [TenantGuard, Reflector, EcosystemJwtGuard, ReinsuranceService, PolicyConsumer, PermissionsGuard, AbacGuard],
 })
 export class AppModule {}

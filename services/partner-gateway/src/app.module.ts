@@ -15,7 +15,10 @@ import { MtlsConfigService } from './tls/mtls-config';
 import { PartnerHealthCheckService } from './monitoring/partner-health-check.service';
 import { PartnerAuthService } from './partner-auth.service';
 import { RateLimitService } from './rate-limit.service';
+import { PartnerRateLimitGuard } from './partner-rate-limit.guard';
 import { FederationSignatureGuard } from './federation-signature.guard';
+import { JwtAuthGuard } from './jwt-auth.guard';
+import { AdminGuard } from './admin.guard';
 import { OutboxEvent, TracingInterceptor } from '@insurance/shared';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 
@@ -46,7 +49,10 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
     PartnerHealthCheckService,
     PartnerAuthService,
     RateLimitService,
+    PartnerRateLimitGuard,
     FederationSignatureGuard,
+    JwtAuthGuard,
+    AdminGuard,
     { provide: APP_INTERCEPTOR, useClass: TracingInterceptor },
   ],
   exports: [PartnerGatewayService, CertificateService, ReplayProtectionService, TokenExchangeProxyService, MtlsConfigService, PartnerHealthCheckService, PartnerAuthService, RateLimitService],

@@ -382,7 +382,10 @@ export class Customer360Service {
    * Get customer consents from local consent store
    */
   private async getConsent(customerId: string): Promise<ConsentRecord[]> {
-    return this.consentDbStore.list(customerId);
+    const result = await this.consentDbStore.list(customerId);
+    // P1 #8: consentDbStore.list may return a paginated result when cursor is used;
+    // for this internal call (no cursor), it returns ConsentRecord[].
+    return Array.isArray(result) ? result : (result as any).items ?? [];
   }
 
   /**
@@ -443,8 +446,8 @@ export class Customer360Service {
     };
   }
 
-  async listConsents(customerId: string): Promise<ConsentRecord[]> {
-    return this.consentDbStore.list(customerId);
+  async listConsents(customerId: string, tenantId?: string, cursor?: string, limit?: number): Promise<ConsentRecord[] | { items: ConsentRecord[]; hasNext: boolean; nextCursor: string | null }> {
+    return this.consentDbStore.list(customerId, tenantId, cursor, limit);
   }
 
   async recordConsent(params: {
@@ -505,8 +508,8 @@ export class Customer360Service {
     return saved;
   }
 
-  async revokeConsent(customerId: string, consentId: string, reason?: string): Promise<ConsentRecord | null> {
-    const revoked = await this.consentDbStore.revoke(customerId, consentId, reason);
+  async revokeConsent(customerId: string, consentId: string, reason?: string, tenantId?: string): Promise<ConsentRecord | null> {
+    const revoked = await this.consentDbStore.revoke(customerId, consentId, reason, tenantId);
 
     if (revoked) {
       // Publish ConsentRevoked event via Outbox (transactional)
@@ -537,8 +540,8 @@ export class Customer360Service {
     return revoked;
   }
 
-  async checkConsent(customerId: string, purpose: string): Promise<{ purpose: string; granted: boolean; consent: ConsentRecord | null }> {
-    return this.consentDbStore.check(customerId, purpose);
+  async checkConsent(customerId: string, purpose: string, tenantId?: string): Promise<{ purpose: string; granted: boolean; consent: ConsentRecord | null }> {
+    return this.consentDbStore.check(customerId, purpose, tenantId);
   }
 
   /**

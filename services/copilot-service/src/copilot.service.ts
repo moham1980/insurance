@@ -13,6 +13,7 @@ import { LLMService, type LLMProvider } from './llm.service';
 import { EcosystemAiProvider } from './ecosystem-ai.provider';
 import { NbaEngineService, NbaAction } from './nba/nba.service';
 import { NbaActionLog } from './entities/NbaActionLog';
+import { redactPiiIfEnabled, isPiiRedactionEnabled, type PiiRedactionResult } from './pii-redactor';
 
 @Injectable()
 export class CopilotService {
@@ -193,6 +194,27 @@ export class CopilotService {
     return { text: out, redacted, spans, confidence };
   }
 
+  /**
+   * Redact PII from input text before sending to an external AI provider.
+   * Respects the COPILOT_PII_REDACTION env flag (default: true in production, false in test).
+   * Logs an audit entry with the count of redacted items (without original content).
+   */
+  private redactPiiInput(text: string, context?: { method: string; correlationId?: string }): string {
+    if (!isPiiRedactionEnabled()) {
+      return text;
+    }
+    const result: PiiRedactionResult = redactPiiIfEnabled(text);
+    if (result.redacted) {
+      this.logger.info('PII redacted from AI input', {
+        method: context?.method || 'unknown',
+        correlationId: context?.correlationId,
+        piiRedactionCount: result.count,
+        piiRedactionByType: result.byType,
+      });
+    }
+    return result.text;
+  }
+
   private buildSourceRefs(contextType: 'claim' | 'document' | 'policy' | 'complaint', params: { claim?: ClaimEntity; doc?: DocumentEntity; docs?: DocumentEntity[] }): { type: string; id: string; field?: string }[] {
     const refs: { type: string; id: string; field?: string }[] = [];
     if (params.claim) {
@@ -264,7 +286,55 @@ export class CopilotService {
     return this.llmService.getAvailableProviders();
   }
 
+  // P1 #4: Delegate canonical model registration to ai-governance-service,
+  // which is the single source of truth for the model registry. Failures are
+  // logged but do not block the local mirror write (best-effort delegation).
+  private async delegateModelRegistrationToGovernance(params: {
+    modelName: string;
+    modelType: ModelInventory['modelType'];
+    version: string;
+    provider?: string;
+    description?: string;
+    parameters?: any;
+    riskLevel?: ModelInventory['riskLevel'];
+    trainingDataSummary?: string;
+    performanceMetrics?: any;
+    tags?: string;
+    createdBy?: string;
+    correlationId?: string;
+  }): Promise<void> {
+    const base = process.env.AI_GOVERNANCE_URL || 'http://localhost:18036';
+    const url = `${base}/models`;
+    try {
+      const res = await this.httpPostJson(url, {
+        modelName: params.modelName,
+        modelType: params.modelType,
+        version: params.version,
+        provider: params.provider,
+        description: params.description,
+        parameters: params.parameters,
+        trainingDataSummary: params.trainingDataSummary,
+        performanceMetrics: params.performanceMetrics,
+        tags: params.tags,
+      });
+      this.logger.info('copilot.models.register.delegated_to_governance', {
+        modelId: res?.modelId,
+        modelName: params.modelName,
+      });
+    } catch (e: any) {
+      this.logger.warn('copilot.models.register.governance_delegation_failed', {
+        message: e?.message,
+        modelName: params.modelName,
+      });
+    }
+  }
+
   // Model Inventory methods
+  // P1 #4: ai-governance-service is the single source of truth for the model
+  // registry. This method delegates the canonical registration to
+  // ai-governance (POST /models) and keeps a local mirror record for
+  // copilot-specific lookups. The independent local-only registration path is
+  // deprecated; callers should treat ai-governance as the owner.
   async registerModel(params: {
     modelName: string;
     modelType: ModelInventory['modelType'];
@@ -279,6 +349,10 @@ export class CopilotService {
     createdBy?: string;
     correlationId?: string;
   }): Promise<ModelInventory> {
+    // Delegate canonical model registration to ai-governance-service (P1 #4).
+    // ai-governance owns the model registry; we mirror locally below.
+    await this.delegateModelRegistrationToGovernance(params);
+
     return await this.dataSource.transaction(async (manager) => {
       const outbox = new OutboxPublisher(manager);
       const model = manager.create(ModelInventory, {
@@ -717,7 +791,7 @@ export class CopilotService {
       const providers = params.provider ? [params.provider] : this.llmService.getAvailableProviders();
       const response = await this.llmService.generateWithFallback(
         providers,
-        prompt,
+        this.redactPiiInput(prompt, { method: 'assistUnderwriting', correlationId: params.correlationId }),
         {
           systemPrompt: 'شما یک کارشناس خبره بیمه هستید. لطفاً توصیه‌های حرفه‌ای و دقیق بدهید.',
           maxTokens: 1500,
@@ -794,7 +868,7 @@ export class CopilotService {
       const providers = params.provider ? [params.provider] : this.llmService.getAvailableProviders();
       const response = await this.llmService.generateWithFallback(
         providers,
-        `به عنوان دستیار شکایات بیمه، بر اساس اطلاعات زیر شکایت را دسته‌بندی و اولویت‌بندی کن:\n\n${context}\n\nپاسخ را به زبان فارسی بده و شامل موارد زیر باشد:\n1. دسته‌بندی شکایت (مثلاً: فنی، مالی، رفتاری، عملیاتی)\n2. اولویت (کم/متوسط/زیاد/فوری)\n3. اقدامات پیشنهادی\n4. زمان تخمینی حل`,
+        this.redactPiiInput(`به عنوان دستیار شکایات بیمه، بر اساس اطلاعات زیر شکایت را دسته‌بندی و اولویت‌بندی کن:\n\n${context}\n\nپاسخ را به زبان فارسی بده و شامل موارد زیر باشد:\n1. دسته‌بندی شکایت (مثلاً: فنی، مالی، رفتاری، عملیاتی)\n2. اولویت (کم/متوسط/زیاد/فوری)\n3. اقدامات پیشنهادی\n4. زمان تخمینی حل`, { method: 'triageComplaint', correlationId: params.correlationId }),
         {
           systemPrompt: 'شما یک کارشناس خبره شکایات بیمه هستید. لطفاً دسته‌بندی و اولویت‌بندی دقیق و حرفه‌ای بدهید.',
           maxTokens: 1500,
@@ -869,7 +943,7 @@ export class CopilotService {
       const providers = params.provider ? [params.provider] : this.llmService.getAvailableProviders();
       const response = await this.llmService.generateWithFallback(
         providers,
-        `به عنوان کارشناس بازیابی خسارت بیمه، بر اساس اطلاعات زیر فرصت‌های بازیابی را شناسایی کن:\n\n${context}\n\nپاسخ را به زبان فارسی بده و شامل موارد زیر باشد:\n1. فرصت‌های بازیافت (subrogation، third party، salvage)\n2. مبلغ تخمینی بازیافت\n3. اقدامات پیشنهادی\n4. وجود ادعای شخص ثالث`,
+        this.redactPiiInput(`به عنوان کارشناس بازیابی خسارت بیمه، بر اساس اطلاعات زیر فرصت‌های بازیابی را شناسایی کن:\n\n${context}\n\nپاسخ را به زبان فارسی بده و شامل موارد زیر باشد:\n1. فرصت‌های بازیافت (subrogation، third party، salvage)\n2. مبلغ تخمینی بازیافت\n3. اقدامات پیشنهادی\n4. وجود ادعای شخص ثالث`, { method: 'discoverRecovery', correlationId: params.correlationId }),
         {
           systemPrompt: 'شما یک کارشناس خبره بازیافت خسارت بیمه هستید. لطفاً تحلیل دقیق و حرفه‌ای بدهید.',
           maxTokens: 1500,
@@ -944,7 +1018,7 @@ export class CopilotService {
       const providers = params.provider ? [params.provider] : this.llmService.getAvailableProviders();
       const response = await this.llmService.generateWithFallback(
         providers,
-        `به عنوان کارشناس قیمت‌گذاری بیمه، بر اساس اطلاعات زیر قیمت پیشنهادی بده:\n\n${context}\n\nپاسخ را به زبان فارسی بده و شامل موارد زیر باشد:\n1. حق بیمه پیشنهادی\n2. عوامل مؤثر در قیمت‌گذاری\n3. تنظیم ریسک\n4. موقعیت رقابتی`,
+        this.redactPiiInput(`به عنوان کارشناس قیمت‌گذاری بیمه، بر اساس اطلاعات زیر قیمت پیشنهادی بده:\n\n${context}\n\nپاسخ را به زبان فارسی بده و شامل موارد زیر باشد:\n1. حق بیمه پیشنهادی\n2. عوامل مؤثر در قیمت‌گذاری\n3. تنظیم ریسک\n4. موقعیت رقابتی`, { method: 'assistPricing', correlationId: params.correlationId }),
         {
           systemPrompt: 'شما یک کارشناس خبره قیمت‌گذاری بیمه هستید. لطفاً تحلیل دقیق و حرفه‌ای بدهید.',
           maxTokens: 1500,
@@ -1018,7 +1092,7 @@ export class CopilotService {
       const providers = params.provider ? [params.provider] : this.llmService.getAvailableProviders();
       const response = await this.llmService.generateWithFallback(
         providers,
-        `به عنوان دستیار خودخدمت مشتریان بیمه، به سوال مشتری پاسخ بده:\n\n${context}\n\nپاسخ را به زبان فارسی بده و شامل موارد زیر باشد:\n1. پاسخ مستقیم به سوال\n2. اقدامات پیشنهادی\n3. بیمه‌نامه‌های مرتبط\n4. سوالات متداول پیشنهادی`,
+        this.redactPiiInput(`به عنوان دستیار خودخدمت مشتریان بیمه، به سوال مشتری پاسخ بده:\n\n${context}\n\nپاسخ را به زبان فارسی بده و شامل موارد زیر باشد:\n1. پاسخ مستقیم به سوال\n2. اقدامات پیشنهادی\n3. بیمه‌نامه‌های مرتبط\n4. سوالات متداول پیشنهادی`, { method: 'assistSelfService', correlationId: params.correlationId }),
         {
           systemPrompt: 'شما یک دستیار خودخدمت حرفه‌ای بیمه هستید. لطفاً پاسخ‌های دقیق، دوستانه و مفید بدهید.',
           maxTokens: 1500,
@@ -1074,11 +1148,13 @@ export class CopilotService {
   }
 
   private async generateLLMSummary(context: string, contextType: 'claim' | 'document', provider?: LLMProvider): Promise<{ text: string; model: string; provider: LLMProvider }> {
+    // Redact PII from context before sending to any external AI provider
+    const safeContext = this.redactPiiInput(context, { method: 'generateLLMSummary' });
     if (this.ecosystemAi.isEnabled()) {
       try {
         const ecoResponse = await this.ecosystemAi.consult({
-          query: `خلاصه ${contextType === 'claim' ? 'خسارت' : 'سند'} زیر را به فارسی ارائه بده:\n\n${context}`,
-          context,
+          query: this.redactPiiInput(`خلاصه ${contextType === 'claim' ? 'خسارت' : 'سند'} زیر را به فارسی ارائه بده:\n\n${safeContext}`, { method: 'generateLLMSummary' }),
+          context: safeContext,
           contextType,
           systemPrompt: 'You are an expert insurance analyst. Provide a concise summary in Persian (Farsi).',
           maxTokens: 1000,
@@ -1094,7 +1170,7 @@ export class CopilotService {
       }
     }
     try {
-      const response = await this.llmService.generateSummary(context, contextType, provider);
+      const response = await this.llmService.generateSummary(safeContext, contextType, provider);
       return {
         text: response.text,
         model: response.model,
@@ -1446,12 +1522,16 @@ export class CopilotService {
         context = 'Context not available for this resource type in this implementation.';
       }
 
+      // Redact PII from context and question before sending to any external AI provider
+      const safeContext = this.redactPiiInput(context, { method: 'askQuestion', correlationId: params.correlationId });
+      const safeQuestion = this.redactPiiInput(params.question, { method: 'askQuestion', correlationId: params.correlationId });
+
       let response: { text: string; model: string; provider: string };
       if (this.ecosystemAi.isEnabled()) {
         try {
           const ecoResponse = await this.ecosystemAi.consult({
-            query: params.question,
-            context,
+            query: safeQuestion,
+            context: safeContext,
             contextType: params.contextType as any,
             systemPrompt: 'You are an expert insurance analyst. Answer the question in Persian (Farsi) based on the context provided.',
             maxTokens: 1500,
@@ -1461,11 +1541,11 @@ export class CopilotService {
           response = { text: ecoResponse.text, model: ecoResponse.model, provider: 'ecosystem' };
         } catch (e: any) {
           this.logger.warn(`Ecosystem AI QA failed, falling back to local LLM: ${e.message}`);
-          const llmResponse = await this.llmService.answerQuestion(context, params.question, params.contextType, params.provider);
+          const llmResponse = await this.llmService.answerQuestion(safeContext, safeQuestion, params.contextType, params.provider);
           response = { text: llmResponse.text, model: llmResponse.model, provider: llmResponse.provider };
         }
       } else {
-        const llmResponse = await this.llmService.answerQuestion(context, params.question, params.contextType, params.provider);
+        const llmResponse = await this.llmService.answerQuestion(safeContext, safeQuestion, params.contextType, params.provider);
         response = { text: llmResponse.text, model: llmResponse.model, provider: llmResponse.provider };
       }
       const redacted = this.redactSensitive(response.text);
@@ -1707,9 +1787,13 @@ export class CopilotService {
     }
 
     try {
+      // Redact PII from query and context before sending to external AI provider
+      const safeQuery = this.redactPiiInput(params.query, { method: 'ecosystemConsult', correlationId: params.correlationId });
+      const safeContext = params.context ? this.redactPiiInput(params.context, { method: 'ecosystemConsult', correlationId: params.correlationId }) : params.context;
+
       const response = await this.ecosystemAi.consult({
-        query: params.query,
-        context: params.context,
+        query: safeQuery,
+        context: safeContext,
         contextType: params.contextType,
         correlationId: params.correlationId,
         tenantId: params.tenantId,
@@ -2042,11 +2126,15 @@ Rules:
 6. Use proper insurance terminology in Persian`;
 
     try {
+      // Redact PII from query and context before sending to any external AI provider
+      const safeQuery = this.redactPiiInput(params.query, { method: 'ragServiceRetrieveAndGenerate', correlationId: params.correlationId });
+      const safeContext = params.context ? this.redactPiiInput(params.context, { method: 'ragServiceRetrieveAndGenerate', correlationId: params.correlationId }) : params.context;
+
       // Try ecosystem AI first
       if (this.ecosystemAi.isEnabled()) {
         const ecoResponse = await this.ecosystemAi.consult({
-          query: params.query,
-          context: params.context,
+          query: safeQuery,
+          context: safeContext,
           contextType: params.contextType as any,
           systemPrompt,
           maxTokens: 1500,
@@ -2083,9 +2171,12 @@ Rules:
         provider: 'none',
       };
     }
+    // Redact PII in the fallback prompt as well
+    const safeQuery = this.redactPiiInput(params.query, { method: 'ragServiceRetrieveAndGenerate', correlationId: params.correlationId });
+    const safeContext = params.context ? this.redactPiiInput(params.context, { method: 'ragServiceRetrieveAndGenerate', correlationId: params.correlationId }) : params.context;
     const llmResponse = await this.llmService.generateWithFallback(
       providers,
-      params.context ? `Previous conversation:\n${params.context}\n\nCustomer question: ${params.query}` : params.query,
+      safeContext ? `Previous conversation:\n${safeContext}\n\nCustomer question: ${safeQuery}` : safeQuery,
       {
         systemPrompt,
         maxTokens: 1500,

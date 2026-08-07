@@ -120,6 +120,35 @@ class OutboxRelay {
   private async processBatch(): Promise<void> {
     const { batchSize, maxAttempts } = this.config;
 
+    // Tenant isolation: fetch distinct tenants with pending events so that each
+    // tenant is processed independently. This prevents a noisy tenant from
+    // monopolizing the batch and delaying events from other tenants (data
+    // leakage / fairness issue).
+    const tenants = (await this.dataSource.query(
+      `
+      SELECT DISTINCT tenant_id
+      FROM outbox_events
+      WHERE status = 'pending'
+        AND attempt_count < $1
+      `,
+      [maxAttempts],
+    )) as Array<{ tenant_id: string }>;
+
+    if (!Array.isArray(tenants) || tenants.length === 0) return;
+
+    // Distribute the batch size fairly across tenants.
+    const perTenantLimit = Math.max(1, Math.ceil(batchSize / tenants.length));
+
+    for (const { tenant_id } of tenants) {
+      await this.processTenantBatch(tenant_id, perTenantLimit, maxAttempts);
+    }
+  }
+
+  private async processTenantBatch(
+    tenantId: string,
+    limit: number,
+    maxAttempts: number,
+  ): Promise<void> {
     await this.dataSource.transaction(async (manager) => {
       const rows = (await manager.query(
         `
@@ -127,11 +156,12 @@ class OutboxRelay {
         FROM outbox_events
         WHERE status = 'pending'
           AND attempt_count < $1
+          AND tenant_id = $2
         ORDER BY occurred_at ASC
         FOR UPDATE SKIP LOCKED
-        LIMIT $2
+        LIMIT $3
         `,
-        [maxAttempts, batchSize],
+        [maxAttempts, tenantId, limit],
       )) as Array<{ id: string }>;
 
       if (!Array.isArray(rows) || rows.length === 0) return;
@@ -158,7 +188,7 @@ class OutboxRelay {
       const subject = event.subjectJson as Record<string, string>;
       const partitionKey = subject.claimId || subject.policyId || subject.fraudCaseId || event.id;
 
-      const tenantId = (event.subjectJson as any)?.tenantId as string | undefined;
+      const tenantId = event.tenantId || (event.subjectJson as any)?.tenantId as string | undefined;
       const traceparent = (event.subjectJson as any)?.traceparent as string | undefined;
 
       if (lagMs > 60_000) {
@@ -202,6 +232,7 @@ class OutboxRelay {
         topic: event.topic,
         lagMs,
         correlationId: event.correlationId,
+        tenantId: event.tenantId,
       });
     } catch (e: any) {
       const attemptCount = (event.attemptCount || 0) + 1;
@@ -222,7 +253,7 @@ class OutboxRelay {
       );
 
       if (status === 'failed') {
-        this.logger.error('Outbox event permanently failed', e as Error, { eventId: event.id, topic: event.topic });
+        this.logger.error('Outbox event permanently failed', e as Error, { eventId: event.id, topic: event.topic, tenantId: event.tenantId });
 
         if (this.config.dlqOnPermanentFailure) {
           try {
@@ -265,12 +296,32 @@ class OutboxRelay {
 }
 
 // Main
+// Validate that DB_PASSWORD is explicitly provided — refuse to start with an insecure default.
+// Credential management should use Kubernetes secrets or HashiCorp Vault.
+const dbPassword = process.env.DB_PASSWORD;
+if (!dbPassword) {
+  const startupLogger = createLogger({
+    serviceName: 'outbox-relay',
+    prettyPrint: process.env.NODE_ENV !== 'production',
+  });
+  startupLogger.error('DB_PASSWORD environment variable is required — refusing to start with insecure default. Use Kubernetes secrets or HashiCorp Vault for credential management.');
+  throw new Error('DB_PASSWORD environment variable is required — refusing to start with insecure default');
+}
+
+{
+  const startupLogger = createLogger({
+    serviceName: 'outbox-relay',
+    prettyPrint: process.env.NODE_ENV !== 'production',
+  });
+  startupLogger.warn('Security reminder: DB credentials should be managed via Kubernetes secrets or HashiCorp Vault, not plaintext environment variables.');
+}
+
 const relay = new OutboxRelay({
   dbConfig: {
     host: process.env.DB_HOST || 'localhost',
     port: parseInt(process.env.DB_PORT || '5432', 10),
     username: process.env.DB_USER || 'postgres',
-    password: process.env.DB_PASSWORD || 'postgres',
+    password: dbPassword,
     database: process.env.DB_NAME || 'postgres',
   },
   kafkaConfig: {

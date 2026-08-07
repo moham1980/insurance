@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Headers, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Idempotent } from '@insurance/shared';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { PermissionsGuard } from './permissions.guard';
 import { RequirePermissions } from './permissions.decorator';
@@ -7,6 +8,7 @@ import { ComplaintsService } from './complaints.service';
 import type { ComplaintStatus, ComplaintType } from './entities/Complaint';
 import { AbacGuard } from './abac.guard';
 import { TenantGuard } from './tenant.guard';
+import { ComplaintOtpRateLimitGuard } from './complaint-otp-rate-limit.guard';
 
 @Controller()
 export class ComplaintsController {
@@ -334,7 +336,7 @@ export class ComplaintsController {
   }
 
   @Post('/complaints/:complaintId/mobile/otp/request')
-  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard, ComplaintOtpRateLimitGuard)
   @RequirePermissions('complaints:otp_request')
   async requestMobileOtp(@Req() req: any, @Headers() headers: Record<string, any>, @Param('complaintId') complaintId: string) {
     const correlationId = this.getCorrelationId(headers);
@@ -635,6 +637,7 @@ export class ComplaintsController {
   @Post('/complaints/:complaintId/central-insurance/send')
   @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
   @RequirePermissions('complaints:manage')
+  @Idempotent({ ttl: 86400 })
   async sendToCentralInsurance(
     @Headers() headers: Record<string, any>,
     @Req() req: any,

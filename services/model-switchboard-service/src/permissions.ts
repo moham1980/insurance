@@ -6,10 +6,11 @@ export type PermissionKey =
   | 'switchboard:route'
   | 'switchboard:record_usage'
   | 'switchboard:view_usage'
-  | 'switchboard:admin';
+  | 'switchboard:admin'
+  | 'switchboard:governance:skip';
 
 const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
-  insurer_admin: ['switchboard:manage', 'switchboard:view', 'switchboard:manage_models', 'switchboard:manage_policies', 'switchboard:route', 'switchboard:record_usage', 'switchboard:view_usage', 'switchboard:admin'],
+  insurer_admin: ['switchboard:manage', 'switchboard:view', 'switchboard:manage_models', 'switchboard:manage_policies', 'switchboard:route', 'switchboard:record_usage', 'switchboard:view_usage', 'switchboard:admin', 'switchboard:governance:skip'],
   head_office_ops: ['switchboard:manage', 'switchboard:view', 'switchboard:manage_models', 'switchboard:manage_policies', 'switchboard:route', 'switchboard:view_usage'],
   underwriter: ['switchboard:view', 'switchboard:route', 'switchboard:view_usage'],
   branch_manager: ['switchboard:view', 'switchboard:route', 'switchboard:view_usage'],

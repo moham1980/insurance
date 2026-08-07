@@ -3,8 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import client from 'prom-client';
 import cron from 'node-cron';
-import { createLogger, Logger } from '@insurance/shared';
-import { Metric, SLO, Alert } from './entities/MonitoringEntities';
+import { createLogger, Logger, applyCursorPagination } from '@insurance/shared';
+import { Metric, SLO, Alert, AlertSilence, DashboardConfig } from './entities/MonitoringEntities';
 import { mapComplaintSlaBreachToSeverity } from './alerts.policy';
 
 export interface MetricPayload {
@@ -31,7 +31,9 @@ export class MonitoringService implements OnModuleInit {
   constructor(
     @InjectRepository(Metric) private readonly metricRepo: Repository<Metric>,
     @InjectRepository(SLO) private readonly sloRepo: Repository<SLO>,
-    @InjectRepository(Alert) private readonly alertRepo: Repository<Alert>
+    @InjectRepository(Alert) private readonly alertRepo: Repository<Alert>,
+    @InjectRepository(AlertSilence) private readonly alertSilenceRepo: Repository<AlertSilence>, // P2 #8
+    @InjectRepository(DashboardConfig) private readonly dashboardConfigRepo: Repository<DashboardConfig>, // P2 #5
   ) {
     this.logger = createLogger({
       serviceName: 'monitoring-service',
@@ -58,10 +60,18 @@ export class MonitoringService implements OnModuleInit {
     const elapsedHours = typeof p?.elapsedHours === 'number' && Number.isFinite(p.elapsedHours) ? p.elapsedHours : null;
     const severity = mapComplaintSlaBreachToSeverity({ elapsedHours });
 
+    const alertName = `complaints_sla_breached_${String(complaintId)}`;
+
+    // P2 #8: skip alert creation if the alert is silenced
+    if (await this.isAlertSilenced(alertName)) {
+      this.logger.info('Alert silenced, skipping creation', { alertName, complaintId: String(complaintId) });
+      return;
+    }
+
     const existingAlert = await this.alertRepo.findOne({
       where: {
         serviceName: 'complaints-service',
-        alertName: `complaints_sla_breached_${String(complaintId)}`,
+        alertName,
         status: 'firing',
       } as any,
     });
@@ -70,7 +80,7 @@ export class MonitoringService implements OnModuleInit {
     const alert = this.alertRepo.create({
       sloId: null,
       serviceName: 'complaints-service',
-      alertName: `complaints_sla_breached_${String(complaintId)}`,
+      alertName,
       description: `Complaint SLA breached. complaintId=${String(complaintId)} elapsedHours=${elapsedHours ?? 'n/a'} correlationId=${params.correlationId}`,
       severity,
       status: 'firing',
@@ -150,10 +160,14 @@ export class MonitoringService implements OnModuleInit {
     }
   }
 
-  async listSLOs(params: { serviceName?: string; status?: string }): Promise<SLO[]> {
+  async listSLOs(params: { serviceName?: string; status?: string; cursor?: string; limit?: number }): Promise<SLO[] | { items: SLO[]; hasNext: boolean; nextCursor: string | null }> {
     const qb = this.sloRepo.createQueryBuilder('slo');
     if (params.serviceName) qb.andWhere('slo.service_name = :serviceName', { serviceName: params.serviceName });
     if (params.status) qb.andWhere('slo.status = :status', { status: params.status });
+    // P1 #8: cursor-based pagination (backward compatible)
+    if (params.cursor) {
+      return applyCursorPagination<SLO>(qb, params.cursor, params.limit || 50, 'DESC', 'slo', 'createdAt', 'sloId');
+    }
     return qb.getMany();
   }
 
@@ -173,12 +187,17 @@ export class MonitoringService implements OnModuleInit {
     return this.sloRepo.save(slo);
   }
 
-  async listAlerts(params: { status?: string; severity?: string; serviceName?: string }): Promise<Alert[]> {
+  async listAlerts(params: { status?: string; severity?: string; serviceName?: string; cursor?: string; limit?: number }): Promise<Alert[] | { items: Alert[]; hasNext: boolean; nextCursor: string | null }> {
     const qb = this.alertRepo.createQueryBuilder('alert');
 
     if (params.status) qb.andWhere('alert.status = :status', { status: params.status });
     if (params.severity) qb.andWhere('alert.severity = :severity', { severity: params.severity });
     if (params.serviceName) qb.andWhere('alert.service_name = :serviceName', { serviceName: params.serviceName });
+
+    // P1 #8: cursor-based pagination (backward compatible)
+    if (params.cursor) {
+      return applyCursorPagination<Alert>(qb, params.cursor, params.limit || 50, 'DESC', 'alert', 'createdAt', 'alertId');
+    }
 
     qb.orderBy('alert.created_at', 'DESC');
     return qb.getMany();
@@ -306,6 +325,14 @@ export class MonitoringService implements OnModuleInit {
   }
 
   private async createAlert(slo: SLO, currentValue: number): Promise<void> {
+    const alertName = `${slo.serviceName}_${slo.sloName}_breach`;
+
+    // P2 #8: skip alert creation if the alert is silenced
+    if (await this.isAlertSilenced(alertName)) {
+      this.logger.info('Alert silenced, skipping creation', { alertName, serviceName: slo.serviceName });
+      return;
+    }
+
     const existingAlert = await this.alertRepo.findOne({
       where: {
         sloId: slo.sloId,
@@ -318,7 +345,7 @@ export class MonitoringService implements OnModuleInit {
     const alert = this.alertRepo.create({
       sloId: slo.sloId,
       serviceName: slo.serviceName,
-      alertName: `${slo.serviceName}_${slo.sloName}_breach`,
+      alertName,
       description: `SLO ${slo.sloName} breached for ${slo.serviceName}. Current: ${currentValue}, Target: ${slo.target}`,
       severity: slo.status === 'breached' ? 'critical' : 'warning',
       status: 'firing',
@@ -337,5 +364,125 @@ export class MonitoringService implements OnModuleInit {
       serviceName: alert.serviceName,
       severity: alert.severity,
     });
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // P2 #8: Alert silencing for maintenance windows
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Create an alert silence record. While the silence is active, matching
+   * alerts will not be created.
+   */
+  async createAlertSilence(params: {
+    tenantId?: string;
+    alertName: string;
+    silenceUntil: Date;
+    createdBy: string;
+    reason?: string;
+  }): Promise<AlertSilence> {
+    const silence = this.alertSilenceRepo.create({
+      tenantId: params.tenantId || null,
+      alertName: params.alertName,
+      silenceUntil: params.silenceUntil,
+      createdBy: params.createdBy,
+      reason: params.reason || null,
+    });
+    const saved = await this.alertSilenceRepo.save(silence);
+    this.logger.info('Alert silence created', {
+      silenceId: saved.silenceId,
+      alertName: params.alertName,
+      silenceUntil: params.silenceUntil,
+      createdBy: params.createdBy,
+    });
+    return saved;
+  }
+
+  /**
+   * Check whether an alert with the given alertName is currently silenced.
+   * Returns true if there is an active silence record that has not yet expired.
+   */
+  async isAlertSilenced(alertName: string, tenantId?: string): Promise<boolean> {
+    const now = new Date();
+    const qb = this.alertSilenceRepo
+      .createQueryBuilder('silence')
+      .where('silence.alert_name = :alertName', { alertName })
+      .andWhere('silence.silence_until > :now', { now });
+    if (tenantId) {
+      qb.andWhere('(silence.tenant_id IS NULL OR silence.tenant_id = :tenantId)', { tenantId });
+    }
+    const count = await qb.getCount();
+    return count > 0;
+  }
+
+  /**
+   * List all active alert silences (not yet expired).
+   */
+  async listAlertSilences(): Promise<AlertSilence[]> {
+    const now = new Date();
+    return this.alertSilenceRepo
+      .createQueryBuilder('silence')
+      .where('silence.silence_until > :now', { now })
+      .orderBy('silence.silence_until', 'ASC')
+      .getMany();
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // P2 #5: Dashboard customization (tenant-scoped and user-scoped)
+  // ──────────────────────────────────────────────────────────────────────────
+
+  async listDashboards(params: { tenantId: string; userId?: string }): Promise<DashboardConfig[]> {
+    const qb = this.dashboardConfigRepo
+      .createQueryBuilder('d')
+      .where('d.tenant_id = :tenantId', { tenantId: params.tenantId });
+    if (params.userId) {
+      qb.andWhere('d.user_id = :userId', { userId: params.userId });
+    }
+    qb.orderBy('d.updated_at', 'DESC');
+    return qb.getMany();
+  }
+
+  async createDashboard(params: {
+    tenantId: string;
+    userId: string;
+    name: string;
+    widgets?: Array<{ type: string; title: string; config: Record<string, any>; position: { x: number; y: number; w: number; h: number } }> | null;
+    layout?: Record<string, any> | null;
+  }): Promise<DashboardConfig> {
+    const dashboard = this.dashboardConfigRepo.create({
+      tenantId: params.tenantId,
+      userId: params.userId,
+      name: params.name,
+      widgets: params.widgets ?? null,
+      layout: params.layout ?? null,
+    });
+    return this.dashboardConfigRepo.save(dashboard);
+  }
+
+  async updateDashboard(params: {
+    dashboardId: string;
+    tenantId: string;
+    name?: string;
+    widgets?: Array<{ type: string; title: string; config: Record<string, any>; position: { x: number; y: number; w: number; h: number } }> | null;
+    layout?: Record<string, any> | null;
+  }): Promise<DashboardConfig | null> {
+    const dashboard = await this.dashboardConfigRepo.findOne({
+      where: { dashboardId: params.dashboardId, tenantId: params.tenantId },
+    });
+    if (!dashboard) return null;
+    if (params.name !== undefined) dashboard.name = params.name;
+    if (params.widgets !== undefined) dashboard.widgets = params.widgets;
+    if (params.layout !== undefined) dashboard.layout = params.layout;
+    dashboard.updatedAt = new Date();
+    return this.dashboardConfigRepo.save(dashboard);
+  }
+
+  async deleteDashboard(params: { dashboardId: string; tenantId: string }): Promise<boolean> {
+    const dashboard = await this.dashboardConfigRepo.findOne({
+      where: { dashboardId: params.dashboardId, tenantId: params.tenantId },
+    });
+    if (!dashboard) return false;
+    await this.dashboardConfigRepo.remove(dashboard);
+    return true;
   }
 }

@@ -9,6 +9,7 @@ import { NextBestAction } from './entities/NextBestAction';
 import { HealthController } from './health.controller';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { PermissionsGuard } from './permissions.guard';
+import { CacheService } from './cache.service';
 
 import { AbacGuard } from './abac.guard';
 import { TenantGuard } from './tenant.guard';
@@ -29,6 +30,6 @@ import { OutboxEvent } from '@insurance/shared';
     TypeOrmModule.forFeature([KnowledgeArticle, KnowledgeGraphEntity, KnowledgeGraphRelationship, NextBestAction, OutboxEvent]),
   ],
   controllers: [KnowledgeController, HealthController],
-  providers: [AbacGuard, TenantGuard, KnowledgeService, JwtAuthGuard, PermissionsGuard],
+  providers: [AbacGuard, TenantGuard, KnowledgeService, JwtAuthGuard, PermissionsGuard, CacheService],
 })
 export class AppModule {}

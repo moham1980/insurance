@@ -1,7 +1,7 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
 export type ModelType = 'llm' | 'ml' | 'ocr' | 'embedding' | 'other';
-export type ModelStatus = 'development' | 'testing' | 'staging' | 'production' | 'deprecated' | 'retired';
+export type ModelStatus = 'development' | 'testing' | 'staging' | 'production' | 'deprecated' | 'retired' | 'pending_approval';
 export type ModelRiskLevel = 'low' | 'medium' | 'high' | 'critical';
 export type PiiHandling = 'redact' | 'anonymize' | 'forbidden';
 
@@ -79,6 +79,11 @@ export class ModelInventory {
 
   @Column({ name: 'created_by', type: 'text', nullable: true })
   createdBy!: string | null;
+
+  // P1 #5 (SoD): tracks who submitted the model for approval.
+  // The approver must be a different user (submitter != approver).
+  @Column({ name: 'submitted_by', type: 'text', nullable: true })
+  submittedBy!: string | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;

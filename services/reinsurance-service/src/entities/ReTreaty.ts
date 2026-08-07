@@ -1,6 +1,6 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
-export type ReTreatyStatus = 'draft' | 'active' | 'closed';
+export type ReTreatyStatus = 'draft' | 'pending_approval' | 'approved' | 'rejected' | 'active' | 'closed';
 
 @Entity('re_treaties')
 @Index(['tenantId', 'status', 'createdAt'])
@@ -48,6 +48,14 @@ export class ReTreaty {
 
   @Column({ name: 'created_by', type: 'text', nullable: true })
   createdBy!: string | null;
+
+  // P1 #5 (SoD): tracks who submitted the treaty for approval.
+  // The approver must be a different user (submitter != approver).
+  @Column({ name: 'submitted_by', type: 'text', nullable: true })
+  submittedBy!: string | null;
+
+  @Column({ name: 'approved_by', type: 'text', nullable: true })
+  approvedBy!: string | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;

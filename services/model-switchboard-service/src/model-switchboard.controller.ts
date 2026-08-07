@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Patch, Body, Param, Headers, Put, Delete, HttpCode, HttpStatus, UseGuards, Query, Req } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Body, Param, Headers, Put, Delete, HttpCode, HttpStatus, UseGuards, Query, Req, Logger } from '@nestjs/common';
 import { ModelSwitchboardService } from './model-switchboard.service';
 import { ModelType, ModelStatus } from './entities/ModelDefinition';
 import { InvocationStatus } from './entities/ModelInvocation';
@@ -8,13 +8,41 @@ import { PermissionsGuard } from './permissions.guard';
 import { RequirePermissions } from './permissions.decorator';
 import { AbacGuard } from './abac.guard';
 import { TenantGuard } from './tenant.guard';
+import { permissionsForRoles } from './permissions';
 
 @Controller('model-switchboard')
 @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
 export class ModelSwitchboardController {
+  private readonly logger = new Logger(ModelSwitchboardController.name);
+
   constructor(private readonly service: ModelSwitchboardService) {}
 
+  // P0 security: only users with switchboard:governance:skip (or switchboard:admin)
+  // may bypass governance checks via skipGovernance. Callers without the permission
+  // have skipGovernance silently forced to false (governance remains enforced).
+  private enforceSkipGovernancePermission(req: any, skipGovernance?: boolean): boolean {
+    if (!skipGovernance) return false;
+    const user = req?.user as any;
+    if (!user) return false;
+    const perms = Array.isArray(user.permissions)
+      ? user.permissions.map((x: any) => String(x || '').trim()).filter(Boolean)
+      : permissionsForRoles(user.roles);
+    const canSkip = perms.includes('switchboard:governance:skip') || perms.includes('switchboard:admin');
+    if (!canSkip) {
+      this.logger.warn(
+        `User attempted skipGovernance without permission; governance will remain enforced`,
+      );
+      return false;
+    }
+    return true;
+  }
+
   // ── Model CRUD ──────────────────────────────────────────────────────
+  // P1 #4: ai-governance-service is the single source of truth for the model
+  // registry. This endpoint delegates the canonical registration to
+  // ai-governance (POST /models) and keeps a local routing definition for
+  // switchboard routing/invocation. Prefer calling ai-governance directly for
+  // new integrations; this endpoint is retained for backward compatibility.
 
   @Post('models')
   @RequirePermissions('switchboard:manage_models')
@@ -82,6 +110,7 @@ export class ModelSwitchboardController {
   @RequirePermissions('switchboard:route')
   async invokeModel(
     @Headers() headers: Record<string, any>,
+    @Req() req: any,
     @Body() body: {
       tenantId: string;
       modelType: ModelType;
@@ -93,7 +122,9 @@ export class ModelSwitchboardController {
     },
   ) {
     const correlationId = headers['x-correlation-id'] || `ms-${Date.now()}`;
-    const result = await this.service.invokeModel(body);
+    // P0 security: enforce permission for skipGovernance — strip if unauthorized
+    const skipGovernance = this.enforceSkipGovernancePermission(req, body.skipGovernance);
+    const result = await this.service.invokeModel({ ...body, skipGovernance });
     return { success: true, data: result, correlationId };
   }
 

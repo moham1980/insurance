@@ -14,6 +14,8 @@ import { PermissionsGuard } from './permissions.guard';
 import { AbacGuard } from './abac.guard';
 import { TenantGuard } from './tenant.guard';
 import { OutboxEvent } from '@insurance/shared';
+import { TaskExecutor } from './task-executor.interface';
+import { PlaceholderTaskExecutor } from './task-executor.service';
 @Module({
   imports: [
     TypeOrmModule.forRoot({
@@ -30,6 +32,7 @@ import { OutboxEvent } from '@insurance/shared';
     TypeOrmModule.forFeature([WorkflowDefinition, WorkflowInstance, WorkflowTemplate, OutboxEvent]),
   ],
   controllers: [WorkflowController, HealthController, ProfileRecoController],
-  providers: [TenantGuard, AbacGuard, WorkflowService, ProfileRecoAdapter, JwtAuthGuard, PermissionsGuard],
+  providers: [TenantGuard, AbacGuard, WorkflowService, ProfileRecoAdapter, JwtAuthGuard, PermissionsGuard,
+    { provide: TaskExecutor, useClass: PlaceholderTaskExecutor }],
 })
 export class AppModule {}

@@ -12,98 +12,102 @@ export class InsurerBffService {
 
   constructor(private readonly http: HttpService) {}
 
-  private authHeaders(authToken: string): Record<string, string> {
+  // P2 #12: forward X-Correlation-Id from incoming request to downstream;
+  // generate a new UUID if not present.
+  private authHeaders(authToken: string, correlationId?: string): Record<string, string> {
     return {
       Authorization: authToken,
       'Content-Type': 'application/json',
-      'x-correlation-id': `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      'x-correlation-id': correlationId || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     };
   }
 
   // --- Products / versions / rate tables ---
 
-  async listProducts(authToken: string, params?: { limit?: number; offset?: number }) {
+  async listProducts(authToken: string, params?: { limit?: number; offset?: number }, correlationId?: string) {
     const query: Record<string, string> = {};
     if (params?.limit) query.limit = String(params.limit);
     if (params?.offset) query.offset = String(params.offset);
     const { data } = await firstValueFrom(
-      this.http.get(`${this.policyUrl}/api/v1/products`, { headers: this.authHeaders(authToken), params: query }),
+      this.http.get(`${this.policyUrl}/api/v1/products`, { headers: this.authHeaders(authToken, correlationId), params: query }),
     );
     return data;
   }
 
-  async listRateTables(authToken: string) {
+  async listRateTables(authToken: string, correlationId?: string) {
     const { data } = await firstValueFrom(
-      this.http.get(`${this.policyUrl}/api/v1/rate-tables`, { headers: this.authHeaders(authToken) }),
+      this.http.get(`${this.policyUrl}/api/v1/rate-tables`, { headers: this.authHeaders(authToken, correlationId) }),
     );
     return data;
   }
 
   // --- Distribution agreements ---
 
-  async listDistributionAgreements(authToken: string) {
+  async listDistributionAgreements(authToken: string, correlationId?: string) {
     const { data } = await firstValueFrom(
-      this.http.get(`${this.policyUrl}/api/v1/distribution-agreements`, { headers: this.authHeaders(authToken) }),
+      this.http.get(`${this.policyUrl}/api/v1/distribution-agreements`, { headers: this.authHeaders(authToken, correlationId) }),
     );
     return data;
   }
 
   // --- RFQ ---
 
-  async listRfqs(authToken: string) {
+  async listRfqs(authToken: string, correlationId?: string) {
     const { data } = await firstValueFrom(
-      this.http.get(`${this.policyUrl}/api/v1/rfqs`, { headers: this.authHeaders(authToken) }),
+      this.http.get(`${this.policyUrl}/api/v1/rfqs`, { headers: this.authHeaders(authToken, correlationId) }),
     );
     return data;
   }
 
-  async processRfq(authToken: string, rfqId: string, body: any) {
+  async processRfq(authToken: string, rfqId: string, body: any, correlationId?: string) {
+    // P2 #13: encode path params to prevent errors/injection
     const { data } = await firstValueFrom(
-      this.http.post(`${this.policyUrl}/api/v1/rfqs/${rfqId}/process`, body, { headers: this.authHeaders(authToken) }),
+      this.http.post(`${this.policyUrl}/api/v1/rfqs/${encodeURIComponent(rfqId)}/process`, body, { headers: this.authHeaders(authToken, correlationId) }),
     );
     return data;
   }
 
   // --- Claims & loss adjusters ---
 
-  async listClaims(authToken: string, params?: { limit?: number; offset?: number }) {
+  async listClaims(authToken: string, params?: { limit?: number; offset?: number }, correlationId?: string) {
     const query: Record<string, string> = {};
     if (params?.limit) query.limit = String(params.limit);
     if (params?.offset) query.offset = String(params.offset);
     const { data } = await firstValueFrom(
-      this.http.get(`${this.claimUrl}/api/v1/claims`, { headers: this.authHeaders(authToken), params: query }),
+      this.http.get(`${this.claimUrl}/api/v1/claims`, { headers: this.authHeaders(authToken, correlationId), params: query }),
     );
     return data;
   }
 
-  async assignLossAdjuster(authToken: string, claimId: string, body: { lossAdjusterId: string }) {
+  async assignLossAdjuster(authToken: string, claimId: string, body: { lossAdjusterId: string }, correlationId?: string) {
+    // P2 #13: encode path params to prevent errors/injection
     const { data } = await firstValueFrom(
-      this.http.post(`${this.claimUrl}/api/v1/claims/${claimId}/assign-loss-adjuster`, body, { headers: this.authHeaders(authToken) }),
+      this.http.post(`${this.claimUrl}/api/v1/claims/${encodeURIComponent(claimId)}/assign-loss-adjuster`, body, { headers: this.authHeaders(authToken, correlationId) }),
     );
     return data;
   }
 
   // --- Settlements & broker performance ---
 
-  async listSettlements(authToken: string) {
+  async listSettlements(authToken: string, correlationId?: string) {
     const { data } = await firstValueFrom(
-      this.http.get(`${this.billingUrl}/api/v1/settlements`, { headers: this.authHeaders(authToken) }),
+      this.http.get(`${this.billingUrl}/api/v1/settlements`, { headers: this.authHeaders(authToken, correlationId) }),
     );
     return data;
   }
 
-  async listBrokerPerformance(authToken: string) {
+  async listBrokerPerformance(authToken: string, correlationId?: string) {
     const { data } = await firstValueFrom(
-      this.http.get(`${this.billingUrl}/api/v1/broker-performance`, { headers: this.authHeaders(authToken) }),
+      this.http.get(`${this.billingUrl}/api/v1/broker-performance`, { headers: this.authHeaders(authToken, correlationId) }),
     );
     return data;
   }
 
   // --- Regulatory reports ---
 
-  async listRegulatoryReports(authToken: string) {
+  async listRegulatoryReports(authToken: string, correlationId?: string) {
     const { data } = await firstValueFrom(
-      this.http.get(`${this.policyUrl}/api/v1/regulatory-reports`, { headers: this.authHeaders(authToken) }),
+      this.http.get(`${this.policyUrl}/api/v1/regulatory-reports`, { headers: this.authHeaders(authToken, correlationId) }),
     );
     return data;
   }

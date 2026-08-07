@@ -33,6 +33,49 @@ export class ModelSwitchboardService {
     private httpService: HttpService,
   ) {}
 
+  // P1 #4: Delegate canonical model registration to ai-governance-service,
+  // which is the single source of truth for the model registry. Failures are
+  // logged but do not block the local routing definition write (best-effort
+  // delegation).
+  private async delegateModelRegistrationToGovernance(params: {
+    tenantId: string;
+    name: string;
+    modelKey: string;
+    modelType: ModelType;
+    description?: string;
+    config: {
+      endpoint?: string;
+      provider?: string;
+      version?: string;
+      parameters?: Record<string, any>;
+      capabilities?: string[];
+    };
+  }): Promise<void> {
+    const base = process.env.AI_GOVERNANCE_URL || 'http://localhost:18036';
+    const url = `${base}/models`;
+    try {
+      const response: any = await firstValueFrom(
+        this.httpService.post(url, {
+          modelName: params.name,
+          modelType: params.modelType,
+          version: params.config.version || '1',
+          provider: params.config.provider,
+          description: params.description,
+          parameters: params.config.parameters,
+        }, { headers: { 'Content-Type': 'application/json' }, timeout: 10000 }),
+      );
+      this.logger.log(`Delegated model registration to ai-governance for ${params.modelKey}: ${response?.data?.modelId || 'ok'}`);
+    } catch (error: any) {
+      this.logger.warn(`ai-governance model registration delegation failed for ${params.modelKey}: ${error.message}`);
+    }
+  }
+
+  // P1 #4: ai-governance-service is the single source of truth for the model
+  // registry. This method delegates the canonical registration to
+  // ai-governance (POST /models) and keeps a local routing definition for
+  // switchboard-specific routing/invocation concerns. The independent
+  // local-only registration path is deprecated; callers should treat
+  // ai-governance as the owner of the model registry.
   async registerModel(params: {
     tenantId: string;
     name: string;
@@ -49,6 +92,11 @@ export class ModelSwitchboardService {
     priority?: number;
     metadata?: Record<string, any>;
   }): Promise<ModelDefinition> {
+    // Delegate canonical model registration to ai-governance-service (P1 #4).
+    // ai-governance owns the model registry; we keep a local routing
+    // definition below for switchboard routing/invocation concerns.
+    await this.delegateModelRegistrationToGovernance(params);
+
     return await this.dataSource.transaction(async (manager) => {
       const model = manager.create(ModelDefinition, {
         tenantId: params.tenantId,
@@ -821,8 +869,15 @@ export class ModelSwitchboardService {
     });
 
     if (!card) {
-      auditLogger.warn('No model card found; allowing with governance warning', { modelKey: params.modelKey });
-      return { allowed: true, reason: 'No model card found; governance review recommended', cardStatus: 'missing', riskLevel: 'unknown' };
+      // P0 security: fail-closed by default — invocation is rejected when no model card exists.
+      // Set GOVERNANCE_FAIL_OPEN=true to allow invocation without a model card (dev/test only).
+      const failOpen = process.env.GOVERNANCE_FAIL_OPEN === 'true';
+      if (failOpen) {
+        auditLogger.warn('No model card found; allowing with governance warning (GOVERNANCE_FAIL_OPEN=true)', { modelKey: params.modelKey });
+        return { allowed: true, reason: 'No model card found; governance review recommended', cardStatus: 'missing', riskLevel: 'unknown' };
+      }
+      auditLogger.warn('No model card found; rejecting invocation (fail-closed)', { modelKey: params.modelKey });
+      return { allowed: false, reason: 'No model card found; governance review required before invocation', cardStatus: 'missing', riskLevel: 'unknown' };
     }
 
     if (card.status === 'deprecated' || card.status === 'archived') {

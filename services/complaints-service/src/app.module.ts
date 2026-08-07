@@ -1,6 +1,6 @@
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ConsumedEvent, DeadLetterEvent, OutboxEvent } from '@insurance/shared';
+import { ConsumedEvent, DeadLetterEvent, OutboxEvent, IdempotencyInterceptor } from '@insurance/shared';
 import { Complaint } from './entities/Complaint';
 import { ComplaintAttachment } from './entities/ComplaintAttachment';
 import { ComplaintAudit } from './entities/ComplaintAudit';
@@ -16,6 +16,7 @@ import { PiiMaskingMiddleware } from './pii-masking.middleware';
 
 import { AbacGuard } from './abac.guard';
 import { TenantGuard } from './tenant.guard';
+import { ComplaintOtpRateLimitGuard } from './complaint-otp-rate-limit.guard';
 @Module({
   imports: [
     TypeOrmModule.forRoot({
@@ -32,7 +33,7 @@ import { TenantGuard } from './tenant.guard';
     TypeOrmModule.forFeature([Complaint, ComplaintAttachment, ComplaintAudit, ComplaintSlaBreach, ComplaintMobileOtpChallenge, OutboxEvent, ConsumedEvent, DeadLetterEvent]),
   ],
   controllers: [ComplaintsController, HealthController],
-  providers: [TenantGuard, AbacGuard, ComplaintsService, ComplaintSlaBreachWorker, JwtAuthGuard, PermissionsGuard],
+  providers: [TenantGuard, AbacGuard, ComplaintsService, ComplaintSlaBreachWorker, JwtAuthGuard, PermissionsGuard, ComplaintOtpRateLimitGuard, IdempotencyInterceptor],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

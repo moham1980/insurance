@@ -1,12 +1,41 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 
+/**
+ * Build allowed CORS origins from env.
+ * Reads CORS_ORIGINS (comma-separated) or CUSTOMER_PORTAL_URL.
+ * In production, falls back to localhost only if no env is set.
+ */
+function getAllowedOrigins(): string[] {
+  const envOrigins = process.env.CORS_ORIGINS || process.env.CUSTOMER_PORTAL_URL;
+  if (envOrigins) {
+    return envOrigins.split(',').map((o) => o.trim()).filter(Boolean);
+  }
+  // Default: only localhost in production, broader in development
+  const nodeEnv = process.env.NODE_ENV || 'development';
+  if (nodeEnv === 'production') {
+    return ['http://localhost:3000', 'https://localhost:3000'];
+  }
+  return ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173'];
+}
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix('customer-portal');
-  app.enableCors({ origin: true, credentials: true });
+  const allowedOrigins = getAllowedOrigins();
+  app.enableCors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g. curl, server-to-server, health checks)
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS: origin ${origin} not allowed`));
+      }
+    },
+    credentials: true,
+  });
   const port = parseInt(process.env.PORT || '3000', 10);
   await app.listen(port);
-  console.log(`Customer Portal BFF listening on port ${port}`);
+  console.log(`Customer Portal BFF listening on port ${port} (CORS origins: ${allowedOrigins.join(', ')})`);
 }
 bootstrap();

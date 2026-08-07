@@ -4,6 +4,7 @@ export type PermissionKey =
   | 'monitoring:slos:create'
   | 'monitoring:alerts:list'
   | 'monitoring:alerts:ack'
+  | 'monitoring:alerts:silence' // P2 #8: alert silencing
   | 'monitoring:dashboard:view';
 
 const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
@@ -13,6 +14,7 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     'monitoring:slos:create',
     'monitoring:alerts:list',
     'monitoring:alerts:ack',
+    'monitoring:alerts:silence',
     'monitoring:dashboard:view',
   ],
   head_office_ops: ['monitoring:slos:list', 'monitoring:alerts:list', 'monitoring:dashboard:view'],

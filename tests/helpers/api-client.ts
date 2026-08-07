@@ -51,10 +51,7 @@ export class ApiClient {
   async post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<any> {
     try {
       if (data === undefined) {
-        const response = await this.client.post<T>(url, undefined, {
-          ...config,
-          headers: { ...config?.headers, 'Content-Type': undefined },
-        });
+        const response = await this.client.post<T>(url, {}, config);
         return response.data;
       }
       const response = await this.client.post<T>(url, data, config);
@@ -68,10 +65,7 @@ export class ApiClient {
   async put<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<any> {
     try {
       if (data === undefined) {
-        const response = await this.client.put<T>(url, undefined, {
-          ...config,
-          headers: { ...config?.headers, 'Content-Type': undefined },
-        });
+        const response = await this.client.put<T>(url, {}, config);
         return response.data;
       }
       const response = await this.client.put<T>(url, data, config);

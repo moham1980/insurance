@@ -6,9 +6,15 @@ export type BiasRiskLevel = 'low' | 'medium' | 'high';
 @Entity('model_cards')
 @Index(['modelId'])
 @Index(['status'])
+@Index(['tenantId'])
 export class ModelCard {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  // P0 security: tenant isolation — model cards are scoped per tenant.
+  // Nullable for backward compatibility with pre-existing rows.
+  @Column({ type: 'uuid', nullable: true })
+  tenantId: string | null;
 
   @Column({ type: 'uuid' })
   modelId: string;

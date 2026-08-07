@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, In } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { CommissionSplit, CommissionSplitRole } from './commission-split.entity';
 import { resolveCommissionSchedule, CommissionSchedule } from './commission-tier-resolver';
@@ -89,7 +89,7 @@ export class CommissionCalculationService {
 
   async linkSplitsToJournalEntry(journalEntryId: string, splitIds: string[]): Promise<void> {
     if (splitIds.length === 0) return;
-    await this.splitRepo.update({ splitId: splitIds } as any, { journalEntryId });
+    await this.splitRepo.update({ splitId: In(splitIds) }, { journalEntryId });
   }
 
   async getSplitsForSource(tenantId: string, sourceType: string, sourceId: string): Promise<CommissionSplit[]> {

@@ -28,3 +28,4 @@ export * from './abac-guard';
 export * from './entities/IdempotencyRecord';
 export * from './entities/AuditRecord';
 export * from './audit-persistence';
+export * from './cursor-pagination';

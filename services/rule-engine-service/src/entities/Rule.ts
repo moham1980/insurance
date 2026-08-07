@@ -2,14 +2,23 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateCol
 
 export enum RuleStatus {
   DRAFT = 'draft',
+  PENDING_APPROVAL = 'pending_approval',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
   ACTIVE = 'active',
   INACTIVE = 'inactive',
+  ARCHIVED = 'archived',
 }
 
 export enum RuleType {
   CONDITION = 'condition',
   CALCULATION = 'calculation',
   VALIDATION = 'validation',
+  BUSINESS = 'business',
+  ROUTING = 'routing',
+  PRICING = 'pricing',
+  FRAUD = 'fraud',
+  COMPLIANCE = 'compliance',
 }
 
 @Entity('rules')
@@ -78,6 +87,14 @@ export class Rule {
 
   @Column({ type: 'timestamp', nullable: true })
   deactivatedAt!: Date | null;
+
+  // P1 #5 (SoD): tracks who submitted the rule for approval.
+  // The approver must be a different user (submitter != approver).
+  @Column({ type: 'text', nullable: true })
+  submittedBy!: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  approvedBy!: string | null;
 
   @CreateDateColumn({ type: 'timestamp' })
   createdAt!: Date;

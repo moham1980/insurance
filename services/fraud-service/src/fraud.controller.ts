@@ -4,10 +4,11 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { PermissionsGuard } from './permissions.guard';
 import { RequirePermissions } from './permissions.decorator';
 import { TenantGuard } from './tenant.guard';
+import { AbacGuard } from './abac.guard';
 import { auditLogger } from './audit.logger';
 
 @Controller()
-@UseGuards(JwtAuthGuard, PermissionsGuard, TenantGuard)
+@UseGuards(JwtAuthGuard, AbacGuard, PermissionsGuard, TenantGuard)
 export class FraudController {
   constructor(private readonly fraudService: FraudService) {}
 

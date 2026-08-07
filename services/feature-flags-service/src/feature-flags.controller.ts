@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Param, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, Param, Put, Query, UseGuards } from '@nestjs/common';
 import { FeatureFlagsService } from './feature-flags.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { Permissions } from './permissions.decorator';
@@ -35,6 +35,8 @@ export class FeatureFlagsController {
         description: x.description,
         rolloutPercentage: x.rolloutPercentage,
         targetAudience: x.targetAudience,
+        variantType: x.variantType,
+        variants: x.variants,
         updatedAt: x.updatedAt,
       })),
       correlationId,
@@ -58,10 +60,29 @@ export class FeatureFlagsController {
         description: row.description,
         rolloutPercentage: row.rolloutPercentage,
         targetAudience: row.targetAudience,
+        variantType: row.variantType,
+        variants: row.variants,
         updatedAt: row.updatedAt,
       },
       correlationId,
     };
+  }
+
+  // P2 #9: A/B testing — variant evaluation endpoint
+  @Get('/feature-flags/:key/variant')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @Permissions('feature_flags:view')
+  async getVariant(
+    @Headers() headers: Record<string, any>,
+    @Param('key') key: string,
+    @Query('userId') userId: string,
+  ) {
+    const correlationId = this.getCorrelationId(headers);
+    if (!userId) {
+      return { success: false, error: { code: 'VALIDATION_ERROR', message: 'userId query parameter is required' }, correlationId };
+    }
+    const result = await this.flagsService.evaluateVariant(key, userId);
+    return { success: true, data: result, correlationId };
   }
 
   @Put('/feature-flags/:key')
@@ -80,6 +101,8 @@ export class FeatureFlagsController {
       description: body.description,
       rolloutPercentage: body.rolloutPercentage,
       targetAudience: body.targetAudience,
+      variantType: body.variantType,
+      variants: body.variants,
     });
 
     return {
@@ -90,9 +113,23 @@ export class FeatureFlagsController {
         description: updated.description,
         rolloutPercentage: updated.rolloutPercentage,
         targetAudience: updated.targetAudience,
+        variantType: updated.variantType,
+        variants: updated.variants,
         updatedAt: updated.updatedAt,
       },
       correlationId,
     };
+  }
+
+  @Delete('/feature-flags/:key')
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
+  @Permissions('feature_flags:manage')
+  async delete(@Headers() headers: Record<string, any>, @Param('key') key: string) {
+    const correlationId = this.getCorrelationId(headers);
+    const deleted = await this.flagsService.deleteFeatureFlag(key);
+    if (!deleted) {
+      return { success: false, error: { code: 'NOT_FOUND', message: 'Feature flag not found' }, correlationId };
+    }
+    return { success: true, correlationId };
   }
 }
