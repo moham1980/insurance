@@ -38,6 +38,7 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     'regulatory:status',
     'regulatory:export',
   ],
+  ops_admin: ['regulatory:events:list', 'regulatory:events:view', 'regulatory:export', 'regulatory:failures:view', 'regulatory:inquiry', 'regulatory:retry', 'regulatory:status', 'regulatory:submit'],
 };
 
 export function permissionsForRoles(roles: string[] | undefined | null): PermissionKey[] {

@@ -12,6 +12,7 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
   agent: ['agent_portal:session', 'agent_portal:dashboard', 'agent_portal:policies', 'agent_portal:claims', 'agent_portal:customers', 'agent_portal:commissions', 'agent_portal:kpi', 'agent_portal:leads'],
   branch_manager: ['agent_portal:dashboard', 'agent_portal:policies', 'agent_portal:claims', 'agent_portal:customers', 'agent_portal:commissions', 'agent_portal:kpi', 'agent_portal:leads'],
   insurer_admin: ['agent_portal:session', 'agent_portal:dashboard', 'agent_portal:policies', 'agent_portal:claims', 'agent_portal:customers', 'agent_portal:commissions', 'agent_portal:kpi', 'agent_portal:leads'],
+  ops_admin: ['agent_portal:claims', 'agent_portal:commissions', 'agent_portal:customers', 'agent_portal:dashboard', 'agent_portal:kpi', 'agent_portal:leads', 'agent_portal:policies', 'agent_portal:session'],
 };
 
 export function permissionsForRoles(roles: string[] | undefined | null): PermissionKey[] {

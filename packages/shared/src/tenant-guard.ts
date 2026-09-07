@@ -1,7 +1,7 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
-const SYSTEM_ROLES = new Set(['system', 'system_admin', 'insurer_admin']);
+const SYSTEM_ROLES = new Set(['system', 'system_admin', 'insurer_admin', 'ops_admin']);
 
 function isServiceOrSystemUser(user: any): boolean {
   if (!user) return false;
@@ -47,7 +47,7 @@ export class TenantGuard implements CanActivate {
       return true;
     }
 
-    const userTenantId = user.tenantId || user.tenant_id;
+    const userTenantId = user.tenantId || user.tenant_id || user.tenant;
     if (!userTenantId) {
       throw new ForbiddenException({
         success: false,

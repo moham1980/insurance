@@ -30,6 +30,7 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
   broker_staff: ['billing:invoices:view', 'billing:view_entry'],
   call_center: ['billing:invoices:view', 'billing:payments:initiate', 'billing:view_entry'],
   auditor: ['billing:invoices:view', 'billing:view_entry', 'billing:reconcile'],
+  ops_admin: ['billing:accounting:manage', 'billing:admin', 'billing:close_period', 'billing:create_entry', 'billing:escrow:view', 'billing:invoices:create', 'billing:invoices:manage', 'billing:invoices:view', 'billing:manage_accounts', 'billing:manage_cost_centers', 'billing:payments:initiate', 'billing:payments:refund', 'billing:payments:verify', 'billing:reconcile', 'billing:reports:view', 'billing:settlements:manage', 'billing:view_entry'],
 };
 
 export function permissionsForRoles(roles: string[] | undefined | null): PermissionKey[] {

@@ -52,6 +52,10 @@ CREATE INDEX IF NOT EXISTS idx_claims_claim_number ON claims(claim_number);
 CREATE INDEX IF NOT EXISTS idx_claims_policy_id ON claims(policy_id);
 CREATE INDEX IF NOT EXISTS idx_claims_status_updated ON claims(status, updated_at);
 
+-- Sequence for claim number generation (used by claims-service generateClaimNumber)
+-- Created in claims schema (search_path includes claims for insurance_platform DB)
+CREATE SEQUENCE IF NOT EXISTS claims.claim_number_seq START 1 INCREMENT 1;
+
 -- Read model for Claims dashboard
 CREATE TABLE IF NOT EXISTS rm_claims_cases (
   claim_id UUID PRIMARY KEY,

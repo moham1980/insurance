@@ -73,6 +73,7 @@ async function bootstrap() {
           consumerName,
           topic: String(topic),
           eventId: String(eventId),
+          tenantId: 'system',
           handler: async () => {
             if (String(topic) !== 'insurance.complaint.sla_breached') return;
             await svc.onComplaintSlaBreached({ correlationId: String(correlationId), envelope: parsed });

@@ -18,7 +18,7 @@ export class ClaimsController {
   }
 
   private getIdempotencyKey(headers: Record<string, any>, body: any): string | undefined {
-    const key = headers['x-idempotency-key'] || headers['Idempotency-Key'] || body?.idempotencyKey;
+    const key = headers['x-idempotency-key'] || headers['idempotency-key'] || headers['Idempotency-Key'] || body?.idempotencyKey;
     if (typeof key === 'string' && key.length > 0) return key;
     return undefined;
   }

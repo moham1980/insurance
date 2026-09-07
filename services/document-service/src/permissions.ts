@@ -13,6 +13,7 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
   broker_owner: ['documents:upload', 'documents:link'],
   broker_staff: ['documents:upload', 'documents:link'],
   auditor: ['documents:view', 'documents:list'],
+  ops_admin: ['documents:upload', 'documents:link', 'documents:view', 'documents:list', 'documents:admin'],
 };
 
 export function permissionsForRoles(roles: string[] | undefined | null): PermissionKey[] {

@@ -16,6 +16,7 @@ function maskValue(val: any): any {
 
 function maskPiiRecursive(obj: any): any {
   if (obj === null || obj === undefined) return obj;
+  if (obj instanceof Date) return obj.toISOString();
   if (Array.isArray(obj)) return obj.map(maskPiiRecursive);
   if (typeof obj === 'object') {
     const result: Record<string, any> = {};

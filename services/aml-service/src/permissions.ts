@@ -68,6 +68,7 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     'aml:manage',
     'aml:view',
   ],
+  ops_admin: ['aml:alerts:assign', 'aml:alerts:create', 'aml:alerts:list', 'aml:alerts:update_status', 'aml:alerts:view', 'aml:consents:create', 'aml:consents:list', 'aml:consents:revoke', 'aml:consents:view', 'aml:dashboard', 'aml:export', 'aml:manage', 'aml:rules:list', 'aml:rules:manage', 'aml:rules:view', 'aml:view'],
 };
 
 export function permissionsForRoles(roles: string[] | undefined | null): PermissionKey[] {

@@ -22,6 +22,7 @@ export class EcosystemJwtGuard implements CanActivate {
   private readonly jwksClient: JwksClient;
   private readonly issuer: string;
   private readonly audience: string;
+  private readonly tenantUuidMap: Record<string, string>;
 
   constructor() {
     const jwtSecret = process.env.JWT_SECRET;
@@ -30,7 +31,7 @@ export class EcosystemJwtGuard implements CanActivate {
     }
     this.jwtSecret = jwtSecret;
     this.issuer = process.env.IAM_ISSUER || 'http://localhost:8080';
-    this.audience = process.env.JWT_AUDIENCES || 'insurance-platform';
+    this.audience = process.env.JWT_AUDIENCES || 'modern-banking';
     const jwksUri = process.env.JWKS_URI || `${this.issuer}/.well-known/jwks.json`;
     this.jwksClient = new JwksClient({
       jwksUri,
@@ -40,6 +41,33 @@ export class EcosystemJwtGuard implements CanActivate {
       rateLimit: true,
       jwksRequestsPerMinute: 10,
     });
+    this.tenantUuidMap = this.parseTenantUuidMap(process.env.TENANT_UUID_MAP);
+  }
+
+  private parseTenantUuidMap(raw?: string): Record<string, string> {
+    const map: Record<string, string> = {};
+    if (!raw) return map;
+    for (const pair of raw.split(',')) {
+      const [key, value] = pair.split(':');
+      if (key && value) map[key.trim()] = value.trim();
+    }
+    return map;
+  }
+
+  private resolveTenantId(payload: any, request: any): string | undefined {
+    const rawTenant = payload.tenantId || payload.tenant_id || payload.tenant;
+    if (!rawTenant) return undefined;
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawTenant)) {
+      return rawTenant;
+    }
+    if (this.tenantUuidMap[rawTenant]) {
+      return this.tenantUuidMap[rawTenant];
+    }
+    const headerTenant = request?.headers?.['x-tenant-id'] || request?.headers?.['X-Tenant-Id'];
+    if (headerTenant && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(headerTenant)) {
+      return headerTenant;
+    }
+    return rawTenant;
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -66,6 +94,8 @@ export class EcosystemJwtGuard implements CanActivate {
           algorithms: ['RS256'],
         }) as any;
         request.user = payload;
+        request.user.tenantId = this.resolveTenantId(payload, request);
+        request.user.permissions = Array.isArray(payload.scope) ? payload.scope : (typeof payload.scope === 'string' ? payload.scope.split(' ') : []);
         request.globalUserId = payload.sub;
         request.scopes = payload.scope?.split(' ') || [];
         return true;
@@ -75,8 +105,12 @@ export class EcosystemJwtGuard implements CanActivate {
     }
 
     try {
-      const payload = jwt.verify(token, this.jwtSecret) as any;
+      const payload = jwt.verify(token, this.jwtSecret, { algorithms: ['HS256'] }) as any;
       request.user = payload;
+      request.user.tenantId = this.resolveTenantId(payload, request);
+      request.user.permissions = Array.isArray(payload.scope) ? payload.scope : (typeof payload.scope === 'string' ? payload.scope.split(' ') : []);
+      request.globalUserId = payload.sub;
+      request.scopes = payload.scope?.split(' ') || [];
       return true;
     } catch {
       throw new UnauthorizedException({

@@ -20,11 +20,6 @@ export class ComplaintsController {
     return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
 
-  @Get('/health')
-  health() {
-    return { status: 'ok', service: 'complaints-service' };
-  }
-
   @Post('/complaints')
   @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
   @RequirePermissions('complaints:create')

@@ -89,6 +89,7 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     'sales_network:kpi:view',
   ],
   auditor: ['sales_network:partners:view', 'sales_network:contracts:view', 'sales_network:ledger:view', 'sales_network:kpi:view', 'sales_network:agent:view', 'sales_network:agents:view', 'broker:agreements:view', 'sales_network:agreements:view', 'sales_network:broker:sub_agents:view', 'sales_network:broker:dashboard:view'],
+  ops_admin: ['broker:agreements:manage', 'broker:agreements:view', 'insurer:agreements:approve', 'sales_network:agent:view', 'sales_network:agents:view', 'sales_network:agreements:view', 'sales_network:contracts:manage', 'sales_network:contracts:view', 'sales_network:ingest', 'sales_network:kpi:view', 'sales_network:ledger:manage', 'sales_network:ledger:view', 'sales_network:partners:manage', 'sales_network:partners:view'],
 };
 
 export function permissionsForRoles(roles: string[] | undefined | null): PermissionKey[] {

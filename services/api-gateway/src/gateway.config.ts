@@ -32,9 +32,15 @@ export interface PublicRoute {
   allowsTenantSelection?: boolean;
 }
 
-export const JWT_ISSUER = process.env.IAM_ISSUER || process.env.JWT_ISSUER || 'http://localhost:18001';
-export const JWT_AUDIENCE = process.env.JWT_AUDIENCES || process.env.JWT_AUDIENCE || 'insurance-platform';
-export const JWKS_URI = process.env.JWKS_URI || `${JWT_ISSUER}/.well-known/jwks.json`;
+export const JWT_ISSUERS = (process.env.JWT_ISSUERS || process.env.IAM_ISSUER || process.env.JWT_ISSUER || 'http://localhost:18001')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+export const JWT_AUDIENCES = (process.env.JWT_AUDIENCES || process.env.JWT_AUDIENCE || 'insurance-platform')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+export const JWKS_URI = process.env.JWKS_URI || (JWT_ISSUERS[0] ? `${JWT_ISSUERS[0]}/.well-known/jwks.json` : '');
 
 /** Redis URL for distributed rate limiting and circuit breaker state. */
 export const REDIS_URL = normalizeUrl(process.env.REDIS_URL);
@@ -57,7 +63,7 @@ function route(path: string, envVar: string, defaultUrl: string, required: boole
 
 /** Canonical service route registry shared by proxy and deep health. */
 export const SERVICE_ROUTES: ServiceRoute[] = [
-  route('/auth', 'AUTH_SERVICE_URL', 'http://localhost:18001', true, 'auth-service'),
+  route('/auth', 'AUTH_SERVICE_URL', 'http://localhost:18001', false, 'auth-service'), // DEPRECATED — use ecosystem IAM (port 8080)
   route('/claims', 'CLAIMS_SERVICE_URL', 'http://localhost:18002', true, 'claims-service'),
   route('/rm', 'CLAIMS_READMODEL_URL', 'http://localhost:18012/rm', false, 'claims-readmodel-service'),
   route('/fraud', 'FRAUD_SERVICE_URL', 'http://localhost:18009', true, 'fraud-service'),
@@ -67,7 +73,7 @@ export const SERVICE_ROUTES: ServiceRoute[] = [
   route('/workflows', 'ORCHESTRATOR_URL', 'http://localhost:18010', true, 'orchestrator-service'),
   route('/work-items', 'ORCHESTRATOR_URL', 'http://localhost:18010', true, 'orchestrator-service'),
   route('/dlq', 'ORCHESTRATOR_URL', 'http://localhost:18010', true, 'orchestrator-service'),
-  route('/reg', 'REGULATORY_GATEWAY_URL', 'http://localhost:18024', true, 'regulatory-gateway-service'),
+  route('/reg', 'REGULATORY_GATEWAY_URL', 'http://localhost:18024/reg', true, 'regulatory-gateway-service'),
   route('/flags', 'FEATURE_FLAGS_URL', 'http://localhost:18011', true, 'feature-flags-service'),
   route('/party', 'PARTY_KYC_URL', 'http://localhost:18006', true, 'party-kyc-service'),
   route('/complaints', 'COMPLAINTS_SERVICE_URL', 'http://localhost:18013', true, 'complaints-service'),
@@ -78,21 +84,21 @@ export const SERVICE_ROUTES: ServiceRoute[] = [
   route('/re', 'REINSURANCE_SERVICE_URL', 'http://localhost:18017', true, 'reinsurance-service'),
   route('/product', 'PRODUCT_SERVICE_URL', 'http://localhost:18018', true, 'product-service'),
   route('/underwriting', 'UNDERWRITING_SERVICE_URL', 'http://localhost:18032', true, 'underwriting-service'),
-  route('/reporting', 'REPORTING_URL', 'http://localhost:18014/reporting', false, 'reporting-service'),
+  route('/reporting', 'REPORTING_URL', 'http://localhost:18014', false, 'reporting-service'),
   route('/monitoring', 'MONITORING_SERVICE_URL', 'http://localhost:18020', true, 'monitoring-service'),
   route('/document-ai', 'DOCUMENT_AI_URL', 'http://localhost:18021', false, 'document-ai-service'),
   route('/sales-network', 'SALES_NETWORK_URL', 'http://localhost:18022/sales-network', false, 'sales-network-service'),
   route('/notifications', 'NOTIFICATION_SERVICE_URL', 'http://localhost:18037', true, 'notification-service'),
-  route('/customer-portal', 'CUSTOMER_PORTAL_URL', 'http://localhost:18027', true, 'customer-portal-service'),
-  route('/agent-portal', 'AGENT_PORTAL_URL', 'http://localhost:18031', true, 'agent-portal-service'),
-  route('/workflow', 'WORKFLOW_SERVICE_URL', 'http://localhost:18028', true, 'workflow-service'),
-  route('/rule-engine', 'RULE_ENGINE_URL', 'http://localhost:18038', true, 'rule-engine-service'),
-  route('/knowledge', 'KNOWLEDGE_SERVICE_URL', 'http://localhost:18033', true, 'knowledge-service'),
-  route('/model-switchboard', 'MODEL_SWITCHBOARD_URL', 'http://localhost:18035', true, 'model-switchboard-service'),
-  route('/billing', 'BILLING_SERVICE_URL', 'http://localhost:18039', true, 'billing-service'),
-  route('/customer-360', 'CUSTOMER_360_URL', 'http://localhost:18026', false, 'customer-360-service'),
+  route('/customer-portal', 'CUSTOMER_PORTAL_URL', 'http://localhost:18027/customer-portal', true, 'customer-portal-service'),
+  route('/agent-portal', 'AGENT_PORTAL_URL', 'http://localhost:18031/agent-portal', true, 'agent-portal-service'),
+  route('/workflow', 'WORKFLOW_SERVICE_URL', 'http://localhost:18028/workflow', true, 'workflow-service'),
+  route('/rule-engine', 'RULE_ENGINE_URL', 'http://localhost:18038/rule-engine', true, 'rule-engine-service'),
+  route('/knowledge', 'KNOWLEDGE_SERVICE_URL', 'http://localhost:18033/knowledge', true, 'knowledge-service'),
+  route('/model-switchboard', 'MODEL_SWITCHBOARD_URL', 'http://localhost:18035/model-switchboard', true, 'model-switchboard-service'),
+  route('/billing', 'BILLING_SERVICE_URL', 'http://localhost:18039/billing', true, 'billing-service'),
+  route('/customer-360', 'CUSTOMER_360_URL', 'http://localhost:18026/customer-360', false, 'customer-360-service'),
   route('/outbox', 'OUTBOX_RELAY_URL', 'http://localhost:18041', false, 'outbox-relay'),
-  route('/ai-governance', 'AI_GOVERNANCE_URL', 'http://localhost:18036', false, 'ai-governance-service'),
+  route('/ai-governance', 'AI_GOVERNANCE_URL', 'http://localhost:18036/governance', false, 'ai-governance-service'),
   route('/broker-bff', 'BROKER_PORTAL_BFF_URL', 'http://localhost:3030', false, 'broker-portal-bff'),
   route('/channel-bff', 'CHANNEL_WORKSPACE_BFF_URL', 'http://localhost:3020', false, 'channel-workspace-bff'),
 ];

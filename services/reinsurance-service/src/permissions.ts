@@ -132,6 +132,7 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     're:periods:close',
     're:export',
   ],
+  ops_admin: ['re:cessions:approve', 're:cessions:create', 're:cessions:list', 're:cessions:update', 're:cessions:view', 're:export', 're:periods:close', 're:reconciliations:create', 're:reconciliations:list', 're:reconciliations:update', 're:reconciliations:view', 're:recoveries:create', 're:recoveries:list', 're:recoveries:update', 're:recoveries:view', 're:statements:create', 're:statements:list', 're:statements:update', 're:statements:view', 're:tickets:add_attachment', 're:tickets:add_message', 're:tickets:assign', 're:tickets:create', 're:tickets:list', 're:tickets:update', 're:tickets:view', 're:treaties:approve', 're:treaties:close', 're:treaties:create', 're:treaties:list', 're:treaties:submit', 're:treaties:update', 're:treaties:view'],
 };
 
 export function permissionsForRoles(roles: string[] | undefined | null): PermissionKey[] {

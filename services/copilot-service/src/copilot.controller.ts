@@ -31,7 +31,7 @@ export class CopilotController {
     auditLogger.info('copilot.claims.summary.request', { correlationId, tenantId, actor, action: 'copilot:claims:summary', claimId });
 
     const result = await this.copilotService.getClaimSummary({ claimId, headers, correlationId, tenantId, actorUserId: actor });
-    return res.status(result.status).json(result.body);
+    return res.status(result.status).send(result.body);
   }
 
   @Post('/copilot/documents/:documentId/summary')
@@ -50,7 +50,7 @@ export class CopilotController {
     });
 
     const result = await this.copilotService.getDocumentSummary({ documentId, headers, correlationId, tenantId, actorUserId: actor });
-    return res.status(result.status).json(result.body);
+    return res.status(result.status).send(result.body);
   }
 
   @Post('/copilot/qa')
@@ -86,7 +86,7 @@ export class CopilotController {
       provider: body?.provider,
     });
 
-    return res.status(result.status).json(result.body);
+    return res.status(result.status).send(result.body);
   }
 
   @Post('/copilot/next-best-action')
@@ -121,7 +121,7 @@ export class CopilotController {
       provider: body?.provider,
     });
 
-    return res.status(result.status).json(result.body);
+    return res.status(result.status).send(result.body);
   }
 
   @Post('/copilot/chat')
@@ -147,7 +147,7 @@ export class CopilotController {
     });
 
     if (!body?.message || typeof body.message !== 'string') {
-      return res.status(400).json({
+      return res.status(400).send({
         success: false,
         error: { code: 'VALIDATION_ERROR', message: 'message is required' },
         correlationId,
@@ -164,7 +164,7 @@ export class CopilotController {
       provider: body?.provider,
     });
 
-    return res.status(result.status).json(result.body);
+    return res.status(result.status).send(result.body);
   }
 
   @Get('/copilot/providers')
@@ -172,7 +172,7 @@ export class CopilotController {
   @RequirePermissions('copilot:view')
   async getAvailableProviders(@Res() res: any) {
     const providers = this.copilotService.getAvailableProviders();
-    return res.status(200).json({
+    return res.status(200).send({
       success: true,
       data: { providers },
     });
@@ -214,7 +214,7 @@ export class CopilotController {
         createdBy: actor,
       });
 
-      return res.status(201).json({
+      return res.status(201).send({
         success: true,
         data: { modelId: model.modelId },
         correlationId,
@@ -224,7 +224,7 @@ export class CopilotController {
         correlationId,
         action: 'copilot:manage',
       });
-      return res.status(500).json({
+      return res.status(500).send({
         success: false,
         error: { code: 'INTERNAL_ERROR', message: 'Failed to register model' },
         correlationId,
@@ -250,14 +250,14 @@ export class CopilotController {
     try {
       const model = await this.copilotService.updateModelStatus(modelId, body.status);
       if (!model) {
-        return res.status(404).json({
+        return res.status(404).send({
           success: false,
           error: { code: 'NOT_FOUND', message: 'Model not found' },
           correlationId,
         });
       }
 
-      return res.status(200).json({
+      return res.status(200).send({
         success: true,
         data: { modelId: model.modelId, status: model.status },
         correlationId,
@@ -267,7 +267,7 @@ export class CopilotController {
         correlationId,
         action: 'copilot:manage',
       });
-      return res.status(500).json({
+      return res.status(500).send({
         success: false,
         error: { code: 'INTERNAL_ERROR', message: 'Failed to update model status' },
         correlationId,
@@ -283,14 +283,14 @@ export class CopilotController {
 
     const model = await this.copilotService.getModel(modelId);
     if (!model) {
-      return res.status(404).json({
+      return res.status(404).send({
         success: false,
         error: { code: 'NOT_FOUND', message: 'Model not found' },
         correlationId,
       });
     }
 
-    return res.status(200).json({
+    return res.status(200).send({
       success: true,
       data: model,
       correlationId,
@@ -311,7 +311,7 @@ export class CopilotController {
       offset: parseInt(query.offset || '0', 10),
     });
 
-    return res.status(200).json({
+    return res.status(200).send({
       success: true,
       data: result,
       correlationId,
@@ -334,14 +334,14 @@ export class CopilotController {
 
     const result = await this.copilotService.deleteModel(modelId);
     if (!result) {
-      return res.status(404).json({
+      return res.status(404).send({
         success: false,
         error: { code: 'NOT_FOUND', message: 'Model not found' },
         correlationId,
       });
     }
 
-    return res.status(200).json({
+    return res.status(200).send({
       success: true,
       data: { deleted: true },
       correlationId,
@@ -374,7 +374,7 @@ export class CopilotController {
         createdBy: actor,
       });
 
-      return res.status(201).json({
+      return res.status(201).send({
         success: true,
         data: { assessmentId: assessment.assessmentId },
         correlationId,
@@ -384,7 +384,7 @@ export class CopilotController {
         correlationId,
         action: 'copilot:manage',
       });
-      return res.status(500).json({
+      return res.status(500).send({
         success: false,
         error: { code: 'INTERNAL_ERROR', message: 'Failed to create risk assessment' },
         correlationId,
@@ -408,14 +408,14 @@ export class CopilotController {
 
     const assessment = await this.copilotService.approveRiskAssessment(assessmentId, actor || 'unknown', body.notes);
     if (!assessment) {
-      return res.status(404).json({
+      return res.status(404).send({
         success: false,
         error: { code: 'NOT_FOUND', message: 'Risk assessment not found' },
         correlationId,
       });
     }
 
-    return res.status(200).json({
+    return res.status(200).send({
       success: true,
       data: { assessmentId: assessment.assessmentId, status: assessment.status },
       correlationId,
@@ -438,14 +438,14 @@ export class CopilotController {
 
     const assessment = await this.copilotService.rejectRiskAssessment(assessmentId, actor || 'unknown', body.notes);
     if (!assessment) {
-      return res.status(404).json({
+      return res.status(404).send({
         success: false,
         error: { code: 'NOT_FOUND', message: 'Risk assessment not found' },
         correlationId,
       });
     }
 
-    return res.status(200).json({
+    return res.status(200).send({
       success: true,
       data: { assessmentId: assessment.assessmentId, status: assessment.status },
       correlationId,
@@ -460,14 +460,14 @@ export class CopilotController {
 
     const assessment = await this.copilotService.getRiskAssessment(assessmentId);
     if (!assessment) {
-      return res.status(404).json({
+      return res.status(404).send({
         success: false,
         error: { code: 'NOT_FOUND', message: 'Risk assessment not found' },
         correlationId,
       });
     }
 
-    return res.status(200).json({
+    return res.status(200).send({
       success: true,
       data: assessment,
       correlationId,
@@ -482,7 +482,7 @@ export class CopilotController {
 
     const assessments = await this.copilotService.listRiskAssessmentsForModel(modelId);
 
-    return res.status(200).json({
+    return res.status(200).send({
       success: true,
       data: assessments,
       correlationId,
@@ -518,7 +518,7 @@ export class CopilotController {
         createdBy: actor,
       });
 
-      return res.status(201).json({
+      return res.status(201).send({
         success: true,
         data: { incidentId: incident.incidentId },
         correlationId,
@@ -528,7 +528,7 @@ export class CopilotController {
         correlationId,
         action: 'copilot:manage',
       });
-      return res.status(500).json({
+      return res.status(500).send({
         success: false,
         error: { code: 'INTERNAL_ERROR', message: 'Failed to create incident report' },
         correlationId,
@@ -553,14 +553,14 @@ export class CopilotController {
 
     const incident = await this.copilotService.updateIncidentStatus(incidentId, body.status, actor);
     if (!incident) {
-      return res.status(404).json({
+      return res.status(404).send({
         success: false,
         error: { code: 'NOT_FOUND', message: 'Incident not found' },
         correlationId,
       });
     }
 
-    return res.status(200).json({
+    return res.status(200).send({
       success: true,
       data: { incidentId: incident.incidentId, status: incident.status },
       correlationId,
@@ -581,14 +581,14 @@ export class CopilotController {
 
     const incident = await this.copilotService.resolveIncident(incidentId, body.resolution, body.rootCause);
     if (!incident) {
-      return res.status(404).json({
+      return res.status(404).send({
         success: false,
         error: { code: 'NOT_FOUND', message: 'Incident not found' },
         correlationId,
       });
     }
 
-    return res.status(200).json({
+    return res.status(200).send({
       success: true,
       data: { incidentId: incident.incidentId, status: incident.status },
       correlationId,
@@ -603,14 +603,14 @@ export class CopilotController {
 
     const incident = await this.copilotService.getIncident(incidentId);
     if (!incident) {
-      return res.status(404).json({
+      return res.status(404).send({
         success: false,
         error: { code: 'NOT_FOUND', message: 'Incident not found' },
         correlationId,
       });
     }
 
-    return res.status(200).json({
+    return res.status(200).send({
       success: true,
       data: incident,
       correlationId,
@@ -631,7 +631,7 @@ export class CopilotController {
       offset: parseInt(query.offset || '0', 10),
     });
 
-    return res.status(200).json({
+    return res.status(200).send({
       success: true,
       data: result,
       correlationId,
@@ -668,7 +668,7 @@ export class CopilotController {
         createdBy: actor,
       });
 
-      return res.status(201).json({
+      return res.status(201).send({
         success: true,
         data: { cardId: card.cardId },
         correlationId,
@@ -678,7 +678,7 @@ export class CopilotController {
         correlationId,
         action: 'copilot:manage',
       });
-      return res.status(500).json({
+      return res.status(500).send({
         success: false,
         error: { code: 'INTERNAL_ERROR', message: 'Failed to create model card' },
         correlationId,
@@ -709,14 +709,14 @@ export class CopilotController {
     });
 
     if (!card) {
-      return res.status(404).json({
+      return res.status(404).send({
         success: false,
         error: { code: 'NOT_FOUND', message: 'Model card not found' },
         correlationId,
       });
     }
 
-    return res.status(200).json({
+    return res.status(200).send({
       success: true,
       data: { cardId: card.cardId },
       correlationId,
@@ -731,14 +731,14 @@ export class CopilotController {
 
     const card = await this.copilotService.getModelCard(cardId);
     if (!card) {
-      return res.status(404).json({
+      return res.status(404).send({
         success: false,
         error: { code: 'NOT_FOUND', message: 'Model card not found' },
         correlationId,
       });
     }
 
-    return res.status(200).json({
+    return res.status(200).send({
       success: true,
       data: card,
       correlationId,
@@ -753,14 +753,14 @@ export class CopilotController {
 
     const card = await this.copilotService.getModelCardByVersion(modelId, version);
     if (!card) {
-      return res.status(404).json({
+      return res.status(404).send({
         success: false,
         error: { code: 'NOT_FOUND', message: 'Model card not found' },
         correlationId,
       });
     }
 
-    return res.status(200).json({
+    return res.status(200).send({
       success: true,
       data: card,
       correlationId,
@@ -775,7 +775,7 @@ export class CopilotController {
 
     const cards = await this.copilotService.listModelCardsForModel(modelId);
 
-    return res.status(200).json({
+    return res.status(200).send({
       success: true,
       data: cards,
       correlationId,
@@ -813,7 +813,7 @@ export class CopilotController {
         createdBy: actor,
       });
 
-      return res.status(201).json({
+      return res.status(201).send({
         success: true,
         data: { reportId: report.reportId },
         correlationId,
@@ -823,7 +823,7 @@ export class CopilotController {
         correlationId,
         action: 'copilot:manage',
       });
-      return res.status(500).json({
+      return res.status(500).send({
         success: false,
         error: { code: 'INTERNAL_ERROR', message: 'Failed to create validation report' },
         correlationId,
@@ -855,14 +855,14 @@ export class CopilotController {
     );
 
     if (!report) {
-      return res.status(404).json({
+      return res.status(404).send({
         success: false,
         error: { code: 'NOT_FOUND', message: 'Validation report not found' },
         correlationId,
       });
     }
 
-    return res.status(200).json({
+    return res.status(200).send({
       success: true,
       data: { reportId: report.reportId, status: report.status },
       correlationId,
@@ -877,14 +877,14 @@ export class CopilotController {
 
     const report = await this.copilotService.getValidationReport(reportId);
     if (!report) {
-      return res.status(404).json({
+      return res.status(404).send({
         success: false,
         error: { code: 'NOT_FOUND', message: 'Validation report not found' },
         correlationId,
       });
     }
 
-    return res.status(200).json({
+    return res.status(200).send({
       success: true,
       data: report,
       correlationId,
@@ -899,7 +899,7 @@ export class CopilotController {
 
     const reports = await this.copilotService.listValidationReportsForModel(modelId);
 
-    return res.status(200).json({
+    return res.status(200).send({
       success: true,
       data: reports,
       correlationId,
@@ -936,7 +936,7 @@ export class CopilotController {
         provider: body.provider,
       });
 
-      return res.status(200).json({
+      return res.status(200).send({
         success: true,
         data: result,
         correlationId,
@@ -946,7 +946,7 @@ export class CopilotController {
         correlationId,
         action: 'copilot:qa',
       });
-      return res.status(500).json({
+      return res.status(500).send({
         success: false,
         error: { code: 'INTERNAL_ERROR', message: 'Failed to assist underwriting' },
         correlationId,
@@ -984,7 +984,7 @@ export class CopilotController {
         provider: body.provider,
       });
 
-      return res.status(200).json({
+      return res.status(200).send({
         success: true,
         data: result,
         correlationId,
@@ -994,7 +994,7 @@ export class CopilotController {
         correlationId,
         action: 'copilot:qa',
       });
-      return res.status(500).json({
+      return res.status(500).send({
         success: false,
         error: { code: 'INTERNAL_ERROR', message: 'Failed to triage complaint' },
         correlationId,
@@ -1032,7 +1032,7 @@ export class CopilotController {
         provider: body.provider,
       });
 
-      return res.status(200).json({
+      return res.status(200).send({
         success: true,
         data: result,
         correlationId,
@@ -1042,7 +1042,7 @@ export class CopilotController {
         correlationId,
         action: 'copilot:qa',
       });
-      return res.status(500).json({
+      return res.status(500).send({
         success: false,
         error: { code: 'INTERNAL_ERROR', message: 'Failed to discover recovery' },
         correlationId,
@@ -1080,7 +1080,7 @@ export class CopilotController {
         provider: body.provider,
       });
 
-      return res.status(200).json({
+      return res.status(200).send({
         success: true,
         data: result,
         correlationId,
@@ -1090,7 +1090,7 @@ export class CopilotController {
         correlationId,
         action: 'copilot:qa',
       });
-      return res.status(500).json({
+      return res.status(500).send({
         success: false,
         error: { code: 'INTERNAL_ERROR', message: 'Failed to assist pricing' },
         correlationId,
@@ -1127,7 +1127,7 @@ export class CopilotController {
         provider: body.provider,
       });
 
-      return res.status(200).json({
+      return res.status(200).send({
         success: true,
         data: result,
         correlationId,
@@ -1137,7 +1137,7 @@ export class CopilotController {
         correlationId,
         action: 'copilot:view',
       });
-      return res.status(500).json({
+      return res.status(500).send({
         success: false,
         error: { code: 'INTERNAL_ERROR', message: 'Failed to assist self-service' },
         correlationId,
@@ -1159,7 +1159,7 @@ export class CopilotController {
     const actor = req?.user?.userId as string | undefined;
 
     if (!body.query) {
-      return res.status(400).json({
+      return res.status(400).send({
         success: false,
         error: { code: 'VALIDATION_ERROR', message: 'query is required' },
         correlationId,
@@ -1176,9 +1176,9 @@ export class CopilotController {
         actorUserId: actor,
         headers,
       });
-      return res.status(result.status).json(result.body);
+      return res.status(result.status).send(result.body);
     } catch (error: any) {
-      return res.status(500).json({
+      return res.status(500).send({
         success: false,
         error: { code: 'ECOSYSTEM_AI_ERROR', message: error.message },
         correlationId,
@@ -1211,7 +1211,7 @@ export class CopilotController {
     });
 
     if (!['claim', 'policy', 'complaint'].includes(contextType)) {
-      return res.status(400).json({
+      return res.status(400).send({
         success: false,
         error: { code: 'VALIDATION_ERROR', message: 'Unsupported contextType' },
         correlationId,
@@ -1226,7 +1226,7 @@ export class CopilotController {
       tenantId,
       actorUserId: actor,
     });
-    return res.status(result.status).json(result.body);
+    return res.status(result.status).send(result.body);
   }
 
   @Post('/copilot/nba/:logId/execute')
@@ -1249,7 +1249,7 @@ export class CopilotController {
     });
 
     const result = await this.copilotService.executeNbaAction(logId, actor);
-    return res.status(result.status).json({ ...result.body, correlationId });
+    return res.status(result.status).send({ ...result.body, correlationId });
   }
 
   @Post('/copilot/nba/:logId/opt-out')
@@ -1274,7 +1274,7 @@ export class CopilotController {
     });
 
     const result = await this.copilotService.optOutNbaAction(logId, body?.reason);
-    return res.status(result.status).json({ ...result.body, correlationId });
+    return res.status(result.status).send({ ...result.body, correlationId });
   }
 
   @Get('/copilot/nba/actions')
@@ -1302,7 +1302,7 @@ export class CopilotController {
       offset: parseInt(offset, 10),
     });
 
-    return res.status(200).json({
+    return res.status(200).send({
       success: true,
       data: result.rows,
       pagination: { total: result.total, limit: parseInt(limit, 10), offset: parseInt(offset, 10) },
@@ -1341,14 +1341,14 @@ export class CopilotController {
         headers,
       });
 
-      return res.status(200).json({
+      return res.status(200).send({
         success: true,
         data: result,
         correlationId,
       });
     } catch (e: any) {
       auditLogger.error('copilot.recommend-product.error', e, { correlationId });
-      return res.status(500).json({
+      return res.status(500).send({
         success: false,
         error: { code: 'INTERNAL_ERROR', message: 'Failed to recommend product' },
         correlationId,
@@ -1389,14 +1389,14 @@ export class CopilotController {
         headers,
       });
 
-      return res.status(200).json({
+      return res.status(200).send({
         success: true,
         data: result,
         correlationId,
       });
     } catch (e: any) {
       auditLogger.error('copilot.draft-communication.error', e, { correlationId });
-      return res.status(500).json({
+      return res.status(500).send({
         success: false,
         error: { code: 'INTERNAL_ERROR', message: 'Failed to draft communication' },
         correlationId,

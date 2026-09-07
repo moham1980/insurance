@@ -22,6 +22,7 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
   broker_staff: ['payments:view', 'payments:list'],
   agency_owner: ['payments:view', 'payments:list'],
   agency_staff: ['payments:view', 'payments:list'],
+  ops_admin: ['payments:approve', 'payments:dispute', 'payments:execute', 'payments:fail', 'payments:gateway_callback', 'payments:list', 'payments:notify', 'payments:prepare', 'payments:reconcile', 'payments:refund', 'payments:view'],
 };
 
 export function permissionsForRoles(roles: string[] | undefined | null): PermissionKey[] {

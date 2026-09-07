@@ -11,7 +11,7 @@ import { TenantGuard } from './tenant.guard';
 export class AgentPortalController {
   constructor(private readonly service: AgentPortalService) {}
 
-  private readonly BROKER_ROLES = ['broker_owner', 'broker_staff', 'insurer_admin', 'head_office_ops', 'system_admin'];
+  private readonly BROKER_ROLES = ['broker_owner', 'broker_staff', 'insurer_admin', 'head_office_ops', 'system_admin', 'ops_admin'];
 
   private validateAgentAccess(agentId: string, req: any): void {
     const user = req?.user;

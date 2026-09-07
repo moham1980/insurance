@@ -13,7 +13,7 @@ export class EcosystemJwtGuard implements CanActivate {
   constructor() {
     this.jwtSecret = process.env.JWT_SECRET || 'default-secret-change-in-production';
     this.issuer = process.env.IAM_ISSUER || 'http://localhost:8080';
-    const audienceEnv = process.env.JWT_AUDIENCES || process.env.JWT_AUDIENCE || 'insurance-platform';
+    const audienceEnv = process.env.JWT_AUDIENCES || process.env.JWT_AUDIENCE || 'modern-banking';
     this.audience = audienceEnv.split(',')[0].trim();
     const jwksUri = process.env.JWKS_URI || `${this.issuer}/.well-known/jwks.json`;
     this.jwksClient = new JwksClient({

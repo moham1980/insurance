@@ -129,7 +129,14 @@ export class ClaimsService {
   }
 
   private hashPayload(payload: Record<string, unknown>): string {
-    const canonical = JSON.stringify(payload, Object.keys(payload ?? {}).sort());
+    const volatileKeys = new Set(['correlationId', 'tenantId', 'actorUserId', 'idempotencyKey', 'idempotencyPayloadHash']);
+    const stable: Record<string, unknown> = {};
+    for (const key of Object.keys(payload ?? {}).sort()) {
+      if (!volatileKeys.has(key)) {
+        stable[key] = payload[key];
+      }
+    }
+    const canonical = JSON.stringify(stable);
     return createHash('sha256').update(canonical).digest('hex');
   }
 
@@ -327,7 +334,7 @@ export class ClaimsService {
         manager,
         payload: {
           claimantPartyId: claim.claimantPartyId,
-          lossDate: claim.lossDate.toISOString(),
+          lossDate: claim.lossDate instanceof Date ? claim.lossDate.toISOString() : (claim.lossDate ? new Date(claim.lossDate).toISOString() : null),
           lossType: claim.lossType,
           requiresHumanTriage: claim.requiresHumanTriage,
           createdAt: claim.createdAt?.toISOString?.() ?? new Date().toISOString(),
@@ -427,7 +434,7 @@ export class ClaimsService {
 
     await this.claimRepo.save(claim);
 
-    auditLogger.log({
+    auditLogger.info('CLAIM_UPDATED', {
       action: 'CLAIM_UPDATED',
       actor: params.actorUserId || 'system',
       tenantId: params.tenantId || claim.tenantId,
@@ -1271,7 +1278,7 @@ export class ClaimsService {
         manager,
         payload: {
           claimantPartyId: claim.claimantPartyId,
-          lossDate: claim.lossDate.toISOString(),
+          lossDate: claim.lossDate instanceof Date ? claim.lossDate.toISOString() : (claim.lossDate ? new Date(claim.lossDate).toISOString() : null),
           lossType: claim.lossType,
           requiresHumanTriage: claim.requiresHumanTriage,
           notificationChannel: claim.notificationChannel,
@@ -1602,11 +1609,14 @@ export class ClaimsService {
 
       const effectiveFrom = policy.startDate ? new Date(policy.startDate) : null;
       const effectiveTo = policy.endDate ? new Date(policy.endDate) : null;
+      // Guard against Invalid Date objects (e.g. new Date(undefined) returns Invalid Date)
+      const safeFrom = effectiveFrom && !isNaN(effectiveFrom.getTime()) ? effectiveFrom : null;
+      const safeTo = effectiveTo && !isNaN(effectiveTo.getTime()) ? effectiveTo : null;
       const coverages = policy.coverages || {};
       const coverageTypes = Array.isArray(coverages) ? coverages.map((c: any) => c.type || c) : Object.keys(coverages);
 
-      const withinPolicyPeriod = effectiveFrom && effectiveTo
-        ? claim.lossDate >= effectiveFrom && claim.lossDate <= effectiveTo
+      const withinPolicyPeriod = safeFrom && safeTo
+        ? claim.lossDate >= safeFrom && claim.lossDate <= safeTo
         : false;
       const policyActive = policy.status === 'active';
       const lossTypeLower = (claim.lossType || '').toLowerCase();
@@ -1616,9 +1626,9 @@ export class ClaimsService {
       const validationDetails = {
         policyId: claim.policyId,
         policyStatus: policy.status || 'unknown',
-        effectiveFrom: effectiveFrom?.toISOString() || null,
-        effectiveTo: effectiveTo?.toISOString() || null,
-        lossDate: claim.lossDate.toISOString(),
+        effectiveFrom: safeFrom?.toISOString() || null,
+        effectiveTo: safeTo?.toISOString() || null,
+        lossDate: claim.lossDate instanceof Date ? claim.lossDate.toISOString() : (claim.lossDate ? new Date(claim.lossDate).toISOString() : null),
         lossType: claim.lossType,
         coverageTypes,
       };

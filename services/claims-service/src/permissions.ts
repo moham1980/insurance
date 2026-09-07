@@ -18,9 +18,18 @@ export type PermissionKey =
   | 'claims:recovery:manage'
   | 'claims:document:attach'
   | 'claims:document:view'
-  | 'claims:document:download';
+  | 'claims:document:download'
+  | 'claims:edit';
 
 const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
+  // Ecosystem admin role (demo-admin)
+  ops_admin: [
+    'claims:register', 'claims:view', 'claims:assess', 'claims:approve', 'claims:reject', 'claims:pay',
+    'claims:close', 'claims:list', 'claims:refer_adjuster',
+    'claims:advocacy:manage', 'claims:advocacy:view', 'claims:adjuster:refer', 'claims:adjuster:respond',
+    'claims:adjuster:submit_report', 'claims:projection:view', 'claims:projection:write', 'claims:recovery:manage',
+    'claims:document:attach', 'claims:document:view', 'claims:document:download', 'claims:edit',
+  ],
   insurer_admin: [
     'claims:register', 'claims:view', 'claims:assess', 'claims:approve', 'claims:reject', 'claims:pay',
     'claims:close', 'claims:list', 'claims:refer_adjuster',

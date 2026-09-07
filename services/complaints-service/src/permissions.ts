@@ -66,6 +66,7 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     'complaints:manage',
   ],
   auditor: ['complaints:view', 'complaints:list', 'complaints:dashboard', 'complaints:export'],
+  ops_admin: ['complaints:attach_document', 'complaints:create', 'complaints:dashboard', 'complaints:escalate', 'complaints:export', 'complaints:list', 'complaints:manage', 'complaints:otp_request', 'complaints:otp_verify', 'complaints:update_status', 'complaints:view'],
 };
 
 export function permissionsForRoles(roles: string[] | undefined | null): PermissionKey[] {

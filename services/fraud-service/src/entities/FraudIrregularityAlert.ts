@@ -34,28 +34,28 @@ export enum AlertStatus {
 @Index(['tenantId', 'patternType'])
 @Index(['claimId'])
 export class FraudIrregularityAlert {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn('uuid', { name: 'alert_id' })
   id!: string;
 
-  @Column({ type: 'uuid', nullable: true })
+  @Column({ name: 'tenant_id', type: 'uuid', nullable: true })
   tenantId!: string | null;
 
-  @Column({ type: 'uuid' })
+  @Column({ name: 'claim_id', type: 'uuid' })
   claimId!: string;
 
-  @Column({ type: 'enum', enum: IrregularityPattern })
+  @Column({ name: 'alert_type', type: 'text' })
   patternType!: IrregularityPattern;
 
-  @Column({ type: 'enum', enum: AlertSeverity })
+  @Column({ type: 'text' })
   severity!: AlertSeverity;
 
-  @Column({ type: 'enum', enum: AlertStatus, default: AlertStatus.NEW })
+  @Column({ type: 'text', default: AlertStatus.NEW })
   status!: AlertStatus;
 
   @Column({ type: 'text' })
   description!: string;
 
-  @Column({ type: 'jsonb' })
+  @Column({ name: 'detection_details', type: 'jsonb' })
   detectionDetails!: {
     pattern: string;
     threshold?: number;
@@ -78,27 +78,27 @@ export class FraudIrregularityAlert {
   @Column({ type: 'text', nullable: true })
   notes!: string | null;
 
-  @Column({ type: 'uuid', nullable: true })
+  @Column({ name: 'assigned_to', type: 'uuid', nullable: true })
   assignedTo!: string | null;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ name: 'assigned_at', type: 'timestamp', nullable: true })
   assignedAt!: Date | null;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ name: 'resolved_at', type: 'timestamp', nullable: true })
   resolvedAt!: Date | null;
 
-  @Column({ type: 'uuid', nullable: true })
+  @Column({ name: 'resolved_by', type: 'uuid', nullable: true })
   resolvedBy!: string | null;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ name: 'resolution_notes', type: 'text', nullable: true })
   resolutionNotes!: string | null;
 
   @Column({ type: 'jsonb', nullable: true })
   metadata!: Record<string, any> | null;
 
-  @CreateDateColumn({ type: 'timestamp' })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt!: Date;
 
-  @UpdateDateColumn({ type: 'timestamp' })
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamp' })
   updatedAt!: Date;
 }

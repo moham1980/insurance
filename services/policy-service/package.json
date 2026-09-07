@@ -21,7 +21,8 @@
     "typeorm": "^0.3.17",
     "pg": "^8.11.3",
     "uuid": "^9.0.0",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "jwks-rsa": "^3.1.0"
   },
   "devDependencies": {
     "typescript": "^5.3.3",

@@ -13,7 +13,7 @@ export class AbacGuard implements CanActivate {
     const roles: string[] = Array.isArray(user.roles) ? user.roles : [];
     if (roles.length === 0) return true;
 
-    if (roles.includes('insurer_admin') || roles.includes('auditor')) return true;
+    if (roles.includes('insurer_admin') || roles.includes('auditor') || roles.includes('ops_admin')) return true;
 
     const method = request.method || request.raw?.method;
     if (method === 'GET') return true;

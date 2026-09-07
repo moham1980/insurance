@@ -3,6 +3,7 @@ export type PermissionKey = 'feature_flags:manage' | 'ai_toggles:manage' | 'feat
 const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
   insurer_admin: ['feature_flags:manage', 'ai_toggles:manage', 'feature_flags:view', 'ai_toggles:view'],
   auditor: ['feature_flags:view', 'ai_toggles:view'],
+  ops_admin: ['ai_toggles:manage', 'ai_toggles:view', 'feature_flags:manage', 'feature_flags:view'],
 };
 
 export function permissionsForRoles(roles: string[] | undefined | null): PermissionKey[] {

@@ -64,6 +64,7 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     'rule_engine:executions:list',
     'rule_engine:export',
   ],
+  ops_admin: ['rule_engine:evaluate', 'rule_engine:executions:list', 'rule_engine:executions:view', 'rule_engine:export', 'rule_engine:rules:activate', 'rule_engine:rules:approve', 'rule_engine:rules:create', 'rule_engine:rules:deactivate', 'rule_engine:rules:delete', 'rule_engine:rules:list', 'rule_engine:rules:submit', 'rule_engine:rules:update', 'rule_engine:rules:view', 'rule_engine:templates:create', 'rule_engine:templates:list', 'rule_engine:templates:view'],
 };
 
 export function permissionsForRoles(roles: string[] | undefined | null): PermissionKey[] {

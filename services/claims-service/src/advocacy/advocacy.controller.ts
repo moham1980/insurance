@@ -664,7 +664,7 @@ export class ClaimAdvocacyController {
   ) {
     const correlationId = getCorrelationId(headers);
     const { tenantId, organizationId, roles } = getUserInfo(req);
-    const isBroker = roles.some(r => r.includes('broker'));
+    const isBroker = roles.some((r: string) => r.includes('broker'));
 
     try {
       const result = await this.advocacyService.listClaimDocuments({ claimId, tenantId, organizationId, isBroker });
@@ -685,7 +685,7 @@ export class ClaimAdvocacyController {
   ) {
     const correlationId = getCorrelationId(headers);
     const { tenantId, organizationId, roles } = getUserInfo(req);
-    const isBroker = roles.some(r => r.includes('broker'));
+    const isBroker = roles.some((r: string) => r.includes('broker'));
 
     try {
       const result = await this.advocacyService.getClaimDocumentDownloadUrl({ correlationId, tenantId, claimId, documentId, organizationId, isBroker });

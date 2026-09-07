@@ -25,7 +25,7 @@ export class EcosystemJwtGuard implements CanActivate {
   constructor() {
     this.jwtSecret = process.env.JWT_SECRET || 'default-secret-change-in-production';
     this.issuer = process.env.IAM_ISSUER || 'http://localhost:8080';
-    this.audience = process.env.JWT_AUDIENCES || 'insurance-platform';
+    this.audience = process.env.JWT_AUDIENCES || 'modern-banking';
     const jwksUri = process.env.JWKS_URI || `${this.issuer}/.well-known/jwks.json`;
     this.jwksClient = new JwksClient({
       jwksUri,

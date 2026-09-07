@@ -8,6 +8,7 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
   auditor: ['underwriting:view', 'underwriting:list'],
   broker_owner: ['underwriting:view', 'underwriting:list', 'underwriting:appeal'],
   broker_staff: ['underwriting:view', 'underwriting:list', 'underwriting:appeal'],
+  ops_admin: ['underwriting:appeal', 'underwriting:create', 'underwriting:decide', 'underwriting:list', 'underwriting:view'],
 };
 
 export function permissionsForRoles(roles: string[] | undefined | null): PermissionKey[] {

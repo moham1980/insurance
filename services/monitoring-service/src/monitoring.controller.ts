@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Param, Patch, Post, Put, Delete, Query, Req, Res, UseGuards } from '@nestjs/common';
+﻿import { Body, Controller, Get, Headers, Param, Patch, Post, Put, Delete, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { MonitoringService } from './monitoring.service';
 import type { MetricPayload, SLOPayload } from './monitoring.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -17,17 +17,14 @@ export class MonitoringController {
     return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
 
-  @Get('/health')
-  health() {
-    return { status: 'ok', service: 'monitoring-service' };
-  }
-
   @Get('/metrics')
   @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
   @RequirePermissions('monitoring:metrics:view')
-  async metrics(@Res() res: any) {
-    res.setHeader('Content-Type', this.monitoringService.getPrometheusContentType());
-    res.end(await this.monitoringService.getPrometheusMetrics());
+  async metrics(@Res({ passthrough: true }) res: any) {
+    const contentType = this.monitoringService.getPrometheusContentType();
+    const metrics = await this.monitoringService.getPrometheusMetrics();
+    res.type(contentType);
+    return metrics;
   }
 
   @Post('/metrics')
@@ -165,7 +162,7 @@ export class MonitoringController {
     return { success: true, data: dashboard, correlationId };
   }
 
-  // P2 #5: Dashboard customization — CRUD endpoints (tenant-scoped and user-scoped)
+  // P2 #5: Dashboard customization â€” CRUD endpoints (tenant-scoped and user-scoped)
 
   @Get('/dashboards')
   @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
@@ -241,3 +238,4 @@ export class MonitoringController {
     return { success: true, data: { deleted: true }, correlationId };
   }
 }
+

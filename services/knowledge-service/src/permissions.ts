@@ -44,6 +44,7 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     'knowledge:nba:list',
     'knowledge:export',
   ],
+  ops_admin: ['knowledge:articles:create', 'knowledge:articles:delete', 'knowledge:articles:list', 'knowledge:articles:update', 'knowledge:articles:view', 'knowledge:export', 'knowledge:graph:list', 'knowledge:graph:view', 'knowledge:nba:create', 'knowledge:nba:list', 'knowledge:nba:view'],
 };
 
 export function permissionsForRoles(roles: string[] | undefined | null): PermissionKey[] {

@@ -59,6 +59,7 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     'workflow:profiles:view',
     'workflow:export',
   ],
+  ops_admin: ['workflow:definitions:create', 'workflow:definitions:delete', 'workflow:definitions:list', 'workflow:definitions:update', 'workflow:definitions:view', 'workflow:export', 'workflow:instances:cancel', 'workflow:instances:create', 'workflow:instances:list', 'workflow:instances:transition', 'workflow:instances:view', 'workflow:profiles:view', 'workflow:templates:create', 'workflow:templates:list', 'workflow:templates:view'],
 };
 
 export function permissionsForRoles(roles: string[] | undefined | null): PermissionKey[] {

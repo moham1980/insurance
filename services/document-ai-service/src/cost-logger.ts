@@ -5,10 +5,15 @@ const logger = new Logger('CostLogger');
 
 // Approximate cost per page (in USD) by OCR provider — used for estimated cost logging.
 // These are rough defaults and can be overridden via env (DOCUMENT_AI_COST_PER_PAGE_<PROVIDER>).
-const DEFAULT_COST_PER_PAGE: Record<OcrProvider, number> = {
-  [OcrProvider.TESSERACT]: 0, // local engine — no per-page cost
-  [OcrProvider.GOOGLE_VISION]: 0.0015, // ~$1.50 per 1000 pages (DOCUMENT_TEXT_DETECTION)
-};
+let _costMap: Record<string, number> | null = null;
+function getCostMap(): Record<string, number> {
+  if (_costMap) return _costMap;
+  _costMap = {
+    [OcrProvider.TESSERACT]: 0, // local engine — no per-page cost
+    [OcrProvider.GOOGLE_VISION]: 0.0015, // ~$1.50 per 1000 pages (DOCUMENT_TEXT_DETECTION)
+  };
+  return _costMap;
+}
 
 function getCostPerPage(provider: OcrProvider): number {
   const envKey = `DOCUMENT_AI_COST_PER_PAGE_${provider.toUpperCase()}`;
@@ -17,7 +22,7 @@ function getCostPerPage(provider: OcrProvider): number {
     const parsed = parseFloat(envVal);
     if (!Number.isNaN(parsed)) return parsed;
   }
-  return DEFAULT_COST_PER_PAGE[provider] ?? 0;
+  return getCostMap()[provider] ?? 0;
 }
 
 /**

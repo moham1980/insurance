@@ -21,6 +21,7 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
   broker_staff: ['switchboard:view', 'switchboard:route', 'switchboard:view_usage'],
   call_center: ['switchboard:view', 'switchboard:route', 'switchboard:view_usage'],
   auditor: ['switchboard:view', 'switchboard:view_usage'],
+  ops_admin: ['switchboard:admin', 'switchboard:governance:skip', 'switchboard:manage', 'switchboard:manage_models', 'switchboard:manage_policies', 'switchboard:record_usage', 'switchboard:route', 'switchboard:view', 'switchboard:view_usage'],
 };
 
 export function permissionsForRoles(roles: string[] | undefined | null): PermissionKey[] {

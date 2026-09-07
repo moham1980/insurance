@@ -72,6 +72,7 @@ export class DocumentAiConsumer implements OnModuleInit, OnModuleDestroy {
             consumerName: consumerGroupId,
             topic,
             eventId: envelope.eventId,
+            tenantId: 'system',
           });
           if (!ok) {
             this.logger.debug('Duplicate event - skipped', { topic, eventId: envelope.eventId });

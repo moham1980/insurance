@@ -11,6 +11,7 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
   broker: ['copilot:qa', 'copilot:claims:summary', 'copilot:documents:summary', 'copilot:next-best-action', 'copilot:view'],
   agent: ['copilot:qa', 'copilot:claims:summary', 'copilot:documents:summary', 'copilot:next-best-action', 'copilot:view'],
   super_admin: ['copilot:claims:summary', 'copilot:documents:summary', 'copilot:qa', 'copilot:next-best-action', 'copilot:view', 'copilot:manage'],
+  ops_admin: ['copilot:claims:summary', 'copilot:documents:summary', 'copilot:manage', 'copilot:qa', 'copilot:view'],
 };
 
 export function permissionsForRoles(roles: string[] | undefined | null): PermissionKey[] {

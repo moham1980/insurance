@@ -6,11 +6,12 @@ export const permissionsForRoles = (roles: string[] | undefined | null): Permiss
   const perms = new Set<PermissionKey>();
   for (const r of rs) {
     const role = String(r);
-    if (role === 'insurer_admin') {
+    if (role === 'insurer_admin' || role === 'ops_admin') {
       perms.add('reporting:view');
       perms.add('reporting:ingest');
       perms.add('reporting:projections:admin');
       perms.add('reporting:manage');
+      perms.add('reporting:admin');
     }
     if (
       role === 'head_office_ops' ||

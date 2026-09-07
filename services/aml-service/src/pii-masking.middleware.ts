@@ -31,14 +31,23 @@ function maskPiiRecursive(obj: any): any {
 
 @Injectable()
 export class PiiMaskingMiddleware implements NestMiddleware {
-  use(req: Request, res: Response, next: NextFunction) {
-    const originalJson = res.json.bind(res);
-    res.json = function (body: any) {
-      if (body && typeof body === 'object') {
-        body = maskPiiRecursive(body);
-      }
-      return originalJson(body);
-    };
+  use(req: Request, res: any, next: NextFunction) {
+    const originalSend = res.send?.bind(res);
+    if (typeof originalSend === 'function') {
+      // Express-style
+      res.send = function (body: any) {
+        if (body && typeof body === 'object') {
+          body = maskPiiRecursive(body);
+        } else if (typeof body === 'string') {
+          try {
+            const parsed = JSON.parse(body);
+            const masked = maskPiiRecursive(parsed);
+            body = JSON.stringify(masked);
+          } catch (_e) { /* not JSON, leave as-is */ }
+        }
+        return originalSend(body);
+      };
+    }
     next();
   }
 }

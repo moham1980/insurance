@@ -51,6 +51,7 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
   broker_staff: ['collections:plan_view', 'collections:plan_list', 'collections:installment_view', 'collections:installment_list'],
   agency_owner: ['collections:plan_view', 'collections:plan_list', 'collections:installment_view', 'collections:installment_list'],
   agency_staff: ['collections:plan_view', 'collections:plan_list', 'collections:installment_view', 'collections:installment_list'],
+  ops_admin: ['collections:installment_link_receivable', 'collections:installment_list', 'collections:installment_pay', 'collections:installment_sync_receivable', 'collections:installment_view', 'collections:plan_create', 'collections:plan_list', 'collections:plan_publish_receivable_requests', 'collections:plan_view', 'collections:receivable_reconcile'],
 };
 
 export function permissionsForRoles(roles: string[] | undefined | null): PermissionKey[] {

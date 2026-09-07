@@ -19,12 +19,25 @@ export class JwtAuthGuard implements CanActivate {
   private readonly jwksUri: string;
   private readonly jwksCache = new Map<string, string>();
   private jwksExpiry = 0;
+  private readonly tenantUuidMap: Record<string, string>;
 
   constructor() {
     this.jwtSecret = process.env.JWT_SECRET || '';
     this.issuer = process.env.IAM_ISSUER || 'http://localhost:8080';
-    this.audience = process.env.JWT_AUDIENCES || 'insurance-platform';
+    this.audience = process.env.JWT_AUDIENCES || 'modern-banking';
+    if (typeof this.audience === 'string' && this.audience.includes(',')) { this.audience = this.audience.split(',').map((s) => s.trim()).filter(Boolean) as any; }
     this.jwksUri = process.env.JWKS_URI || `${this.issuer}/.well-known/jwks.json`;
+    this.tenantUuidMap = this.parseTenantUuidMap(process.env.TENANT_UUID_MAP);
+  }
+
+  private parseTenantUuidMap(raw?: string): Record<string, string> {
+    const map: Record<string, string> = {};
+    if (!raw) return map;
+    for (const pair of raw.split(',')) {
+      const [key, value] = pair.split(':');
+      if (key && value) map[key.trim()] = value.trim();
+    }
+    return map;
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -51,7 +64,7 @@ export class JwtAuthGuard implements CanActivate {
           audience: this.audience,
           algorithms: ['RS256'],
         }) as any;
-        request.user = this.normalizePayload(payload);
+        request.user = this.normalizePayload(payload, request);
         return true;
       }
     } catch (jwksErr: any) {
@@ -73,7 +86,7 @@ export class JwtAuthGuard implements CanActivate {
         audience: this.audience,
         algorithms: ['HS256'],
       }) as any;
-      request.user = this.normalizePayload(payload);
+      request.user = this.normalizePayload(payload, request);
       return true;
     } catch {
       throw new UnauthorizedException({
@@ -117,9 +130,21 @@ export class JwtAuthGuard implements CanActivate {
     return resolved;
   }
 
-  private normalizePayload(payload: any): any {
-    if (payload.tenant_id && !payload.tenantId) {
-      payload.tenantId = payload.tenant_id;
+  private normalizePayload(payload: any, request?: any): any {
+    const rawTenant = payload.tenantId || payload.tenant_id || payload.tenant;
+    if (rawTenant) {
+      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawTenant)) {
+        payload.tenantId = rawTenant;
+      } else if (this.tenantUuidMap[rawTenant]) {
+        payload.tenantId = this.tenantUuidMap[rawTenant];
+      } else {
+        const headerTenant = request?.headers?.['x-tenant-id'] || request?.headers?.['X-Tenant-Id'];
+        if (headerTenant && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(headerTenant)) {
+          payload.tenantId = headerTenant;
+        } else {
+          payload.tenantId = rawTenant;
+        }
+      }
     }
     if (payload.sub && !payload.userId) {
       payload.userId = payload.sub;

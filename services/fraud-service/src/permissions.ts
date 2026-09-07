@@ -7,6 +7,7 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
   legal_ops: ['fraud:investigate', 'fraud:escalate', 'fraud:cases:list'],
   auditor: ['fraud:cases:list'],
   head_office_ops: ['fraud:cases:list'],
+  ops_admin: ['fraud:alert:create', 'fraud:alert:update', 'fraud:alert:view', 'fraud:cases:create', 'fraud:cases:list', 'fraud:cases:view', 'fraud:document:upload', 'fraud:document:view', 'fraud:escalate', 'fraud:graph:create', 'fraud:graph:delete', 'fraud:graph:update', 'fraud:graph:view', 'fraud:investigate', 'fraud:ml:delete', 'fraud:ml:deploy', 'fraud:ml:drift', 'fraud:ml:explain', 'fraud:ml:predict', 'fraud:ml:train', 'fraud:ml:view', 'fraud:score', 'fraud:triage'],
 };
 
 export function permissionsForRoles(roles: string[] | undefined | null): PermissionKey[] {

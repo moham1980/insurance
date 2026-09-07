@@ -26,6 +26,7 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     'portal:renewal:request',
     'portal:fnol:submit',
   ],
+  ops_admin: ['portal:claims:view', 'portal:complaints:view', 'portal:endorsement:request', 'portal:fnol:submit', 'portal:payments:view', 'portal:policies:view', 'portal:renewal:request'],
 };
 
 export function permissionsForRoles(roles: string[] | undefined | null): PermissionKey[] {

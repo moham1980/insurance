@@ -25,6 +25,7 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
   auditor: ['party:view', 'party:list', 'broker:license:manage', 'kyc:list', 'kyc:view'],
   broker_admin: ['party:create', 'party:view', 'party:list', 'party:update', 'party:role:manage', 'broker:license:manage', 'kyc:review', 'kyc:submit', 'kyc:verify', 'kyc:screen', 'kyc:escalate', 'kyc:list', 'kyc:view'],
   broker_staff: ['party:create', 'party:view', 'party:list', 'kyc:submit', 'kyc:list', 'kyc:view'],
+  ops_admin: ['party:create', 'party:view', 'party:list', 'party:manage', 'party:update', 'party:role:manage', 'broker:license:manage', 'kyc:review', 'kyc:submit', 'kyc:verify', 'kyc:screen', 'kyc:escalate', 'kyc:list', 'kyc:view'],
 };
 
 export function permissionsForRoles(roles: string[] | undefined | null): PermissionKey[] {

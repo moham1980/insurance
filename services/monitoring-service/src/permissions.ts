@@ -21,6 +21,7 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
   auditor: ['monitoring:metrics:view', 'monitoring:slos:list', 'monitoring:alerts:list', 'monitoring:dashboard:view'],
   compliance_aml: ['monitoring:dashboard:view'],
   risk_manager: ['monitoring:dashboard:view'],
+  ops_admin: ['monitoring:alerts:ack', 'monitoring:alerts:list', 'monitoring:alerts:silence', 'monitoring:dashboard:view', 'monitoring:metrics:view', 'monitoring:slos:create', 'monitoring:slos:list'],
 };
 
 export function permissionsForRoles(roles: string[] | undefined | null): PermissionKey[] {

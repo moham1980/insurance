@@ -59,6 +59,7 @@ const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
     'document_ai:ocr:confirm',
   ],
   compliance_aml: ['document_ai:audit:list', 'document_ai:usage:view'],
+  ops_admin: ['document_ai:audit:list', 'document_ai:jobs:dlq', 'document_ai:jobs:list', 'document_ai:jobs:retry', 'document_ai:jobs:view', 'document_ai:ocr:classify', 'document_ai:ocr:confirm', 'document_ai:ocr:extract', 'document_ai:ocr:redact', 'document_ai:usage:view'],
 };
 
 export function permissionsForRoles(roles: string[] | undefined | null): PermissionKey[] {

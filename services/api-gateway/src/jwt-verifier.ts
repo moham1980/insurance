@@ -2,8 +2,8 @@ import jwt from 'jsonwebtoken';
 import { JwksClient } from 'jwks-rsa';
 import {
   ALLOWED_ALGORITHMS,
-  JWT_AUDIENCE,
-  JWT_ISSUER,
+  JWT_AUDIENCES,
+  JWT_ISSUERS,
   JWKS_URI,
 } from './gateway.config';
 
@@ -25,9 +25,21 @@ export interface JwtVerificationError {
 class JwtVerifier {
   private readonly jwtSecret: string | undefined;
   private readonly jwksClient: JwksClient | null;
+  private readonly tenantUuidMap: Record<string, string>;
+
+  private parseTenantUuidMap(raw?: string): Record<string, string> {
+    const map: Record<string, string> = {};
+    if (!raw) return map;
+    for (const pair of raw.split(',')) {
+      const [key, value] = pair.split(':');
+      if (key && value) map[key.trim()] = value.trim();
+    }
+    return map;
+  }
 
   constructor() {
     this.jwtSecret = process.env.JWT_SECRET;
+    this.tenantUuidMap = this.parseTenantUuidMap(process.env.TENANT_UUID_MAP);
     this.jwksClient = new JwksClient({
       jwksUri: JWKS_URI,
       cache: true,
@@ -92,31 +104,39 @@ class JwtVerifier {
     secretOrKey: string,
     algorithm: string,
   ): { verified: VerifiedToken } | { error: JwtVerificationError } {
-    try {
-      const payload = jwt.verify(token, secretOrKey, {
-        issuer: JWT_ISSUER,
-        audience: JWT_AUDIENCE,
-        algorithms: [algorithm as jwt.Algorithm],
-      }) as any;
+    const lastErrors: string[] = [];
 
-      const scopes = payload.scope ? String(payload.scope).split(' ') : [];
-      const permissions = Array.isArray(payload.permissions) ? payload.permissions : [];
-      const roles = Array.isArray(payload.roles) ? payload.roles : [];
+    for (const issuer of JWT_ISSUERS) {
+      for (const audience of JWT_AUDIENCES) {
+        try {
+          const payload = jwt.verify(token, secretOrKey, {
+            issuer,
+            audience,
+            algorithms: [algorithm as jwt.Algorithm],
+          }) as any;
 
-      return {
-        verified: {
-          userId: payload.userId || payload.sub,
-          sub: payload.sub,
-          tenantId: payload.tenantId,
-          roles,
-          permissions: [...permissions, ...scopes],
-          scopes,
-          tokenType: payload.tokenType,
-        },
-      };
-    } catch (err: any) {
-      return { error: { code: 'UNAUTHORIZED', message: err?.message || 'Invalid or expired token' } };
+          const scopes = payload.scope ? String(payload.scope).split(' ') : [];
+          const permissions = Array.isArray(payload.permissions) ? payload.permissions : [];
+          const roles = Array.isArray(payload.roles) ? payload.roles : [];
+
+          return {
+            verified: {
+              userId: payload.userId || payload.sub,
+              sub: payload.sub,
+              tenantId: this.tenantUuidMap[payload.tenantId || payload.tenant] || payload.tenantId || payload.tenant,
+              roles,
+              permissions: [...permissions, ...scopes],
+              scopes,
+              tokenType: payload.tokenType,
+            },
+          };
+        } catch (err: any) {
+          lastErrors.push(`iss=${issuer}, aud=${audience}: ${err?.message || 'verify failed'}`);
+        }
+      }
     }
+
+    return { error: { code: 'UNAUTHORIZED', message: lastErrors[lastErrors.length - 1] || 'Invalid or expired token' } };
   }
 }
 

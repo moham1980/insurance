@@ -19,6 +19,27 @@ export type PermissionKey =
   | 'policy:commission_view';
 
 const ROLE_TO_PERMISSIONS: Record<string, PermissionKey[]> = {
+  // Ecosystem admin role (demo-admin)
+  ops_admin: [
+    'policy:quote',
+    'policy:submit_docs',
+    'policy:risk_assess',
+    'policy:underwriting_decide',
+    'policy:issue',
+    'policy:endorse',
+    'policy:cancel',
+    'policy:renew',
+    'policy:view',
+    'policy:list',
+    'policy:set_unique_code',
+    'policy:sanhab_inquiry',
+    'policy:sanhab_inquiries_view',
+    'policy:quality_gate_override',
+    'policy:changes_view',
+    'policy:project',
+    'policy:broker_change',
+    'policy:commission_view',
+  ],
   insurer_admin: [
     'policy:quote',
     'policy:submit_docs',

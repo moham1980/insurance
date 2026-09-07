@@ -13,6 +13,7 @@ export class JwtAuthGuard implements CanActivate {
   private readonly jwtSecret?: string;
   private readonly issuer?: string;
   private readonly audience?: string;
+  private readonly tenantUuidMap: Record<string, string>;
   private jwksCache: Map<string, CachedKey> = new Map();
   private jwksCacheExpiryMs = 5 * 60 * 1000; // 5 minutes
 
@@ -27,6 +28,33 @@ export class JwtAuthGuard implements CanActivate {
     this.jwtSecret = process.env.JWT_SECRET;
     this.issuer = process.env.JWT_ISSUER || process.env.IAM_ISSUER;
     this.audience = process.env.JWT_AUDIENCE || process.env.IAM_AUDIENCE;
+    this.tenantUuidMap = this.parseTenantUuidMap(process.env.TENANT_UUID_MAP);
+  }
+
+  private parseTenantUuidMap(raw?: string): Record<string, string> {
+    const map: Record<string, string> = {};
+    if (!raw) return map;
+    for (const pair of raw.split(',')) {
+      const [key, value] = pair.split(':');
+      if (key && value) map[key.trim()] = value.trim();
+    }
+    return map;
+  }
+
+  private resolveTenantId(payload: any, request: any): string | undefined {
+    const rawTenant = payload.tenantId || payload.tenant_id || payload.tenant;
+    if (!rawTenant) return undefined;
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawTenant)) {
+      return rawTenant;
+    }
+    if (this.tenantUuidMap[rawTenant]) {
+      return this.tenantUuidMap[rawTenant];
+    }
+    const headerTenant = request?.headers?.['x-tenant-id'] || request?.headers?.['X-Tenant-Id'];
+    if (headerTenant && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(headerTenant)) {
+      return headerTenant;
+    }
+    return rawTenant;
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -96,6 +124,10 @@ export class JwtAuthGuard implements CanActivate {
       }
 
       request.user = payload;
+      request.user.tenantId = this.resolveTenantId(payload, request);
+      request.user.permissions = Array.isArray(payload.scope) ? payload.scope : (typeof payload.scope === 'string' ? payload.scope.split(' ') : []);
+      request.globalUserId = payload.sub;
+      request.scopes = request.user.permissions;
       return true;
     } catch (err: any) {
       if (err instanceof UnauthorizedException) throw err;

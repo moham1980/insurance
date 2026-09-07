@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Param, Patch, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
+﻿import { Body, Controller, Get, Headers, Param, Patch, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { PermissionsGuard } from './permissions.guard';
 import { RequirePermissions } from './permissions.decorator';
@@ -23,11 +23,6 @@ export class AmlController {
     const cid = headers['x-correlation-id'] || headers['X-Correlation-Id'];
     if (typeof cid === 'string' && cid.length > 0) return cid;
     return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  }
-
-  @Get('/health')
-  health() {
-    return { status: 'ok', service: 'aml-service' };
   }
 
   @Post('/aml/consents')
@@ -703,7 +698,7 @@ export class AmlController {
     }
   }
 
-  // P2 #2: Async report generation — create a job and return jobId immediately
+  // P2 #2: Async report generation â€” create a job and return jobId immediately
   @Post('/aml/reports/official/async')
   @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
   @RequirePermissions('aml:manage')
@@ -786,7 +781,7 @@ export class AmlController {
     return { success: true, data: job, correlationId };
   }
 
-  // P2 #1: Bulk AML screening — evaluate multiple transactions in a single request
+  // P2 #1: Bulk AML screening â€” evaluate multiple transactions in a single request
   @Post('/aml/transactions/evaluate/bulk')
   @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard, BulkRateLimitGuard)
   @RequirePermissions('aml:alerts:create')
@@ -855,3 +850,4 @@ export class AmlController {
     };
   }
 }
+

@@ -81,6 +81,7 @@ export class ComplaintSlaConsumer implements OnModuleInit, OnModuleDestroy {
           consumerName,
           topic: String(topic),
           eventId: String(eventId),
+          tenantId: 'system',
           handler: async () => {
             if (String(topic) !== 'insurance.complaint.sla_breached') return;
             await this.monitoringService.onComplaintSlaBreached({

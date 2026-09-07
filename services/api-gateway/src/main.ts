@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { AppModule } from './app.module';
@@ -448,7 +449,7 @@ function singleRequestNoProxy(
 
 async function bootstrap() {
   const bodyLimit = parseInt(process.env.BODY_LIMIT_BYTES || '10485760', 10); // 10MB default
-  const adapter = new FastifyAdapter({ bodyLimit } as any);
+  const adapter = new FastifyAdapter({ bodyLimit, http: { maxHeaderSize: 65536 } } as any);
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, adapter);
   const fastify: FastifyInstance = app.getHttpAdapter().getInstance();
 

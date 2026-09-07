@@ -20,7 +20,8 @@ export class JwtAuthGuard implements CanActivate {
     if (!process.env.JWT_SECRET && !process.env.JWKS_URI) throw new Error('JWT_SECRET or JWKS_URI is required');
     this.jwtSecret = process.env.JWT_SECRET || '';
     this.issuer = process.env.IAM_ISSUER || 'http://localhost:18001';
-    this.audience = process.env.JWT_AUDIENCES || 'insurance-platform';
+    this.audience = process.env.JWT_AUDIENCES || 'modern-banking';
+    if (typeof this.audience === 'string' && this.audience.includes(',')) { this.audience = this.audience.split(',').map((s) => s.trim()).filter(Boolean) as any; }
     const jwksUri = process.env.JWKS_URI || `${this.issuer}/.well-known/jwks.json`;
     this.jwksClient = new JwksClient({
       jwksUri,

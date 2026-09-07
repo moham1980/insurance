@@ -23,9 +23,11 @@ export class PermissionsGuard implements CanActivate {
       });
     }
 
-    const perms = Array.isArray(user.permissions)
+    const scopePerms = Array.isArray(user.permissions)
       ? user.permissions.map((x: any) => String(x || '').trim()).filter(Boolean)
-      : permissionsForRoles(user.roles);
+      : [];
+    const rolePerms = permissionsForRoles(user.roles);
+    const perms = Array.from(new Set([...scopePerms, ...rolePerms]));
 
     const ok = required.every((p) => perms.includes(p));
     if (!ok) {

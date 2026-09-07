@@ -39,6 +39,10 @@ export class CreateUnderwritingRequestDto {
   @IsOptional()
   @IsUUID('all')
   brokerOrganizationId?: string;
+
+  @IsOptional()
+  @IsUUID('all')
+  carrierOrganizationId?: string;
 }
 
 export class DecideDto {

@@ -7,6 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Response, Request } from 'express';
+import { ErrorReporter } from '../../common/src/error-reporter';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -32,16 +33,39 @@ export class AllExceptionsFilter implements ExceptionFilter {
         ? downstreamData
         : { success: false, error: { code: 'DOWNSTREAM_ERROR', message: downstreamData?.message || downstreamData?.error?.message || `Downstream service returned ${status}` } };
     } else {
+      // Do NOT leak exception.message to the API consumer — it may contain
+      // internal driver error strings, stack details, or sensitive info.
       const message = exception?.message || 'Internal server error';
       this.logger.error(`Unhandled exception: ${message}`, exception?.stack);
-      body = { success: false, error: { code: 'INTERNAL_ERROR', message } };
+      body = { success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } };
     }
 
     if (!body?.success) {
-      body = { success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal server error' }, ...body };
+      // Spread body first so our safe defaults are not overwritten by any
+      // leaked fields from the original body.
+      body = { ...body, success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } };
     }
 
     body.correlationId = body.correlationId || correlationId;
+
+    // Report a structured error event for central ingestion (Kafka when
+    // available, otherwise a structured log line picked up by log
+    // aggregation). Fire-and-forget; ErrorReporter swallows its own errors.
+    const errorCode = body?.error?.code || 'INTERNAL_ERROR';
+    const safeMessage = body?.error?.message || 'Internal server error';
+    ErrorReporter.report({
+      sourceApp: 'insurance-legacy',
+      service: 'channel-workspace-bff',
+      severity: 'ERROR',
+      category: status >= 500 ? 'BUG' : 'UNKNOWN',
+      errorCode,
+      httpStatus: status,
+      retryable: status >= 500,
+      safeMessage,
+      correlationId,
+    }).catch(() => {
+      /* ErrorReporter already logs internally; ignore rejection */
+    });
 
     response.status(status).json(body);
   }

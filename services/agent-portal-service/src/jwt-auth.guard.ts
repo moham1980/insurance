@@ -9,17 +9,13 @@ export class JwtAuthGuard implements CanActivate {
   private readonly jwksClient: JwksClient | null;
   private readonly issuer: string;
   private readonly audience: string;
-
-  private getCorrelationId(headers: Record<string, any> | undefined): string {
-    const cid = headers?.['x-correlation-id'] || headers?.['X-Correlation-Id'];
-    if (typeof cid === 'string' && cid.length > 0) return cid;
-    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  }
+  private readonly tenantUuidMap: Record<string, string>;
 
   constructor() {
-    this.jwtSecret = process.env.JWT_SECRET || '';
-    this.issuer = process.env.IAM_ISSUER || 'http://localhost:18001';
-    this.audience = process.env.JWT_AUDIENCES || 'insurance-platform';
+    this.jwtSecret = process.env.JWT_SECRET || 'default-secret-change-in-production';
+    this.issuer = process.env.IAM_ISSUER || 'http://localhost:8080';
+    this.audience = process.env.JWT_AUDIENCES || 'modern-banking';
+    if (typeof this.audience === 'string' && this.audience.includes(',')) { this.audience = this.audience.split(',').map((s) => s.trim()).filter(Boolean) as any; }
     const jwksUri = process.env.JWKS_URI || `${this.issuer}/.well-known/jwks.json`;
     this.jwksClient = new JwksClient({
       jwksUri,
@@ -29,23 +25,49 @@ export class JwtAuthGuard implements CanActivate {
       rateLimit: true,
       jwksRequestsPerMinute: 10,
     });
+    this.tenantUuidMap = this.parseTenantUuidMap(process.env.TENANT_UUID_MAP);
+  }
+
+  private parseTenantUuidMap(raw?: string): Record<string, string> {
+    const map: Record<string, string> = {};
+    if (!raw) return map;
+    for (const pair of raw.split(',')) {
+      const [key, value] = pair.split(':');
+      if (key && value) map[key.trim()] = value.trim();
+    }
+    return map;
+  }
+
+  private resolveTenantId(payload: any, request: any): string | undefined {
+    const rawTenant = payload.tenantId || payload.tenant_id || payload.tenant;
+    if (!rawTenant) return undefined;
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawTenant)) {
+      return rawTenant;
+    }
+    if (this.tenantUuidMap[rawTenant]) {
+      return this.tenantUuidMap[rawTenant];
+    }
+    const headerTenant = request?.headers?.['x-tenant-id'] || request?.headers?.['X-Tenant-Id'];
+    if (headerTenant && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(headerTenant)) {
+      return headerTenant;
+    }
+    return rawTenant;
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const authHeader = request?.headers?.authorization as string | undefined;
-    const correlationId = this.getCorrelationId(request?.headers);
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       throw new UnauthorizedException({
         success: false,
         error: { code: 'UNAUTHORIZED', message: 'Authorization token required' },
-        correlationId,
       });
     }
 
     const token = authHeader.substring(7);
 
+    // Try JWKS-based RS256 validation first (ecosystem tokens from iam-service)
     try {
       const decoded = jwt.decode(token, { complete: true }) as any;
       if (decoded?.header?.alg === 'RS256' && decoded?.header?.kid) {
@@ -57,7 +79,9 @@ export class JwtAuthGuard implements CanActivate {
           algorithms: ['RS256'],
         }) as any;
         request.user = payload;
-        request.globalUserId = payload.userId || payload.sub;
+        request.user.tenantId = this.resolveTenantId(payload, request);
+        request.user.permissions = Array.isArray(payload.scope) ? payload.scope : (typeof payload.scope === 'string' ? payload.scope.split(' ') : []);
+        request.globalUserId = payload.sub;
         request.scopes = payload.scope?.split(' ') || [];
         return true;
       }
@@ -65,28 +89,19 @@ export class JwtAuthGuard implements CanActivate {
       this.logger.debug(`JWKS validation failed, falling back to local JWT: ${jwksErr?.message || jwksErr}`);
     }
 
-    if (!this.jwtSecret) {
-      throw new UnauthorizedException({
-        success: false,
-        error: { code: 'UNAUTHORIZED', message: 'JWT_SECRET is not configured' },
-        correlationId,
-      });
-    }
+    // Fallback to local HS256 JWT
     try {
-      const payload = jwt.verify(token, this.jwtSecret, {
-        issuer: this.issuer,
-        audience: this.audience,
-        algorithms: ['HS256'],
-      }) as any;
+      const payload = jwt.verify(token, this.jwtSecret, { algorithms: ['HS256'] }) as any;
       request.user = payload;
-      request.globalUserId = payload.userId || payload.sub || payload.serviceId;
+      request.user.tenantId = this.resolveTenantId(payload, request);
+      request.user.permissions = Array.isArray(payload.scope) ? payload.scope : (typeof payload.scope === 'string' ? payload.scope.split(' ') : []);
+      request.globalUserId = payload.sub;
       request.scopes = payload.scope?.split(' ') || [];
       return true;
     } catch {
       throw new UnauthorizedException({
         success: false,
         error: { code: 'UNAUTHORIZED', message: 'Invalid or expired token' },
-        correlationId,
       });
     }
   }

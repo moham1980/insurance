@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Headers, Param, Put, Query, UseGuards } from '@nestjs/common';
+﻿import { Body, Controller, Delete, Get, Headers, Param, Put, Query, UseGuards } from '@nestjs/common';
 import { FeatureFlagsService } from './feature-flags.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { Permissions } from './permissions.decorator';
@@ -14,11 +14,6 @@ export class FeatureFlagsController {
     const cid = headers['x-correlation-id'] || headers['X-Correlation-Id'];
     if (typeof cid === 'string' && cid.length > 0) return cid;
     return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  }
-
-  @Get('/health')
-  health() {
-    return { status: 'ok', service: 'feature-flags-service' };
   }
 
   @Get('/feature-flags')
@@ -68,7 +63,7 @@ export class FeatureFlagsController {
     };
   }
 
-  // P2 #9: A/B testing — variant evaluation endpoint
+  // P2 #9: A/B testing â€” variant evaluation endpoint
   @Get('/feature-flags/:key/variant')
   @UseGuards(JwtAuthGuard, PermissionsGuard, AbacGuard, TenantGuard)
   @Permissions('feature_flags:view')
@@ -133,3 +128,4 @@ export class FeatureFlagsController {
     return { success: true, correlationId };
   }
 }
+
