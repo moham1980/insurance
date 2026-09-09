@@ -856,6 +856,46 @@ async function bootstrap() {
 
         const rawContentType = upstream.headers['content-type'];
         const contentType = (Array.isArray(rawContentType) ? rawContentType[0] : rawContentType || '').toLowerCase();
+
+        // Upstream error body sanitizer: if the upstream returned 5xx, never
+        // forward the raw body to the client — it may contain driver error
+        // strings, stack traces, or internal hostnames. Replace with a safe
+        // JSON envelope unless the upstream already provided a structured
+        // error with an errorCode/error.code field.
+        if (upstream.status >= 500) {
+          let safeToForward = false;
+          if (contentType.includes('application/json')) {
+            try {
+              const json = JSON.parse(Buffer.from(upstream.body).toString('utf8'));
+              // Only forward if it has a structured error code (our envelope).
+              if (json && typeof json === 'object' &&
+                  (json.errorCode || json?.error?.code || json?.error?.errorCode)) {
+                safeToForward = true;
+                reply.send(json);
+              }
+            } catch {
+              // malformed JSON — not safe
+            }
+          }
+          if (!safeToForward) {
+            logger.warn('upstream 5xx body sanitized (unsafe or non-JSON)', {
+              service: name,
+              url: upstreamUrl,
+              status: upstream.status,
+              contentType,
+            });
+            reply.code(502).send({
+              success: false,
+              error: {
+                code: 'DOWNSTREAM_ERROR',
+                message: `Upstream service ${name} returned an error`,
+              },
+              correlationId: req.correlationId,
+            });
+          }
+          return;
+        }
+
         if (contentType.includes('application/json')) {
           try {
             const json = JSON.parse(Buffer.from(upstream.body).toString('utf8'));

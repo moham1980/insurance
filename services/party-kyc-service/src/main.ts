@@ -4,6 +4,7 @@ import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify
 import { AppModule } from './app.module';
 import { DataSource } from 'typeorm';
 import { createLogger, createTracer, KafkaProducer, OutboxWorker } from '@insurance/shared';
+import { AllExceptionsFilter } from '../../common/src/all-exceptions.filter';
 
 const tracer = createTracer({
   serviceName: 'party-kyc-service',
@@ -44,6 +45,7 @@ async function bootstrap() {
     await worker.start();
   }
 
+  app.useGlobalFilters(new AllExceptionsFilter());
   await app.listen({ port, host: '0.0.0.0' });
 }
 

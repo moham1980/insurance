@@ -1,5 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import * as fs from 'fs';
+import * as path from 'path';
 
 export interface AlertChannel {
   type: 'email' | 'pager' | 'slack' | 'webhook';
@@ -30,8 +32,20 @@ export interface Alert {
 }
 
 @Injectable()
-export class AlertingService {
+export class AlertingService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(AlertingService.name);
+  private readonly stateFilePath = path.resolve(process.cwd(), 'data', 'alerting-state.json');
+  private persistenceTimer: NodeJS.Timeout | null = null;
+  // WARNING: All state below is in-memory only. Alerts, rules, cooldowns, and
+  // silences are lost on every process restart. For production use, this
+  // service needs durable storage (e.g. a database table or Redis) so that:
+  //   - Fired alerts are persisted for audit and post-incident review.
+  //   - Alert rules and channel config survive restarts.
+  //   - Cooldown windows are not reset on redeploy (which could cause alert
+  //     storms after restart).
+  //   - Maintenance-window silences persist across restarts.
+  // TODO: migrate this state to the existing DataSource (see MonitoringEntities)
+  // or a Redis-backed store before relying on it in production.
   private channels: Map<string, AlertChannel> = new Map();
   private rules: Map<string, AlertRule> = new Map();
   private alerts: Alert[] = [];
@@ -42,6 +56,99 @@ export class AlertingService {
   constructor(private readonly configService: ConfigService) {
     this.initializeChannels();
     this.initializeRules();
+    this.loadPersistedState();
+  }
+
+  onModuleInit() {
+    // Persist alerts, rules, and silences to disk every 60 seconds.
+    this.persistenceTimer = setInterval(() => this.persistState(), 60_000);
+    // Avoid keeping the Node.js process alive solely for this timer.
+    if (this.persistenceTimer && typeof this.persistenceTimer.unref === 'function') {
+      this.persistenceTimer.unref();
+    }
+    this.logger.log('Alerting state persistence timer started (60s interval)');
+  }
+
+  onModuleDestroy() {
+    if (this.persistenceTimer) {
+      clearInterval(this.persistenceTimer);
+      this.persistenceTimer = null;
+    }
+    // Flush state once on shutdown so the latest data is on disk.
+    this.persistState();
+  }
+
+  /**
+   * Load persisted alerts, rules, and silences from ./data/alerting-state.json
+   * if it exists. Merges persisted rules over the defaults initialized in
+   * initializeRules() so that operator-edited rules survive restarts.
+   */
+  private loadPersistedState(): void {
+    try {
+      if (!fs.existsSync(this.stateFilePath)) {
+        return;
+      }
+      const raw = fs.readFileSync(this.stateFilePath, 'utf-8');
+      const state = JSON.parse(raw) as {
+        alerts?: Alert[];
+        rules?: AlertRule[];
+        silences?: Array<{ ruleId: string; silenceUntil: string }>;
+      };
+
+      if (Array.isArray(state.alerts)) {
+        // Restore alerts, parsing ISO timestamps back into Date objects.
+        this.alerts = state.alerts.map((a) => ({
+          ...a,
+          timestamp: new Date(a.timestamp),
+        }));
+        this.logger.log(`Loaded ${this.alerts.length} persisted alert(s) from ${this.stateFilePath}`);
+      }
+
+      if (Array.isArray(state.rules)) {
+        for (const rule of state.rules) {
+          this.rules.set(rule.id, rule);
+        }
+        this.logger.log(`Loaded ${state.rules.length} persisted alert rule(s) from ${this.stateFilePath}`);
+      }
+
+      if (Array.isArray(state.silences)) {
+        for (const s of state.silences) {
+          const until = new Date(s.silenceUntil);
+          // Only restore silences that are still active.
+          if (until.getTime() > Date.now()) {
+            this.silences.set(s.ruleId, until);
+          }
+        }
+        this.logger.log(`Loaded ${this.silences.size} active silence(s) from ${this.stateFilePath}`);
+      }
+    } catch (e) {
+      this.logger.error(`Failed to load persisted alerting state: ${e}`);
+    }
+  }
+
+  /**
+   * Persist alerts, rules, and silences to ./data/alerting-state.json.
+   * Creates the ./data directory if it does not exist.
+   */
+  private persistState(): void {
+    try {
+      const dir = path.dirname(this.stateFilePath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      const state = {
+        alerts: this.alerts,
+        rules: Array.from(this.rules.values()),
+        silences: Array.from(this.silences.entries()).map(([ruleId, silenceUntil]) => ({
+          ruleId,
+          silenceUntil: silenceUntil.toISOString(),
+        })),
+        savedAt: new Date().toISOString(),
+      };
+      fs.writeFileSync(this.stateFilePath, JSON.stringify(state, null, 2), 'utf-8');
+    } catch (e) {
+      this.logger.error(`Failed to persist alerting state: ${e}`);
+    }
   }
 
   private initializeChannels() {

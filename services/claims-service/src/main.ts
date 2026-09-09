@@ -5,6 +5,7 @@ import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify
 import { AppModule } from './app.module';
 import { DataSource } from 'typeorm';
 import { createLogger, KafkaProducer, OutboxWorker } from '@insurance/shared';
+import { AllExceptionsFilter } from '../../common/src/all-exceptions.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter());
@@ -33,6 +34,7 @@ async function bootstrap() {
     await worker.start();
   }
 
+  app.useGlobalFilters(new AllExceptionsFilter());
   await app.listen({ port, host: '0.0.0.0' });
 }
 

@@ -5,6 +5,7 @@ import { DataSource } from 'typeorm';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import helmet from '@fastify/helmet';
 import { AppModule } from './app.module';
+import { AllExceptionsFilter } from '../../common/src/all-exceptions.filter';
 
 async function bootstrap() {
   const logger = new Logger('UnderwritingBootstrap');
@@ -61,6 +62,7 @@ async function bootstrap() {
     }
   });
 
+  app.useGlobalFilters(new AllExceptionsFilter());
   await app.listen({ port, host: '0.0.0.0' });
 }
 

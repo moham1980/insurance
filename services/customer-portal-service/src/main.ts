@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { DataSource } from 'typeorm';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { AppModule } from './app.module';
+import { AllExceptionsFilter } from '../../common/src/all-exceptions.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter());
@@ -27,6 +28,7 @@ async function bootstrap() {
     console.log('OutboxWorker started for customer-portal');
   }
 
+app.useGlobalFilters(new AllExceptionsFilter());
 await app.listen({ port, host: '0.0.0.0' });
   console.log(`Customer Portal Service listening on port ${port}`);
 }

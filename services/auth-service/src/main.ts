@@ -5,6 +5,7 @@ import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify
 import { ValidationPipe } from '@nestjs/common';
 import { createTracer } from '@insurance/shared';
 import { AppModule } from './app.module';
+import { AllExceptionsFilter } from '../../common/src/all-exceptions.filter';
 
 const tracer = createTracer({
   serviceName: 'auth-service',
@@ -63,6 +64,7 @@ async function bootstrap() {
     console.log('OutboxWorker started for auth');
   }
 
+  app.useGlobalFilters(new AllExceptionsFilter());
 await app.listen({ port, host: '0.0.0.0' });
 }
 

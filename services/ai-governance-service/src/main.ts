@@ -5,6 +5,7 @@ import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify
 import { AppModule } from './app.module';
 import { createLogger } from '@insurance/shared';
 import { EcosystemSyncService } from './services/ecosystem-sync.service';
+import { AllExceptionsFilter } from '../../common/src/all-exceptions.filter';
 
 async function bootstrap() {
   const logger = createLogger({
@@ -70,6 +71,7 @@ async function bootstrap() {
     console.log('Kafka consumer started for ai.governance.policy.update');
   }
 
+app.useGlobalFilters(new AllExceptionsFilter());
 await app.listen(port, '0.0.0.0');
   logger.info(`AI Governance Service running on port ${port}`);
 }

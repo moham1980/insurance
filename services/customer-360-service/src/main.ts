@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { DataSource } from 'typeorm';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { AppModule } from './app.module';
+import { AllExceptionsFilter } from '../../common/src/all-exceptions.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
@@ -31,6 +32,7 @@ async function bootstrap() {
     console.log('OutboxWorker started for customer-360');
   }
 
+app.useGlobalFilters(new AllExceptionsFilter());
 await app.listen(process.env.PORT || 3010);
   console.log(`Customer 360 Service listening on port ${process.env.PORT || 3010}`);
 }

@@ -5,6 +5,7 @@ import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify
 import { AppModule } from './app.module';
 import { DataSource } from 'typeorm';
 import { DeadLetterQueueService, KafkaConsumer, consumeOnce, createLogger, KafkaProducer, OutboxWorker } from '@insurance/shared';
+import { AllExceptionsFilter } from '../../common/src/all-exceptions.filter';
 import { PaymentsService } from './payments.service';
 
 async function bootstrap() {
@@ -152,6 +153,7 @@ async function bootstrap() {
     });
   }
 
+  app.useGlobalFilters(new AllExceptionsFilter());
   await app.listen({ port, host: '0.0.0.0' });
 }
 

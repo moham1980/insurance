@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Body, Headers, UseGuards } from '@nestjs/common';
 import { OtelService } from './otel.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { ErrorReporter } from '../../common/src/error-reporter';
 
 @Controller('otel')
 export class OtelController {
@@ -74,12 +75,46 @@ export class OtelController {
 
   @Post('exception')
   @UseGuards(JwtAuthGuard)
-  async recordException(@Body() body: { error: string; stack?: string }) {
+  async recordException(
+    @Body() body: { error: string; stack?: string; service?: string; traceId?: string; correlationId?: string },
+    @Headers() headers: Record<string, string>,
+  ) {
     const error = new Error(body.error);
     if (body.stack) {
       error.stack = body.stack;
     }
     this.otelService.recordException(error);
+
+    // Forward the exception to the central error pipeline (Kafka when
+    // available, structured log otherwise) so it is visible alongside
+    // exceptions captured by AllExceptionsFilter across all services.
+    const traceId =
+      body.traceId ||
+      headers['x-trace-id'] ||
+      headers['x-correlation-id'] ||
+      undefined;
+    const correlationId =
+      body.correlationId ||
+      headers['x-correlation-id'] ||
+      traceId ||
+      undefined;
+
+    ErrorReporter.report({
+      sourceType: 'BACKEND',
+      sourceApp: 'insurance-legacy',
+      service: body.service || 'monitoring',
+      errorCode: 'OTEL_REPORTED_EXCEPTION',
+      httpStatus: 500,
+      safeMessage: body.error || 'Reported exception',
+      traceId,
+      correlationId,
+      severity: 'ERROR',
+      category: 'BUG',
+      retryable: true,
+    }).catch(() => {
+      /* ErrorReporter logs internally; ignore rejection */
+    });
+
     return {
       success: true,
       message: 'Exception recorded',

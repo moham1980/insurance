@@ -2,65 +2,9 @@ import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
-import { ArgumentsHost, Catch, HttpException } from '@nestjs/common';
-import type { ExceptionFilter } from '@nestjs/common';
 import { ProxyAgent, setGlobalDispatcher } from 'undici';
 import { AppModule } from './app.module';
-
-@Catch()
-class GlobalHttpExceptionFilter implements ExceptionFilter {
-  catch(exception: unknown, host: ArgumentsHost) {
-    const ctx = host.switchToHttp();
-    const request: any = ctx.getRequest();
-    const reply: any = ctx.getResponse();
-
-    const correlationId =
-      request?.correlationId ||
-      request?.headers?.['x-correlation-id'] ||
-      request?.headers?.['X-Correlation-Id'] ||
-      `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-    if (reply?.header) {
-      reply.header('X-Correlation-Id', correlationId);
-    }
-
-    let statusCode = 500;
-    let code = 'INTERNAL_ERROR';
-    let message = 'Internal error';
-
-    if (exception instanceof HttpException) {
-      statusCode = exception.getStatus();
-      const r: any = exception.getResponse();
-
-      if (r && typeof r === 'object') {
-        const err = (r as any).error;
-        if (err && typeof err === 'object') {
-          if (typeof err.code === 'string' && err.code.length > 0) code = err.code;
-          if (typeof err.message === 'string' && err.message.length > 0) message = err.message;
-        }
-      }
-
-      if (statusCode === 401 && code === 'INTERNAL_ERROR') code = 'UNAUTHORIZED';
-      if (statusCode === 403 && code === 'INTERNAL_ERROR') code = 'FORBIDDEN';
-      if (statusCode === 404 && code === 'INTERNAL_ERROR') code = 'NOT_FOUND';
-    } else if (exception instanceof Error) {
-      message = exception.message || message;
-    }
-
-    const body = {
-      success: false,
-      error: { code, message },
-      correlationId,
-    };
-
-    if (reply?.status && reply?.send) {
-      reply.status(statusCode).send(body);
-      return;
-    }
-
-    return body as any;
-  }
-}
+import { AllExceptionsFilter } from '../../common/src/all-exceptions.filter';
 
 async function bootstrap() {
   const proxyUrl = process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
@@ -82,7 +26,7 @@ async function bootstrap() {
     });
   }
 
-  app.useGlobalFilters(new GlobalHttpExceptionFilter());
+  app.useGlobalFilters(new AllExceptionsFilter());
   const port = parseInt(process.env.PORT || '3021', 10);
     // OutboxWorker setup for reliable event publishing
   const dataSource = app.get(DataSource);

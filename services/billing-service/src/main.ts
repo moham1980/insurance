@@ -5,6 +5,7 @@ import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { BillingService } from './billing.service';
+import { AllExceptionsFilter } from '../../common/src/all-exceptions.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter());
@@ -108,6 +109,7 @@ async function bootstrap() {
     });
   }
 
+  app.useGlobalFilters(new AllExceptionsFilter());
   await app.listen({ port, host: '0.0.0.0' });
   console.log(`Billing Service listening on port ${port}`);
 }

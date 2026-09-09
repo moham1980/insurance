@@ -4,6 +4,7 @@ import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify
 import { DataSource } from 'typeorm';
 import { DeadLetterQueueService, KafkaConsumer, consumeOnce, createLogger } from '@insurance/shared';
 import { AppModule } from './app.module';
+import { AllExceptionsFilter } from '../../common/src/all-exceptions.filter';
 import { MonitoringService } from './monitoring.service';
 
 async function bootstrap() {
@@ -113,6 +114,7 @@ async function bootstrap() {
     console.log('OutboxWorker started for monitoring');
   }
 
+app.useGlobalFilters(new AllExceptionsFilter());
 await app.listen({ port, host: '0.0.0.0' });
 }
 

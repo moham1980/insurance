@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { AllExceptionsFilter } from '../../common/src/all-exceptions.filter';
 
 /**
  * Build allowed CORS origins from env.
@@ -35,6 +36,7 @@ async function bootstrap() {
     credentials: true,
   });
   const port = parseInt(process.env.PORT || '3000', 10);
+  app.useGlobalFilters(new AllExceptionsFilter());
   await app.listen(port);
   console.log(`Customer Portal BFF listening on port ${port} (CORS origins: ${allowedOrigins.join(', ')})`);
 }
